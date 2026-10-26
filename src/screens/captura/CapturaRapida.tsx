@@ -3,12 +3,14 @@ import { router } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, TextInput, View, type TextInputInstance } from 'react-native';
 
-import { Texto, Titulo } from '@/components';
-import type { Evento } from '@/data/eventos';
+import { Boton, Tarjeta, Texto, Titulo } from '@/components';
+import { useEventos, type Evento } from '@/data/eventos';
 import { usePerfil } from '@/data/perfil';
 import { MAX_FRASE, interpretarFrase, type Propuesta } from '@/services/captura';
 import { dejarBorrador, type BorradorFicha } from '@/services/captura/borrador';
+import { entenderPregunta, respuestaDelDia } from '@/services/consulta';
 import { fechaDesdeClave, formatearDiaCorto, type ClaveDia } from '@/services/fechas';
+import { callar, hablar } from '@/services/voz';
 import { alturaTactil, colores, espacio, fuentes, radio, tamanos } from '@/theme';
 
 import { AvisoMicrofono, BotonMicrofono } from './BotonMicrofono';
@@ -33,6 +35,10 @@ import { useDictado } from './useDictado';
 // módulo): queda el micro del teclado. "escucharAlAbrir" (un número que cambia cada
 // vez) empieza a escuchar sin tocar nada: lo usan /?voz=1, los accesos directos y el
 // widget. En la web no, porque el navegador solo deja usar el micro tras un toque.
+//
+// Preguntas por la agenda, sin IA (26/10/2026): «¿qué tengo el miércoles?», «¿tengo algo
+// mañana?», «¿qué hay el 5 de noviembre?»... no van a la IA: se contestan aquí con
+// reglas (services/consulta) y la respuesta se lee en voz alta (services/voz).
 
 type Props = {
   hoy: ClaveDia;
@@ -65,10 +71,13 @@ function textoGuardado(evento: Evento): string {
 
 export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano, escucharAlAbrir }: Props) {
   const { perfil } = usePerfil();
+  const { eventos } = useEventos();
   const [frase, setFrase] = useState('');
   const [pensando, setPensando] = useState(false);
   const [propuesta, setPropuesta] = useState<Propuesta | null>(null);
   const [hecho, setHecho] = useState<string | null>(null);
+  const [respuesta, setRespuesta] = useState<string | null>(null);
+  const [hablando, setHablando] = useState(false);
   const campo = useRef<TextInputInstance>(null);
 
   const enviar = async (texto: string) => {
@@ -77,6 +86,15 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
     setFrase(limpia);
     setHecho(null);
     setPropuesta(null);
+    // «¿Qué tengo el miércoles?»: se contesta aquí, sin IA, y se lee en voz alta.
+    const dia = entenderPregunta(limpia, hoy);
+    if (dia) {
+      campo.current?.blur();
+      setFrase('');
+      decir(respuestaDelDia({ eventos, dia, ahora: new Date(), perfil }));
+      return;
+    }
+    setRespuesta(null);
     setPensando(true);
     campo.current?.blur();
     const resultado = await interpretarFrase(limpia, perfil);
@@ -88,6 +106,21 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
     // Sin conexión, error o poca confianza: la ficha normal con la frase como título.
     abrirFicha({ titulo: limpia.charAt(0).toLocaleUpperCase('es-ES') + limpia.slice(1), mensaje: resultado.mensaje }, hoy);
     setFrase('');
+  };
+
+  // Al salir de Hoy se calla.
+  useEffect(() => () => callar(), []);
+
+  const decir = (texto: string) => {
+    setRespuesta(texto);
+    setHablando(true);
+    hablar(texto, () => setHablando(false));
+  };
+
+  const cerrarRespuesta = () => {
+    callar();
+    setHablando(false);
+    setRespuesta(null);
   };
 
   useEffect(() => {
@@ -126,11 +159,11 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
   const puedeEnviar = frase.trim().length > 0 && !pensando && !escuchando;
 
   // Plegada y sin nada en marcha: no enseña nada (pero sigue escuchando frases de fuera).
-  if (plegada && !pensando && !propuesta && !hecho && dictado.fase === 'quieto') return null;
+  if (plegada && !pensando && !propuesta && !hecho && !respuesta && dictado.fase === 'quieto') return null;
 
   const ayuda = dictado.disponible
-    ? 'Escríbelo como te salga, o toca el micro y dímelo.'
-    : 'Escríbelo como te salga, o díctalo con el micrófono del teclado.';
+    ? 'Escríbelo como te salga, o toca el micro y dímelo. También puedes preguntarme «¿qué tengo el miércoles?».'
+    : 'Escríbelo como te salga, o díctalo con el micrófono del teclado. También puedes preguntarme «¿qué tengo el miércoles?».';
 
   return (
     <View style={estilos.contenedor}>
@@ -202,11 +235,38 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
         <Texto pequeno accessibilityLiveRegion="polite">
           {hecho}
         </Texto>
-      ) : !propuesta && dictado.fase === 'quieto' ? (
+      ) : !propuesta && !respuesta && dictado.fase === 'quieto' ? (
         <Texto pequeno secundario>{ayuda}</Texto>
       ) : null}
 
-      {alRellenarAMano && !propuesta && !pensando && !escuchando ? (
+      {respuesta ? (
+        <Tarjeta style={estilos.respuesta}>
+          <View style={estilos.filaRespuesta}>
+            <Ionicons name={hablando ? 'volume-high' : 'chatbubble-ellipses-outline'} size={22} color={colores.principal} />
+            <Texto style={estilos.textoRespuesta} accessibilityLiveRegion="polite">
+              {respuesta}
+            </Texto>
+          </View>
+          <View style={estilos.botonesRespuesta}>
+            <Boton
+              titulo={hablando ? 'Callar' : 'Escuchar'}
+              variante="secundario"
+              accessibilityLabel={hablando ? 'Dejar de leer la respuesta' : 'Leer la respuesta en voz alta'}
+              onPress={() => {
+                if (hablando) {
+                  callar();
+                  setHablando(false);
+                } else {
+                  decir(respuesta);
+                }
+              }}
+            />
+            <Boton titulo="Cerrar" variante="secundario" onPress={cerrarRespuesta} />
+          </View>
+        </Tarjeta>
+      ) : null}
+
+      {alRellenarAMano && !propuesta && !respuesta && !pensando && !escuchando ? (
         <Pressable
           accessibilityRole="button"
           onPress={alRellenarAMano}
@@ -274,4 +334,8 @@ const estilos = StyleSheet.create({
   },
   textoEnlace: { color: colores.principal },
   fallo: { color: colores.aviso },
+  respuesta: { gap: espacio.m },
+  filaRespuesta: { flexDirection: 'row', alignItems: 'flex-start', gap: espacio.s },
+  textoRespuesta: { flex: 1 },
+  botonesRespuesta: { flexDirection: 'row', flexWrap: 'wrap', gap: espacio.s },
 });
