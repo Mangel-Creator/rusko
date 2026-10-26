@@ -14,7 +14,8 @@ function icono(nombre: NombreIcono, nombreActivo: NombreIcono) {
   return IconoPestana;
 }
 
-// Barra inferior con las 5 pestañas de Organizy.
+// Barra inferior con las 5 pestañas de Organizy. Planes y Alarmas no están aquí
+// (lo pidió el usuario el 26/10): se abren desde las acciones rápidas de Hoy.
 export default function LayoutPestanas() {
   return (
     <Tabs
@@ -39,16 +40,16 @@ export default function LayoutPestanas() {
         options={{ title: 'Semana', tabBarIcon: icono('calendar-outline', 'calendar') }}
       />
       <Tabs.Screen
-        name="planes"
-        options={{ title: 'Planes', tabBarIcon: icono('people-outline', 'people') }}
+        name="resumenes"
+        options={{ title: 'Correo', tabBarIcon: icono('mail-outline', 'mail') }}
       />
       <Tabs.Screen
         name="mapa"
         options={{ title: 'Mapa', tabBarIcon: icono('map-outline', 'map') }}
       />
       <Tabs.Screen
-        name="alarmas"
-        options={{ title: 'Alarmas', tabBarIcon: icono('alarm-outline', 'alarm') }}
+        name="epoca"
+        options={{ title: 'Época', tabBarIcon: icono('star-outline', 'star') }}
       />
     </Tabs>
   );

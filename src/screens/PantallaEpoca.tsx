@@ -40,13 +40,8 @@ import { BarraHoras } from './epoca/BarraHoras';
 import { RepasoIA } from './epoca/RepasoIA';
 import { DESCANSO_TEXTO, formatoHoras, NOMBRE_TIPO, NOMBRES_DIAS } from './epoca/textos';
 
-// Sección de la Época dorada (/epoca o /epoca?id=...). Sin id enseña la activa;
-// si no hay ninguna, explica el modo y deja crear una.
-
-function volver() {
-  if (router.canGoBack()) router.back();
-  else router.replace('/');
-}
+// Pestaña Época dorada (/epoca o /epoca?id=...). Sin id enseña la activa;
+// si no hay ninguna, explica el modo y deja crear una. Con id, "Volver" quita el id.
 
 const dia = (clave: string) => formatearDiaCorto(fechaDesdeClave(clave));
 
@@ -63,7 +58,7 @@ export function PantallaEpoca() {
 
   return (
     <Pantalla>
-      <BotonVolver />
+      {id ? <BotonAtras texto="Época dorada" etiqueta="Volver" onPress={() => router.setParams({ id: undefined })} /> : null}
       {!cargado ? (
         <Texto secundario>Cargando…</Texto>
       ) : epoca && plan ? (
@@ -101,7 +96,7 @@ function SinEpoca({ epocas, hoy }: { epocas: Epoca[]; hoy: string }) {
             <Pressable
               key={e.id}
               accessibilityRole="button"
-              onPress={() => router.push({ pathname: '/epoca', params: { id: e.id } })}
+              onPress={() => router.setParams({ id: e.id })}
               style={({ pressed }) => [estilos.filaEpoca, pressed && estilos.pulsado]}>
               <View style={estilos.textos}>
                 <Texto fuerte>{e.nombre}</Texto>
@@ -343,7 +338,7 @@ function DetalleEpoca({ epoca, plan, registro, perfil, hoy }: PropsDetalle) {
                 await terminarEpoca(epoca.id);
                 setConfirmar(null);
               } else {
-                volver();
+                router.setParams({ id: undefined });
                 await borrarEpoca(epoca.id);
               }
             }}
@@ -386,12 +381,6 @@ function Etiqueta() {
         Época dorada
       </Texto>
     </View>
-  );
-}
-
-function BotonVolver() {
-  return (
-    <BotonAtras texto="Volver" onPress={volver} />
   );
 }
 

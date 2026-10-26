@@ -3,7 +3,7 @@ import { router, useFocusEffect } from 'expo-router';
 import { useCallback, type ReactNode } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
-import { Boton, Pantalla, Plegable, Texto, Titulo } from '@/components';
+import { Boton, BotonAtras, Pantalla, Plegable, Texto, Titulo } from '@/components';
 import { supabaseConfigurado } from '@/data/supabase';
 import { usePlanes, type Plan } from '@/data/planes';
 import { claveDia } from '@/services/fechas';
@@ -12,7 +12,7 @@ import { alturaTactil, colorTipo, colores, espacio, radio } from '@/theme';
 
 import { BaldosaTipo, textoDia } from './planes/piezas';
 
-// Pestaña Planes (fase 8): los que están votándose, los cerrados y, plegados, los
+// Planes (fase 8, se abre desde Hoy): los que están votándose, los cerrados y, plegados, los
 // pasados. "Nuevo plan" abre el formulario. Al entrar se traen los votos nuevos.
 
 export function PantallaPlanes() {
@@ -37,6 +37,7 @@ export function PantallaPlanes() {
 
   return (
     <Pantalla>
+      <BotonAtras texto="Hoy" etiqueta="Volver" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
       <Titulo>Planes</Titulo>
       <Boton titulo="Nuevo plan" onPress={() => router.push('/plan-nuevo')} disabled={!supabaseConfigurado} />
       {!supabaseConfigurado ? (

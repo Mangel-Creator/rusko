@@ -376,6 +376,13 @@ sesión que fuera**:
   TomTom los cobra) y, si al llegar está lleno, **"Está lleno, llévame a otro"** abre el
   siguiente con un toque. Aparca sobre todo en **Alicante** (no se ha comprobado si su
   ayuntamiento publica plazas libres; mirarlo si pide datos reales). Ver "Fase 6".
+- 26/10/2026 — **Barra inferior: Hoy · Semana · Correo · Mapa · Época.** Lo pidió el
+  usuario ("quita planes y alarmas y pon el resumen del correo y época dorada"). Correo es
+  `/resumenes` y Época es `/epoca`, ahora pestañas (sin "Volver"; la ficha de una época
+  concreta, `/epoca?id=`, sí lo lleva y vuelve a la portada de la pestaña). **Planes** y
+  **Alarmas** pasan a pantallas normales con "‹ Hoy" arriba; se abren desde las acciones
+  rápidas de Hoy (Apuntar · Dictar · Planes · Alarmas), y las rutas `/planes` y `/alarmas`
+  no cambian (los avisos siguen llevando allí).
 
 ## Cómo prueba el usuario en el iPhone
 
@@ -464,15 +471,16 @@ src/
     bienvenida.tsx     Formulario de bienvenida (solo si no se ha completado).
     perfil.tsx         Perfil (se abre desde el botón con la inicial en Hoy).
     evento.tsx         Ficha de evento: /evento?fecha=AAAA-MM-DD (nuevo) o ?id= (editar).
-    epoca.tsx          Sección de la Época dorada: /epoca (la activa) o /epoca?id=.
     epoca-editar.tsx   Formulario de la época en 3 pasos: nueva, o ?id= (y &paso=3).
     alarma.tsx         Nueva alarma (/alarma) o editar (/alarma?id=).
+    planes.tsx         Planes (se abre desde Hoy)
+    alarmas.tsx        Alarmas (se abre desde Hoy)
     (tabs)/_layout.tsx Barra inferior con las 5 pestañas.
     (tabs)/index.tsx   Hoy
     (tabs)/semana.tsx  Semana
-    (tabs)/planes.tsx  Planes
+    (tabs)/resumenes.tsx Correo: resúmenes de correo (/resumenes)
     (tabs)/mapa.tsx    Mapa
-    (tabs)/alarmas.tsx Alarmas
+    (tabs)/epoca.tsx   Época dorada: /epoca (la activa) o /epoca?id=
   screens/             Una pantalla por archivo (PantallaHoy, PantallaSemana...).
     formulario-perfil/ Piezas compartidas por Bienvenida y Perfil (campos, borrador,
                        comprobaciones y tarjetas de permisos).

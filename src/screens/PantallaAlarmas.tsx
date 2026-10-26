@@ -3,7 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useEffect } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { BotonFlotante, Pantalla, Tarjeta, Texto, Titulo } from '@/components';
+import { BotonAtras, BotonFlotante, Pantalla, Tarjeta, Texto, Titulo } from '@/components';
 import { useAlarmas } from '@/data/alarmas';
 import { permisoAlarmas } from '@/services/alarmas';
 import { colores, espacio } from '@/theme';
@@ -15,7 +15,7 @@ import { SeccionSalidas } from './alarmas/SeccionSalidas';
 import { TarjetaInteligente } from './alarmas/TarjetaInteligente';
 import { useAhora } from './calendario/useAhora';
 
-// Pestaña Alarmas (fase 7): la inteligente arriba en oscuro, la lista de alarmas,
+// Alarmas (fase 7, se abre desde Hoy): la inteligente arriba en oscuro, la lista de alarmas,
 // las de salida (ajustadas al tráfico) y la hora de dormir. El "+" crea una.
 // Cómo suenan depende de dónde corre la app: lo dice AvisoNivel en una línea.
 export function PantallaAlarmas() {
@@ -32,6 +32,7 @@ export function PantallaAlarmas() {
   return (
     <View style={estilos.contenedor}>
       <Pantalla>
+        <BotonAtras texto="Hoy" etiqueta="Volver" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
         <Titulo>Alarmas</Titulo>
         <AvisoNivel />
 

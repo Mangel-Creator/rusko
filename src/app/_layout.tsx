@@ -150,12 +150,12 @@ export default function LayoutRaiz() {
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="perfil" />
           <Stack.Screen name="evento" />
-          <Stack.Screen name="epoca" />
           <Stack.Screen name="epoca-editar" />
           <Stack.Screen name="alarma" />
           <Stack.Screen name="plan" />
           <Stack.Screen name="plan-nuevo" />
-          <Stack.Screen name="resumenes" />
+          <Stack.Screen name="planes" />
+          <Stack.Screen name="alarmas" />
         </Stack.Protected>
         <Stack.Protected guard={!bienvenidaCompletada}>
           <Stack.Screen name="bienvenida" options={{ gestureEnabled: false }} />

@@ -3,7 +3,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
-import { BotonAtras, Pantalla, Plegable, Tarjeta, Texto, Titulo } from '@/components';
+import { Pantalla, Plegable, Tarjeta, Texto, Titulo } from '@/components';
 import { useCorreos } from '@/data/correos';
 import {
   actualizarCorreos,
@@ -106,7 +106,6 @@ export function PantallaResumenes() {
 
   return (
     <Pantalla>
-      <BotonVolver />
       <Titulo>Resúmenes</Titulo>
 
       {mensaje ? (
@@ -173,12 +172,6 @@ export function PantallaResumenes() {
         </>
       )}
     </Pantalla>
-  );
-}
-
-function BotonVolver() {
-  return (
-    <BotonAtras texto="Hoy" etiqueta="Volver" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
   );
 }
 

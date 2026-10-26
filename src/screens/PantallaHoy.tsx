@@ -346,8 +346,8 @@ export function PantallaHoy() {
                 setEscucharAlAbrir((n) => (n ?? 0) + 1);
               },
             },
-            { clave: 'semana', icono: 'calendar-outline', texto: 'Semana', alPulsar: () => router.navigate('/semana') },
-            { clave: 'mapa', icono: 'navigate-outline', texto: 'Mapa', etiqueta: 'Abrir el mapa', alPulsar: () => router.navigate('/mapa') },
+            { clave: 'planes', icono: 'people-outline', texto: 'Planes', etiqueta: 'Abrir los planes', alPulsar: () => router.push('/planes') },
+            { clave: 'alarmas', icono: 'alarm-outline', texto: 'Alarmas', etiqueta: 'Abrir las alarmas', alPulsar: () => router.push('/alarmas') },
           ]}
         />
 
