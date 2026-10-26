@@ -18,7 +18,7 @@ export function FranjaEpoca({ epoca, hoy }: { epoca: Epoca; hoy: ClaveDia }) {
       accessibilityLabel={`${texto}. Abrir la época`}
       onPress={() => router.push('/epoca')}
       style={({ pressed }) => [estilos.franja, pressed && estilos.pulsado]}>
-      <Ionicons name="star" size={18} color={colores.texto} />
+      <Ionicons name="star" size={18} color={colores.textoOscuro} />
       <Texto fuerte pequeno style={estilos.texto} numberOfLines={2}>
         {texto}
       </Texto>
@@ -36,7 +36,7 @@ export function BotonEpoca() {
         accessibilityRole="button"
         onPress={() => router.push('/epoca')}
         style={({ pressed }) => [estilos.boton, pressed && estilos.pulsado]}>
-        <Ionicons name="star-outline" size={16} color={colores.texto} />
+        <Ionicons name="star-outline" size={16} color={colores.dorado} />
         <Texto fuerte pequeno>
           Época dorada
         </Texto>
@@ -53,10 +53,10 @@ const estilos = StyleSheet.create({
     minHeight: alturaTactil,
     paddingHorizontal: espacio.m,
     paddingVertical: espacio.s,
-    borderRadius: radio.normal,
+    borderRadius: radio.chip,
     backgroundColor: colores.dorado,
   },
-  texto: { flex: 1 },
+  texto: { flex: 1, color: colores.textoOscuro },
   pulsado: { transform: [{ scale: 0.99 }] },
   fila: { flexDirection: 'row' },
   boton: {

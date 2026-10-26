@@ -349,6 +349,15 @@ sesión que fuera**:
   Planes con amigos a su hueco) y los **recordatorios a clientes por WhatsApp** (fase 10, con
   la parte B de WhatsApp Business). Lo hace la sesión "Quitar Plan empresa y WhatsApp a
   clientes"; hasta entonces, no amplíes esas dos partes.
+- 26/10/2026 (sustituye a "agenda nocturna" del 25/09) — **Rediseño "fintech" oscuro con
+  paleta naranja**, pedido por el usuario: minimalista y plano (cero sombras, sin bordes
+  gruesos), mucho aire, letra **Inter** para todo (titulares 700-800 apretados, cifras y
+  horas grandes con números tabulares), botones en **píldora**, tarjetas de esquinas muy
+  redondeadas separadas por color de fondo, **una tarjeta destacada con degradado**
+  naranja → ámbar como único elemento llamativo, iconos de línea en círculos y listas tipo
+  "movimientos" (icono redondo, título y lugar, hora a la derecha). Transiciones de
+  150-250 ms sin rebotes. **Solo modo oscuro.** Como el naranja pasa a ser el color de
+  pulsar, **Clientes cambia a violeta**. Detalle en "Diseño".
 
 ## Cómo prueba el usuario en el iPhone
 
@@ -519,61 +528,76 @@ El alias `@/` apunta a `src/`.
 ## Diseño
 
 Todo sale de `src/theme/index.ts`. No escribas colores sueltos en las pantallas.
-El porqué de cada decisión está en `BRIEF.md` (raíz del repositorio).
+Estilo desde el 26/10/2026: "fintech" oscuro y premium con paleta naranja (ver la decisión
+de ese día). `BRIEF.md` guarda el porqué del diseño anterior; donde choque, manda esta sección.
 
-**Cada color significa una sola cosa.** No uses el naranja ni el verde para nada que
-no sea un evento de Clientes o de Amigos (ni botones, ni errores, ni mensajes de "hecho").
+**Cada color significa una sola cosa.** El naranja es solo para pulsar y para las cifras
+destacadas; no lo uses para un tipo de evento, ni para errores ni para mensajes de "hecho".
 
 | Uso | Token | Color |
 |---|---|---|
-| Fondo | `fondo` | `#F4F1EA` |
-| Tarjetas | `tarjeta` | `#FFFFFF` |
-| Texto principal | `texto` | `#1A1C24` |
-| Texto secundario | `textoSecundario` | `#5E5A52` |
-| Bordes (separadores, decorativo) | `borde` | `#DDD6C8` |
-| Borde de los campos de texto | `bordeCampo` | `#958D81` |
-| Cabecera oscura de Hoy / "Lo siguiente" | `tinta` / `tintaSuave` | `#1A1C24` / `#2E313C` |
-| Texto sobre la cabecera | `textoSobreTinta` / `textoSecundarioSobreTinta` | `#FFFFFF` / `#B9BCC8` |
-| Pulsar: botón principal, "+", pestaña activa, interruptores, hoy | `principal` | `#2B4BD8` (azul tinta) |
-| Errores, avisos, días cargados (>80 %) | `aviso` | `#A1172F` (granate) |
-| "Clientes" | `clientes` | `#C4461E` (naranja) |
-| "Amigos" | `amigos` | `#16734F` (verde) |
-| "Yo" (personal) | `yo` | `#1A1C24` (negro) |
-| Barrita de carga normal y borde de huecos | `cargaNormal` | `#8A8374` (gris) |
-| Solo la Época dorada (franja, bloques de estudio, días con hito) | `dorado` | `#B7892B` (texto oscuro encima) |
+| Fondo (negro cálido) | `fondo` | `#0F0D0C` |
+| Tarjetas / superficies | `tarjeta` | `#1A1714` |
+| Un nivel más elevado: botón secundario, chips, casillas, `BotonInicial` | `elevado` | `#24201C` |
+| Texto principal | `texto` | `#F5F1EC` |
+| Texto secundario | `textoSecundario` | `#A39A90` |
+| Bordes y separadores sutiles (decorativo) | `borde` | `#2E2924` |
+| Borde de los campos de texto | `bordeCampo` | `#7A6F64` |
+| Texto sobre naranja, dorado, WhatsApp y degradados | `textoOscuro` | `#0F0D0C` |
+| Cajas destacadas oscuras (alarma inteligente, aviso del mapa, burbujas) | `tinta` / `tintaSuave` | `#24201C` / `#2E2924` |
+| Pulsar: botón principal, "+", pestaña activa, interruptores, hoy, casilla marcada; cifras destacadas | `principal` | `#FF6B1A` (naranja; texto encima `textoSobrePrincipal`, oscuro) |
+| Naranja al pasar por encima / al pulsar | `principalHover` / `principalPulsado` | `#FF8A47` / `#E0560A` |
+| Lo elegido: chips, casillas de `SelectorVisual`, casilla abierta de Hoy, bloque de foco | `acentoSuave` | `#2C180E` (naranja al 12 %), con borde y texto `principal` |
+| Errores, avisos, días cargados (>80 %) | `aviso` | `#FF4D4F` (rojo) |
+| "Clientes" | `clientes` | `#9C8BFF` (violeta) |
+| "Amigos" | `amigos` | `#2BC48A` (verde) |
+| "Yo" (personal) | `yo` | `#D9D1C7` (blanco cálido) |
+| Barrita de carga normal y borde de huecos | `cargaNormal` | `#7A6F64` (gris) |
+| Solo la Época dorada (franja, bloques de estudio, días con hito) | `dorado` | `#FFB020` (ámbar; texto oscuro encima) |
 | Solo los botones de WhatsApp (excepción del 26/09) | `whatsapp` | `#25D366` (texto oscuro encima) |
-| Solo lo de la empresa (plan empresa, fase 15): turnos, eventos de empresa, tareas asignadas | `empresa` | `#44576B` (azul pizarra; casillas `colorBaldosa.empresa`) |
+| Solo lo de la empresa (plan empresa, fase 15) | `empresa` | `#7F93A8` (azul pizarra) |
 | Solo los botones de entrar con Google o Microsoft y sus logos (excepción del 29/09) | `coloresMarca` | los de sus normas de marca |
+| Tarjeta destacada (una por pantalla como mucho) | `degradados.naranja` / `degradados.teja` | `#FF6B1A → #FFB020` / `#FF6B1A → #C2361B` |
 
-Para el color de un tipo de evento usa `colorTipo[evento.tipo]` (en `theme`).
+Para el color de un tipo de evento usa `colorTipo[evento.tipo]` (en `theme`), y para su
+icono redondo, `colorBaldosa[tipo]` (fondo del color al 14 % e icono del color).
+`colorTipoSobreTinta` y `colorEventoSobreTinta` siguen existiendo pero ya dan lo mismo.
+Dentro del mapa, la ruta elegida sigue en azul (`coloresMapa.ruta`) para no confundirla
+con el naranja y el rojo del tráfico.
 
-- Letra IBM Plex Sans (títulos 600, texto 400, etiquetas 500, destacado 600). **Las horas
-  van en IBM Plex Mono** (`fuentes.hora` y `fuentes.horaFuerte`), como un reloj.
-- **Hoy empieza con una cabecera oscura** (`colores.tinta`) a todo lo ancho: fecha, saludo,
-  resumen y "Lo siguiente". Dentro, texto en `textoSobreTinta` y `textoSecundarioSobreTinta`,
-  y los colores de tipo en su versión clara (`colorTipoSobreTinta`): los normales no se
-  ven sobre la tinta. `Pantalla colorArriba` pinta la franja de la hora.
-- **Filas planas, no tarjetas**: eventos y tareas son filas blancas sin borde con una
-  barra de 4 px a la izquierda (`borderLeftWidth: 4`, `borderLeftColor: colorTipo[tipo]`)
-  y sin esquinas redondeadas. Las cajas (`Tarjeta`) son blancas y sin borde; solo los
-  campos de texto llevan borde (`bordeCampo`).
-- Esquinas más rectas: `radio.pequeno` 6 (chips, campos), `normal` 8 (botones),
-  `grande` 10 (cajas); `radio.chip` (redondo) solo para interruptores y barras. Sin
-  degradados.
+- **Solo modo oscuro.** Cero sombras, sin degradados en botones y sin bordes gruesos: las
+  cosas se separan por el color de fondo (`fondo` → `tarjeta` → `elevado`).
+- **Letra Inter** para todo (`fuentes`): títulos 700 (el nivel 1, 800) con interletrado
+  negativo, texto 400 de 16 px con interlineado 24, etiquetas 500, destacado 600. **Horas
+  y cifras con números tabulares**: añade `...cifras` al estilo (lo llevan ya todos los que
+  usan `fuentes.hora` y `fuentes.horaFuerte`). Las cifras importantes van enormes y en
+  negrita (`tamanos.cifra`, 44).
+- **Botones en píldora** (`radio.chip`): principal naranja con texto oscuro; secundario
+  `elevado` con texto claro. Chips y selector de días, también en píldora.
+- **Tarjetas de esquinas muy redondeadas** (`radio.grande`, 24) y sin borde. Una sola
+  tarjeta destacada por pantalla, con degradado (`Tarjeta destacada="naranja"`).
+- **Iconos de línea dentro de círculos**: casillas de Hoy y filas de eventos.
+- **Listas tipo "movimientos"** (`FilaEvento`): icono redondo del color del tipo a la
+  izquierda, título y lugar en el centro, hora de inicio grande y en negrita a la derecha
+  (y la de fin debajo). Cada fila es una tarjeta redondeada (radio 20); las pasadas,
+  sin fondo y en gris.
+- **Hoy**: arriba la fecha y el botón de Perfil; debajo, el saludo gigante (40 px, 800) y
+  la tarjeta "Lo siguiente" con degradado naranja → ámbar: "LO SIGUIENTE", la hora en
+  grande ("10:00 hasta 12:00"), título y lugar, todo en `textoOscuro`; "Cómo llegar" va en
+  píldora oscura.
 - **Tono cercano** en todos los textos: tuteo, frases cortas, algún giro coloquial
   suave, sin emojis ni exclamaciones. Ejemplos en `BRIEF.md` > "Tono".
 - Todo lo pulsable mide 44 px de alto como mínimo (`alturaTactil`).
-- Solo modo claro.
 - Nada de `opacity` para "apagar" texto (baja del contraste mínimo): quita el fondo
-  blanco y usa `textoSecundario`, como las filas de eventos pasados.
-- La tarjeta "Lo siguiente" de Hoy va dentro de la cabecera, con la barra del color de
-  su tipo (`colorTipoSobreTinta`).
+  y usa `textoSecundario`, como las filas de eventos pasados.
+- Barra de pestañas sobre `fondo` con una raya `borde` arriba; la activa, en naranja.
 - **Hoy es un panel de casillas** (`screens/hoy/PanelHoy.tsx`, 26/09/2026): cabecera
-  oscura (fecha, saludo, "Lo siguiente"; sin frase de resumen) y seis casillas grandes
-  de dos en dos, con icono en un cuadrado de color suave (`colorBaldosa`) y número:
+  (fecha, saludo, "Lo siguiente") y seis casillas grandes de dos en dos, con icono en
+  un círculo de color suave (`colorBaldosa`) y número grande:
   clientes, planes con amigos, tareas, cosas tuyas (o bloques de estudio si hay época),
   "Todo el día" y "Época dorada" (esta abre `/epoca`). Al tocar una, su lista sale
-  debajo y la casilla se pone en tinta; al tocarla otra vez, se cierra. La energía solo
+  debajo y la casilla se pone en `acentoSuave` con borde naranja; al tocarla otra vez,
+  se cierra. La energía solo
   sale en Tareas y Estudio. La captura rápida está plegada: el "+" la abre (y pasa a
   "×"); dentro, "Mejor lo relleno a mano" abre la ficha vacía. Si añades algo a Hoy,
   que sea una casilla o vaya dentro de la lista de una, no un bloque suelto más.
@@ -585,7 +609,7 @@ Para el color de un tipo de evento usa `colorTipo[evento.tipo]` (en `theme`).
   25/09/2026, porque se veía todo amontonado): cuenta atrás, "Plan de hoy", aviso de "no
   caben" y "Cómo vas" van cada uno en una `Tarjeta` aparte. Dentro del plan, lo que se
   repite (sitio, largo de bloque y descanso) se dice una vez arriba y cada bloque es una
-  línea (casilla, hora en Plex Mono, examen y "Saltar"), separada por una raya fina. Sin
+  línea (casilla, hora con cifras tabulares, examen y "Saltar"), separada por una raya fina. Sin
   líneas sueltas de descanso ni la dirección entera en cada bloque.
 
 ### Densidad (`src/data/densidad.ts`)
@@ -604,27 +628,29 @@ un pequeño salto al marcarla, las filas de Hoy se recolocan deslizándose
 listas en `<LayoutAnimationConfig skipEntering>` para que no se anime nada al abrir la
 pantalla. Las animaciones de Reanimated respetan solas "reducir movimiento". Con el
 React Compiler, usa `valor.get()` y `valor.set()`, no `valor.value`. Al pulsar, los
-botones se hunden un poco (`scale` 0.94-0.99). Nada de pulsos ni animaciones infinitas.
+botones se hunden un poco (`scale` 0.94-0.99) y el naranja pasa a `principalPulsado`. Las
+transiciones duran 150-250 ms (`duracion` en theme), sin rebotes. Nada de pulsos ni
+animaciones infinitas.
 
 ### Componentes (`src/components`)
 
-- `Boton` — `variante="principal"` (azul tinta) o `"secundario"` (blanco con borde).
-- `Tarjeta` — caja blanca y plana, sin borde.
-- `Titulo` — IBM Plex Sans 600, `nivel` 1, 2 o 3.
-- `Texto` — IBM Plex Sans, con `secundario`, `fuerte` y `pequeno`.
-- `CampoTexto` — campo con `etiqueta`, `ayuda` y `error` (borde y mensaje en granate, `aviso`).
-- `Selector` — chips para elegir una opción; la elegida con fondo oscuro y texto claro.
+- `Boton` — píldora; `variante="principal"` (naranja, texto oscuro) o `"secundario"` (`elevado`, texto claro).
+- `Tarjeta` — caja plana de esquinas de 24, sin borde ni sombra. `destacada="naranja"` (o
+  `"teja"`) la pinta con degradado y entonces el texto de dentro va en `textoOscuro`.
+- `Titulo` — Inter 700 (el nivel 1, 800), apretado; `nivel` 1, 2 o 3.
+- `Texto` — Inter, con `secundario`, `fuerte` y `pequeno`.
+- `CampoTexto` — campo con `etiqueta`, `ayuda` y `error` (borde y mensaje en rojo, `aviso`).
+- `Selector` — chips en píldora para elegir una opción; la elegida en `acentoSuave` con borde y texto naranja.
 - `SelectorDias` — L M X J V S D, varios a la vez (lunes = 0).
 - `SelectorHora` — hora "HH:MM" con botones − y + de 15 en 15 minutos.
-- `BarraProgreso` — "Paso 1 de 2" con barra azul.
+- `BarraProgreso` — "Paso 1 de 2" con barra naranja.
 - `AvisoPantallaInicio` — solo en la web del móvil: cómo añadirla a la pantalla de inicio.
-- `BotonInicial` — botón redondo con la inicial del nombre (abre Perfil); `sobreTinta`
-  para la cabecera oscura.
+- `BotonInicial` — botón redondo con la inicial del nombre (abre Perfil).
 - `Pantalla` — contenedor de pantalla con fondo, márgenes y scroll. Se aparta del
   teclado (`KeyboardAvoidingView`) y admite `ref` para hacer scroll. `colorArriba` pinta
-  la franja de la hora y la batería (Hoy la pone en `tinta`).
+  la franja de la hora y la batería (ya casi no hace falta: todo es oscuro).
 - `Proximamente` — relleno provisional para pestañas sin hacer.
-- `BotonFlotante` — botón azul cuadrado de esquinas suaves con "+", fijo abajo a la derecha. Va al
+- `BotonFlotante` — botón redondo naranja con "+", fijo abajo a la derecha. Va al
   lado de `Pantalla` (no dentro), en un `View` con `flex: 1`.
 - `Casilla` — casilla para marcar como hecho (44 px); da un pequeño salto al marcarla.
 - `Interruptor` — fila con texto, ayuda y un interruptor sí/no.
@@ -632,7 +658,7 @@ botones se hunden un poco (`scale` 0.94-0.99). Nada de pulsos ni animaciones inf
 - `SelectorCantidad` — número con − y + (horas al día, horas de preparación...).
 - `SelectorVisual` — como `Selector`, con casillas grandes de icono y texto (`OpcionVisual`:
   `valor`, `etiqueta`, `icono` de Ionicons y `veces` para repetirlo, como las llamas de la
-  dificultad). La elegida, en tinta.
+  dificultad). La elegida, en naranja suave, como los chips.
 - `Plegable` — fila "Más ajustes" que se abre al tocarla; `resumen` enseña lo que ya
   está puesto y `abierto` la abre desde fuera (por ejemplo, si hay un error dentro).
 - `BotonFlotante` admite `icono="close"` para cuando lo que abre ya está abierto.

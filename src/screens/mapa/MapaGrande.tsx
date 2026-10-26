@@ -16,7 +16,7 @@ import {
   type Instruccion,
 } from '@/services/rutas';
 import { cambiarVoz, terminarNavegacion, useNavegacion } from '@/services/rutas/motorNavegacion';
-import { alturaTactil, colores, espacio, fuentes, radio, tamanos } from '@/theme';
+import { alturaTactil, cifras, colores, espacio, fuentes, radio, tamanos } from '@/theme';
 
 import { useAhora } from '../calendario/useAhora';
 import { MapaRuta } from './MapaRuta';
@@ -231,12 +231,12 @@ const estilos = StyleSheet.create({
   bannerTextos: { flex: 1 },
   bannerDistancia: {
     color: colores.textoSobreTinta,
-    fontFamily: fuentes.horaFuerte,
+    ...cifras, fontFamily: fuentes.horaFuerte,
     fontSize: tamanos.tituloGrande,
     lineHeight: 36,
   },
   bannerTexto: { color: colores.textoSobreTinta, fontSize: tamanos.grande, lineHeight: 24 },
-  bannerRadar: { color: colores.textoSecundarioSobreTinta, fontFamily: fuentes.hora, fontSize: tamanos.pequeno },
+  bannerRadar: { color: colores.textoSecundarioSobreTinta, ...cifras, fontFamily: fuentes.hora, fontSize: tamanos.pequeno },
   abajo: {
     position: 'absolute',
     left: 0,
@@ -249,7 +249,7 @@ const estilos = StyleSheet.create({
     paddingTop: espacio.m,
     gap: espacio.s,
   },
-  quedan: { fontFamily: fuentes.horaFuerte },
+  quedan: { ...cifras, fontFamily: fuentes.horaFuerte },
   botones: { flexDirection: 'row', gap: espacio.s },
   boton: { flex: 1 },
 });

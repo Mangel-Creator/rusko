@@ -5,7 +5,7 @@ import Animated, { FadeIn, LayoutAnimationConfig } from 'react-native-reanimated
 import { useAdelantos, type Alarma } from '@/data/alarmas';
 import { caminoDe, claveAdelanto, motivoAdelanto, proximaVez, tituloAlarma } from '@/services/alarmas';
 import { claveDia, formatearDiaCorto, formatearHora } from '@/services/fechas';
-import { colores, espacio, fuentes, radio, tamanos } from '@/theme';
+import { cifras, colores, espacio, fuentes, radio, tamanos } from '@/theme';
 
 // Tarjeta oscura de la alarma inteligente (BRIEF.md > "Alarmas"): la hora a la que
 // sonará, la de siempre tachada al lado si se adelanta, y el motivo debajo. Lo
@@ -71,9 +71,9 @@ const estilos = StyleSheet.create({
   pulsado: { transform: [{ scale: 0.99 }] },
   etiqueta: { fontFamily: fuentes.textoMedio, fontSize: tamanos.pequeno, color: colores.textoSecundarioSobreTinta },
   horas: { flexDirection: 'row', alignItems: 'baseline', gap: espacio.m },
-  hora: { fontFamily: fuentes.horaFuerte, fontSize: 56, lineHeight: 64, color: colores.textoSobreTinta },
+  hora: { ...cifras, fontFamily: fuentes.horaFuerte, fontSize: 56, lineHeight: 64, color: colores.textoSobreTinta },
   original: {
-    fontFamily: fuentes.hora,
+    ...cifras, fontFamily: fuentes.hora,
     fontSize: 20,
     color: colores.textoSecundarioSobreTinta,
     textDecorationLine: 'line-through',

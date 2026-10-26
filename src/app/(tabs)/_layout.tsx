@@ -28,11 +28,11 @@ export default function LayoutPestanas() {
         tabBarActiveTintColor: colores.principal,
         tabBarInactiveTintColor: colores.textoSecundario,
         tabBarStyle: {
-          backgroundColor: colores.tarjeta,
+          backgroundColor: colores.fondo,
           borderTopColor: colores.borde,
-          minHeight: 60,
+          minHeight: 64,
         },
-        tabBarLabelStyle: { fontFamily: fuentes.textoMedio, fontSize: 12 },
+        tabBarLabelStyle: { fontFamily: fuentes.textoMedio, fontSize: 11, letterSpacing: 0.1 },
         sceneStyle: { backgroundColor: colores.fondo },
       }}>
       <Tabs.Screen
@@ -54,7 +54,7 @@ export default function LayoutPestanas() {
           tabBarIcon: icono('business-outline', 'business'),
           href: modo ? undefined : null,
           tabBarBadge: sinLeer > 0 ? sinLeer : undefined,
-          tabBarBadgeStyle: { backgroundColor: colores.empresa, color: colores.textoSobreTinta, fontFamily: fuentes.textoMedio },
+          tabBarBadgeStyle: { backgroundColor: colores.empresa, color: colores.textoOscuro, fontFamily: fuentes.textoMedio },
         }}
       />
       <Tabs.Screen

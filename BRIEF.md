@@ -11,7 +11,12 @@ archivo explica el porqué.
 - 25/09/2026 — El usuario la probó en el móvil: funcionaba, pero "se nota mucho que
   es hecho por una IA". Lo que más le chirriaba: **todas las tarjetas iguales**.
   Vio tres direcciones dibujadas y eligió la **"agenda nocturna" (C) con la paleta de
-  colores de siempre**, y un **tono más cercano** en toda la app. Es la vigente.
+  colores de siempre**, y un **tono más cercano** en toda la app.
+- 26/10/2026 — **Rediseño "fintech" oscuro con paleta naranja** (lo pidió el usuario con
+  unas reglas cerradas): modo oscuro cálido, Inter, botones en píldora, tarjetas de 24 sin
+  sombra, una tarjeta destacada con degradado naranja → ámbar y listas tipo movimientos.
+  **Es la vigente**; sus reglas están en `CLAUDE.md` > "Diseño". Lo de abajo (agenda
+  nocturna) queda como historia, salvo el **tono**, que sigue igual.
 
 ## Objetivo y público
 

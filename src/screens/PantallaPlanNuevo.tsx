@@ -36,7 +36,7 @@ import {
   textoInvitacion,
   type Sugerencia,
 } from '@/services/planes';
-import { alturaTactil, colores, espacio, fuentes, radio, tamanos } from '@/theme';
+import { alturaTactil, cifras, colores, espacio, fuentes, radio, tamanos } from '@/theme';
 
 import { MensajeError } from './formulario-perfil/MensajeError';
 import { BotonVolver, BotonWhatsapp, ChipNombre, prepararWhatsapp, textoDia } from './planes/piezas';
@@ -380,8 +380,8 @@ const estilos = StyleSheet.create({
     borderColor: colores.borde,
     backgroundColor: colores.tarjeta,
   },
-  horaMarcada: { backgroundColor: colores.tinta, borderColor: colores.tinta },
-  horaTexto: { fontFamily: fuentes.horaFuerte, fontSize: tamanos.titulo, lineHeight: 28 },
+  horaMarcada: { backgroundColor: colores.acentoSuave, borderColor: colores.principal },
+  horaTexto: { ...cifras, fontFamily: fuentes.horaFuerte, fontSize: tamanos.titulo, lineHeight: 28 },
   textoClaro: { color: colores.textoSobreTinta },
   textoSecundario: { color: colores.textoSecundario },
   marca: { position: 'absolute', top: espacio.s, right: espacio.s },

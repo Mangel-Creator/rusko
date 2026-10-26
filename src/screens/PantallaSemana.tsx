@@ -47,7 +47,7 @@ import {
 } from '@/services/fechas';
 import { todoElDiaDeEmpresa } from '@/services/empresa/calendario';
 import { NOMBRE_CLASE } from '@/services/empresa/textos';
-import { alturaTactil, colorEvento, colorTipo, colores, espacio, fuentes, radio, tamanos } from '@/theme';
+import { alturaTactil, cifras, colores, colorEvento, colorTipo, espacio, fuentes, radio, tamanos } from '@/theme';
 
 import { DURACION_POR_DEFECTO, horaParaHueco, huecosParaPlan } from '@/services/planes/sugerencias';
 
@@ -403,10 +403,8 @@ const estilos = StyleSheet.create({
   botonHoy: {
     minHeight: alturaTactil,
     paddingHorizontal: espacio.m,
-    borderRadius: radio.pequeno,
-    borderWidth: 1,
-    borderColor: colores.borde,
-    backgroundColor: colores.tarjeta,
+    borderRadius: radio.chip,
+    backgroundColor: colores.elevado,
     justifyContent: 'center',
   },
   tira: { flexDirection: 'row', paddingHorizontal: espacio.xs, gap: 0 },
@@ -414,12 +412,12 @@ const estilos = StyleSheet.create({
   numero: {
     width: 36,
     height: 36,
-    borderRadius: radio.pequeno,
+    borderRadius: radio.chip,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  numeroElegido: { backgroundColor: colores.texto },
-  numeroTextoElegido: { color: colores.fondo },
+  numeroElegido: { backgroundColor: colores.principal },
+  numeroTextoElegido: { color: colores.textoOscuro },
   numeroHoy: { color: colores.principal },
   barraFondo: {
     width: 8,
@@ -441,7 +439,7 @@ const estilos = StyleSheet.create({
     alignItems: 'center',
     marginTop: -9,
   },
-  etiquetaHora: { width: ANCHO_HORAS, fontFamily: fuentes.hora, fontSize: 12 },
+  etiquetaHora: { width: ANCHO_HORAS, ...cifras, fontFamily: fuentes.hora, fontSize: 12 },
   rayaHora: { flex: 1, height: 1, backgroundColor: colores.borde },
   zonaEventos: { position: 'absolute', top: 0, bottom: 0, left: ANCHO_HORAS, right: 0 },
   bloque: {
@@ -452,13 +450,13 @@ const estilos = StyleSheet.create({
     borderLeftWidth: 4, // barra del color de su tipo
     overflow: 'hidden',
   },
-  bloqueFoco: { backgroundColor: colores.texto, borderLeftColor: colores.texto },
+  bloqueFoco: { backgroundColor: colores.acentoSuave, borderLeftColor: colores.principal },
   // Bloques de estudio de la Época dorada: como un bloque de foco, con la barra dorada.
   bloqueEpoca: { borderLeftColor: colores.dorado },
   marcaHito: { width: 6, height: 6, borderRadius: 3 },
   marcaHitoVisible: { backgroundColor: colores.dorado },
   hito: { marginTop: -espacio.s },
-  textoClaro: { color: colores.fondo },
+  textoClaro: { color: colores.principal },
   secundario: { color: colores.textoSecundario, fontSize: tamanos.pequeno },
   ahora: { position: 'absolute', left: -4, right: 0, height: 2, backgroundColor: colores.principal },
   tarea: {

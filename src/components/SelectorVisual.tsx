@@ -22,7 +22,7 @@ type Props<T extends string> = {
 };
 
 // Como Selector, pero con casillas grandes de icono y texto: se elige de un vistazo,
-// sin leer. La elegida, en tinta (fondo oscuro y texto claro), como los chips.
+// sin leer. La elegida, en naranja suave, como los chips.
 export function SelectorVisual<T extends string>({ opciones, valor, alCambiar, etiqueta, columnas }: Props<T>) {
   const porFila = columnas ?? (opciones.length <= 3 ? opciones.length : 2);
   return (
@@ -31,7 +31,7 @@ export function SelectorVisual<T extends string>({ opciones, valor, alCambiar, e
       <View style={estilos.rejilla} accessibilityRole="radiogroup">
         {opciones.map((opcion) => {
           const elegida = opcion.valor === valor;
-          const color = elegida ? colores.textoSobreTinta : colores.texto;
+          const color = elegida ? colores.principal : colores.texto;
           return (
             <Pressable
               key={opcion.valor}
@@ -73,14 +73,14 @@ const estilos = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
     gap: espacio.xs,
-    borderRadius: radio.grande,
+    borderRadius: radio.grande - 4,
     borderWidth: 1,
-    borderColor: colores.borde,
-    backgroundColor: colores.tarjeta,
+    borderColor: colores.elevado,
+    backgroundColor: colores.elevado,
   },
-  elegida: { backgroundColor: colores.tinta, borderColor: colores.tinta },
+  elegida: { backgroundColor: colores.acentoSuave, borderColor: colores.principal },
   pulsado: { transform: [{ scale: 0.97 }] },
   iconos: { flexDirection: 'row' },
   texto: { fontFamily: fuentes.textoMedio, fontSize: tamanos.normal, color: colores.texto, textAlign: 'center' },
-  textoElegido: { color: colores.textoSobreTinta },
+  textoElegido: { color: colores.principal, fontFamily: fuentes.textoFuerte },
 });

@@ -14,7 +14,7 @@ type Props<T extends string> = {
   etiqueta?: string;
 };
 
-// Fila de "chips" para elegir una opción. La elegida sale con fondo oscuro y texto claro.
+// Fila de "chips" en píldora para elegir una opción. La elegida, en naranja suave.
 export function Selector<T extends string>({ opciones, valor, alCambiar, etiqueta }: Props<T>) {
   return (
     <View style={estilos.contenedor}>
@@ -53,15 +53,15 @@ const estilos = StyleSheet.create({
   chip: {
     minHeight: alturaTactil,
     paddingHorizontal: espacio.m,
-    borderRadius: radio.pequeno,
+    borderRadius: radio.chip,
     borderWidth: 1,
-    borderColor: colores.borde,
-    backgroundColor: colores.tarjeta,
+    borderColor: colores.elevado,
+    backgroundColor: colores.elevado,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  chipElegido: { backgroundColor: colores.texto, borderColor: colores.texto },
+  chipElegido: { backgroundColor: colores.acentoSuave, borderColor: colores.principal },
   pulsado: { opacity: 0.8 },
   texto: { fontFamily: fuentes.textoMedio, fontSize: tamanos.normal, color: colores.texto },
-  textoElegido: { color: colores.fondo },
+  textoElegido: { color: colores.principal, fontFamily: fuentes.textoFuerte },
 });

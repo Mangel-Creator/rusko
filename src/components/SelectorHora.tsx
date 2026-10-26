@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { horaDesdeMinutos, minutosDesdeHora } from '@/services/fechas';
-import { alturaTactil, colores, espacio, fuentes, radio, tamanos } from '@/theme';
+import { alturaTactil, cifras, colores, espacio, fuentes, radio, tamanos } from '@/theme';
 
 type Props = {
   etiqueta: string;
@@ -68,5 +68,5 @@ const estilos = StyleSheet.create({
     backgroundColor: colores.fondo,
   },
   pulsado: { opacity: 0.7 },
-  hora: { fontFamily: fuentes.horaFuerte, fontSize: tamanos.grande, color: colores.texto },
+  hora: { ...cifras, fontFamily: fuentes.horaFuerte, fontSize: tamanos.grande, color: colores.texto },
 });

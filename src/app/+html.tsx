@@ -15,14 +15,14 @@ export default function Root({ children }: PropsWithChildren) {
           content="width=device-width, initial-scale=1, shrink-to-fit=no, viewport-fit=cover"
         />
         <title>Organizy</title>
-        <meta name="theme-color" content="#F3EFE6" />
+        <meta name="theme-color" content="#0F0D0C" />
         <meta name="apple-mobile-web-app-capable" content="yes" />
         <meta name="mobile-web-app-capable" content="yes" />
-        <meta name="apple-mobile-web-app-status-bar-style" content="default" />
+        <meta name="apple-mobile-web-app-status-bar-style" content="black" />
         <meta name="apple-mobile-web-app-title" content="Organizy" />
         <link rel="apple-touch-icon" href="/organizy/icono-app.png" />
         <ScrollViewStyleReset />
-        <style dangerouslySetInnerHTML={{ __html: 'body{background-color:#F3EFE6;}' }} />
+        <style dangerouslySetInnerHTML={{ __html: 'body{background-color:#0F0D0C;color-scheme:dark;}' }} />
       </head>
       <body>{children}</body>
     </html>

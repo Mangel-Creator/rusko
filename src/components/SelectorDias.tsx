@@ -11,7 +11,7 @@ type Props<T extends number> = {
   alCambiar: (dias: T[]) => void;
 };
 
-// Fila L M X J V S D para elegir varios días. Los elegidos salen en oscuro.
+// Fila L M X J V S D para elegir varios días. Los elegidos, en naranja suave.
 export function SelectorDias<T extends number>({ etiqueta, valor, alCambiar }: Props<T>) {
   const alternar = (dia: T) => {
     const nuevos = valor.includes(dia) ? valor.filter((d) => d !== dia) : [...valor, dia];
@@ -59,15 +59,15 @@ const estilos = StyleSheet.create({
     maxWidth: 48,
     aspectRatio: 1,
     minHeight: alturaTactil,
-    borderRadius: radio.pequeno,
+    borderRadius: radio.chip,
     borderWidth: 1,
-    borderColor: colores.borde,
-    backgroundColor: colores.tarjeta,
+    borderColor: colores.elevado,
+    backgroundColor: colores.elevado,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  diaElegido: { backgroundColor: colores.texto, borderColor: colores.texto },
+  diaElegido: { backgroundColor: colores.acentoSuave, borderColor: colores.principal },
   pulsado: { opacity: 0.8 },
   texto: { fontFamily: fuentes.textoFuerte, fontSize: tamanos.normal, color: colores.texto },
-  textoElegido: { color: colores.fondo },
+  textoElegido: { color: colores.principal },
 });

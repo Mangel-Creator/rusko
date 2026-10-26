@@ -6,7 +6,7 @@ import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { Texto } from '@/components';
 import type { TipoPlan } from '@/data/planes';
 import { capitalizar, fechaDesdeClave, formatearDiaCorto } from '@/services/fechas';
-import { alturaTactil, colorBaldosa, colores, espacio, fuentes, radio, tamanos } from '@/theme';
+import { alturaTactil, cifras, colorBaldosa, colores, espacio, fuentes, radio, tamanos } from '@/theme';
 
 // Piezas compartidas por Planes, el formulario de nuevo plan, la ficha del plan y la
 // página de votación.
@@ -54,8 +54,10 @@ export function BotonWhatsapp({
       disabled={disabled}
       onPress={onPress}
       style={({ pressed }) => [estilos.whatsapp, pressed && estilos.pulsado, disabled && estilos.desactivado]}>
-      <Ionicons name="logo-whatsapp" size={24} color={colores.texto} />
-      <Texto fuerte>{titulo}</Texto>
+      <Ionicons name="logo-whatsapp" size={24} color={colores.textoOscuro} />
+      <Texto fuerte style={estilos.textoWhatsapp}>
+        {titulo}
+      </Texto>
     </Pressable>
   );
 }
@@ -197,6 +199,7 @@ const estilos = StyleSheet.create({
     borderRadius: radio.normal,
     backgroundColor: colores.whatsapp,
   },
+  textoWhatsapp: { color: colores.textoOscuro },
   pulsado: { transform: [{ scale: 0.98 }] },
   desactivado: { opacity: 0.5 },
   volver: {
@@ -217,13 +220,13 @@ const estilos = StyleSheet.create({
     backgroundColor: colores.tarjeta,
     borderRadius: radio.normal,
   },
-  filaGana: { borderLeftWidth: 4, borderLeftColor: colores.tinta },
+  filaGana: { borderLeftWidth: 4, borderLeftColor: colores.principal },
   cuando: { width: 84 },
-  hora: { fontFamily: fuentes.horaFuerte, fontSize: tamanos.grande, lineHeight: 24 },
+  hora: { ...cifras, fontFamily: fuentes.horaFuerte, fontSize: tamanos.grande, lineHeight: 24 },
   votos: { flex: 1, gap: espacio.xs },
   barraFondo: { height: 8, borderRadius: radio.chip, backgroundColor: colores.fondo, overflow: 'hidden' },
   barra: { height: '100%', borderRadius: radio.chip, backgroundColor: colores.cargaNormal },
-  barraGana: { backgroundColor: colores.tinta },
+  barraGana: { backgroundColor: colores.principal },
   cuenta: { minWidth: 20, textAlign: 'right', fontSize: tamanos.grande },
   chip: {
     flexDirection: 'row',

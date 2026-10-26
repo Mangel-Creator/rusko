@@ -32,7 +32,7 @@ const estilos = StyleSheet.create({
   fondo: {
     height: 8,
     borderRadius: radio.chip,
-    backgroundColor: colores.borde,
+    backgroundColor: colores.elevado,
     overflow: 'hidden',
   },
   relleno: {

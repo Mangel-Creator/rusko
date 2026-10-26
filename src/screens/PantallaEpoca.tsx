@@ -381,8 +381,8 @@ function Resumen({ epoca, registro, hoy }: { epoca: Epoca; registro: RegistroBlo
 function Etiqueta() {
   return (
     <View style={estilos.etiqueta}>
-      <Ionicons name="star" size={14} color={colores.texto} />
-      <Texto pequeno fuerte>
+      <Ionicons name="star" size={14} color={colores.textoOscuro} />
+      <Texto pequeno fuerte style={estilos.textoEtiqueta}>
         Época dorada
       </Texto>
     </View>
@@ -422,6 +422,7 @@ const estilos = StyleSheet.create({
     borderRadius: radio.chip,
     backgroundColor: colores.dorado,
   },
+  textoEtiqueta: { color: colores.textoOscuro },
   seccion: { marginTop: espacio.m },
   cuenta: { flexDirection: 'row', alignItems: 'center', gap: espacio.s, marginTop: espacio.s },
   progreso: { gap: espacio.m },

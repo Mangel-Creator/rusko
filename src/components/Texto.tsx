@@ -8,7 +8,7 @@ type Props = TextProps & {
   pequeno?: boolean;
 };
 
-// Texto normal de la app con la letra IBM Plex Sans.
+// Texto normal de la app con la letra Inter.
 export function Texto({ secundario, fuerte, pequeno, style, ...resto }: Props) {
   return (
     <Text
@@ -29,9 +29,9 @@ const estilos = StyleSheet.create({
     color: colores.texto,
     fontFamily: fuentes.texto,
     fontSize: tamanos.normal,
-    lineHeight: 22,
+    lineHeight: 24,
   },
   secundario: { color: colores.textoSecundario },
   fuerte: { fontFamily: fuentes.textoFuerte },
-  pequeno: { fontSize: tamanos.pequeno, lineHeight: 18 },
+  pequeno: { fontSize: tamanos.pequeno, lineHeight: 20 },
 });

@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Boton, Tarjeta, Texto } from '@/components';
 import { useEmpresa, type DatosEmpresa } from '@/data/empresa';
-import { alturaTactil, colorBaldosa, colores, espacio, fuentes, radio } from '@/theme';
+import { alturaTactil, cifras, colorBaldosa, colores, espacio, fuentes, radio } from '@/theme';
 
 // Piezas comunes de las pantallas del plan empresa (Organizy grupal, fase 15).
 
@@ -208,8 +208,8 @@ const estilos = StyleSheet.create({
   apagada: { backgroundColor: 'transparent' },
   textoApagado: { color: colores.textoSecundario },
   horas: { width: 48 },
-  hora: { fontFamily: fuentes.horaFuerte },
-  horaFin: { fontFamily: fuentes.hora },
+  hora: { ...cifras, fontFamily: fuentes.horaFuerte },
+  horaFin: { ...cifras, fontFamily: fuentes.hora },
   textos: { flex: 1, gap: 2 },
   rejilla: { flexDirection: 'row', flexWrap: 'wrap', gap: espacio.s },
   baldosa: {

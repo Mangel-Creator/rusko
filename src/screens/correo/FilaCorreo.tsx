@@ -6,7 +6,7 @@ import { Boton, Texto } from '@/components';
 import type { CorreoResumido } from '@/data/correos';
 import { esPlazo, NOMBRE_PROVEEDOR, quitarPlazo, textoVence } from '@/services/correo';
 import { formatearHora } from '@/services/fechas';
-import { alturaTactil, colorTipo, colores, espacio, fuentes, radio } from '@/theme';
+import { alturaTactil, cifras, colores, colorTipo, espacio, fuentes, radio } from '@/theme';
 
 // Un correo resumido en Resúmenes (fase 11): remitente, hora, título, plazo y resumen.
 // Al tocarlo se abre: "Abrir en Gmail/Outlook", "Ver la tarea" y "No es un plazo".
@@ -98,7 +98,7 @@ const estilos = StyleSheet.create({
   pulsado: { opacity: 0.8 },
   lineaDe: { flexDirection: 'row', alignItems: 'center', gap: espacio.s },
   de: { flexShrink: 1 },
-  hora: { marginLeft: 'auto', fontFamily: fuentes.hora },
+  hora: { marginLeft: 'auto', ...cifras, fontFamily: fuentes.hora },
   nuevo: {
     paddingHorizontal: espacio.s,
     paddingVertical: 1,

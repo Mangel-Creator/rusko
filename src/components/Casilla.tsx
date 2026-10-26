@@ -31,7 +31,7 @@ export function Casilla({ marcada, alCambiar, etiqueta }: Props) {
       onPress={pulsar}
       style={({ pressed }) => [estilos.zona, pressed && estilos.pulsado]}>
       <Animated.View style={[estilos.caja, marcada && estilos.cajaMarcada, estiloSalto]}>
-        {marcada ? <Ionicons name="checkmark" size={18} color={colores.fondo} /> : null}
+        {marcada ? <Ionicons name="checkmark" size={18} color={colores.textoSobrePrincipal} /> : null}
       </Animated.View>
     </Pressable>
   );
@@ -47,12 +47,12 @@ const estilos = StyleSheet.create({
   caja: {
     width: 24,
     height: 24,
-    borderRadius: 4,
+    borderRadius: 8,
     borderWidth: 2,
-    borderColor: colores.texto,
+    borderColor: colores.textoSecundario,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  cajaMarcada: { backgroundColor: colores.texto },
+  cajaMarcada: { backgroundColor: colores.principal, borderColor: colores.principal },
   pulsado: { opacity: 0.6 },
 });

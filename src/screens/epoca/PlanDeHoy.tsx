@@ -17,7 +17,7 @@ import {
   type PlanEpoca,
 } from '@/services/epoca';
 import { claveDia, horaDesdeMinutos, minutosDelDia } from '@/services/fechas';
-import { alturaTactil, colores, espacio, fuentes } from '@/theme';
+import { alturaTactil, cifras, colores, espacio, fuentes } from '@/theme';
 
 import { BarraHoras } from './BarraHoras';
 import { DESCANSO_TEXTO } from './textos';
@@ -193,7 +193,7 @@ const estilos = StyleSheet.create({
   lista: { marginTop: espacio.xs },
   bloque: { flexDirection: 'row', alignItems: 'center', gap: espacio.xs, minHeight: alturaTactil + 8 },
   separador: { borderTopWidth: 1, borderTopColor: colores.borde },
-  hora: { fontFamily: fuentes.hora },
+  hora: { ...cifras, fontFamily: fuentes.hora },
   tachado: { textDecorationLine: 'line-through' },
   // Sin opacidad: texto secundario (ver CLAUDE.md > Diseño).
   secundario: { color: colores.textoSecundario },

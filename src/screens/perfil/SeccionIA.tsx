@@ -15,7 +15,7 @@ import {
   type LimiteIA,
   type MotivoLimiteIA,
 } from '@/services/ia';
-import { colores, espacio, fuentes, radio, tamanos } from '@/theme';
+import { cifras, colores, espacio, fuentes, radio, tamanos } from '@/theme';
 
 type Carga = { estado: 'cargando' } | { estado: 'listo'; ia: EstadoIA } | { estado: 'error' };
 
@@ -139,7 +139,7 @@ const estilos = StyleSheet.create({
   barras: { gap: espacio.m },
   barra: { gap: espacio.xs },
   fila: { flexDirection: 'row', justifyContent: 'space-between', alignItems: 'baseline' },
-  cifra: { fontFamily: fuentes.hora, fontSize: tamanos.normal, color: colores.texto },
+  cifra: { ...cifras, fontFamily: fuentes.hora, fontSize: tamanos.normal, color: colores.texto },
   fondoBarra: { height: 8, borderRadius: radio.chip, backgroundColor: colores.borde, overflow: 'hidden' },
   relleno: { height: 8, borderRadius: radio.chip },
 });

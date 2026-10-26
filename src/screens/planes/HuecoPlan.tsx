@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Texto } from '@/components';
 import type { Intervalo } from '@/services/agenda';
 import { formatearDuracion, horaDesdeMinutos } from '@/services/fechas';
-import { alturaTactil, colores, espacio, fuentes, radio } from '@/theme';
+import { alturaTactil, cifras, colores, espacio, fuentes, radio } from '@/theme';
 
 // Hueco libre de 2 h o más en Semana, con el botón "Proponer plan" (fase 8).
 // Mismo borde discontinuo que los huecos de Hoy.
@@ -47,7 +47,7 @@ const estilos = StyleSheet.create({
     borderRadius: radio.normal,
   },
   textos: { flex: 1 },
-  hora: { fontFamily: fuentes.hora },
+  hora: { ...cifras, fontFamily: fuentes.hora },
   libre: { color: colores.textoSecundario },
   boton: {
     flexDirection: 'row',

@@ -3,7 +3,7 @@ import { StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, Polyline, type LatLng } from 'react-native-maps';
 
 import type { Punto } from '@/services/rutas';
-import { colores, coloresMapa, fuentes } from '@/theme';
+import { cifras, colores, coloresMapa, fuentes } from '@/theme';
 
 import { CENTRO_POR_DEFECTO, marcasDeRadares, puntosDeTramo, puntosVisibles, type PropsMapa } from './tipos';
 
@@ -127,5 +127,5 @@ const estilos = StyleSheet.create({
   },
   // Con límite: más grande, con el número dentro (como una señal).
   radarConLimite: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  limite: { color: coloresMapa.bordeRadar, fontFamily: fuentes.horaFuerte, fontSize: 11 },
+  limite: { color: coloresMapa.bordeRadar, ...cifras, fontFamily: fuentes.horaFuerte, fontSize: 11 },
 });

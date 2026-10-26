@@ -10,7 +10,7 @@ type Props = Omit<PressableProps, 'children'> & {
 
 const TAMANO = 60;
 
-// Botón azul con un "+", fijo abajo a la derecha de la pantalla.
+// Botón redondo naranja con un "+", fijo abajo a la derecha de la pantalla.
 // Va dentro de un contenedor con flex: 1, al lado (no dentro) de <Pantalla>.
 export function BotonFlotante({ etiqueta, icono = 'add', style, ...resto }: Props) {
   return (
@@ -35,11 +35,10 @@ const estilos = StyleSheet.create({
     bottom: espacio.l,
     width: TAMANO,
     height: TAMANO,
-    borderRadius: radio.grande + 4, // cuadrado de esquinas suaves, como en una agenda
+    borderRadius: radio.chip,
     backgroundColor: colores.principal,
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: '0 4px 12px rgba(26, 28, 36, 0.22)', // sombra suave del color del texto
   },
-  pulsado: { opacity: 0.9, transform: [{ scale: 0.94 }] },
+  pulsado: { backgroundColor: colores.principalPulsado, transform: [{ scale: 0.94 }] },
 });

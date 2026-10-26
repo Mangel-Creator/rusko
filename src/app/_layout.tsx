@@ -1,12 +1,12 @@
-import { IBMPlexMono_500Medium, IBMPlexMono_600SemiBold } from '@expo-google-fonts/ibm-plex-mono';
 import {
-  IBMPlexSans_400Regular,
-  IBMPlexSans_500Medium,
-  IBMPlexSans_600SemiBold,
-  IBMPlexSans_700Bold,
+  Inter_400Regular,
+  Inter_500Medium,
+  Inter_600SemiBold,
+  Inter_700Bold,
+  Inter_800ExtraBold,
   useFonts,
-} from '@expo-google-fonts/ibm-plex-sans';
-import { DefaultTheme, router, Stack, ThemeProvider } from 'expo-router';
+} from '@expo-google-fonts/inter';
+import { DarkTheme, router, Stack, ThemeProvider } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { StatusBar } from 'expo-status-bar';
 import { useEffect } from 'react';
@@ -31,11 +31,11 @@ import { colores } from '@/theme';
 // Mantiene la pantalla de carga hasta que las letras estén listas.
 SplashScreen.preventAutoHideAsync();
 
-// Tema de navegación con nuestros colores (solo modo claro).
+// Tema de navegación con nuestros colores (solo modo oscuro).
 const temaNavegacion = {
-  ...DefaultTheme,
+  ...DarkTheme,
   colors: {
-    ...DefaultTheme.colors,
+    ...DarkTheme.colors,
     primary: colores.principal,
     background: colores.fondo,
     card: colores.tarjeta,
@@ -46,12 +46,11 @@ const temaNavegacion = {
 
 export default function LayoutRaiz() {
   const [letrasListas, errorLetras] = useFonts({
-    IBMPlexSans_400Regular,
-    IBMPlexSans_500Medium,
-    IBMPlexSans_600SemiBold,
-    IBMPlexSans_700Bold,
-    IBMPlexMono_500Medium,
-    IBMPlexMono_600SemiBold,
+    Inter_400Regular,
+    Inter_500Medium,
+    Inter_600SemiBold,
+    Inter_700Bold,
+    Inter_800ExtraBold,
   });
 
   const { cargado: perfilCargado, bienvenidaCompletada } = usePerfil();
@@ -153,7 +152,7 @@ export default function LayoutRaiz() {
   // "bienvenidaCompletada" pasa a true y la app salta sola a las pestañas.
   return (
     <ThemeProvider value={temaNavegacion}>
-      <StatusBar style="dark" />
+      <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colores.fondo } }}>
         <Stack.Protected guard={bienvenidaCompletada}>
           <Stack.Screen name="(tabs)" />

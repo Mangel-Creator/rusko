@@ -3,7 +3,7 @@ import type { ComponentProps } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Texto } from '@/components';
-import { colores, espacio, fuentes, radio } from '@/theme';
+import { cifras, colores, espacio, fuentes, radio } from '@/theme';
 
 // Panel de Hoy (lo pidió el usuario: "mucho más visual"): casillas grandes con
 // icono y número. Al tocar una, Hoy enseña su lista debajo; al tocarla otra vez, se
@@ -74,24 +74,26 @@ const estilos = StyleSheet.create({
   baldosa: {
     flexBasis: '47%',
     flexGrow: 1,
-    minHeight: 104,
+    minHeight: 112,
     padding: espacio.m,
     gap: espacio.xs,
-    borderRadius: radio.grande + 4,
+    borderRadius: radio.grande,
+    borderWidth: 1,
+    borderColor: colores.tarjeta,
     backgroundColor: colores.tarjeta,
   },
-  // La elegida, en tinta (como la cabecera): se ve de un vistazo qué lista está abierta.
-  elegida: { backgroundColor: colores.tinta },
+  // La elegida, en naranja suave: se ve de un vistazo qué lista está abierta.
+  elegida: { backgroundColor: colores.acentoSuave, borderColor: colores.principal },
   pulsado: { transform: [{ scale: 0.97 }] },
   icono: {
-    width: 36,
-    height: 36,
-    borderRadius: radio.normal,
+    width: 40,
+    height: 40,
+    borderRadius: radio.chip,
     alignItems: 'center',
     justifyContent: 'center',
   },
-  numero: { fontFamily: fuentes.titulo, fontSize: 26, lineHeight: 32, marginTop: espacio.xs },
+  numero: { ...cifras, fontFamily: fuentes.tituloFuerte, fontSize: 32, lineHeight: 38, letterSpacing: -1, marginTop: espacio.xs },
   etiqueta: { color: colores.textoSecundario },
   etiquetaSola: { marginTop: espacio.s },
-  textoElegido: { color: colores.textoSobreTinta },
+  textoElegido: { color: colores.principal },
 });

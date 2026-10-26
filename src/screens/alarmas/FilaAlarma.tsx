@@ -5,7 +5,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 import { Texto } from '@/components';
 import { activarAlarma, type Alarma } from '@/data/alarmas';
 import { diaDeUnaVez, textoDias, tituloAlarma } from '@/services/alarmas';
-import { alturaTactil, colores, espacio, fuentes, radio } from '@/theme';
+import { alturaTactil, cifras, colores, espacio, fuentes, radio } from '@/theme';
 
 // Interruptor sí/no pequeño, para poner al lado de otra cosa (el de components va en
 // una fila entera con su texto).
@@ -77,7 +77,7 @@ const estilos = StyleSheet.create({
   filaApagada: { backgroundColor: 'transparent' },
   textos: { flex: 1, gap: 2, minHeight: alturaTactil, justifyContent: 'center' },
   pulsado: { transform: [{ scale: 0.99 }] },
-  hora: { fontFamily: fuentes.horaFuerte, fontSize: 34, lineHeight: 40, color: colores.texto },
+  hora: { ...cifras, fontFamily: fuentes.horaFuerte, fontSize: 34, lineHeight: 40, color: colores.texto },
   apagado: { color: colores.textoSecundario },
   detalle: { flexDirection: 'row', alignItems: 'center', gap: espacio.xs },
   flexible: { flexShrink: 1 },

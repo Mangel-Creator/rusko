@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import type { ComponentProps } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Texto } from '@/components';
@@ -6,17 +7,27 @@ import { useDensidad } from '@/data/densidad';
 import type { Evento } from '@/data/eventos';
 import { usePerfil } from '@/data/perfil';
 import { resolverLugar } from '@/services/agenda';
-import { colorEvento, colores, espacio, fuentes } from '@/theme';
+import { cifras, colorBaldosa, colores, espacio, fuentes, radio, tamanos } from '@/theme';
 
 import { abrirEvento } from './textos';
 
 type Props = {
   evento: Evento;
-  pasado?: boolean; // ya ha terminado: sin fondo blanco y con el texto en gris
-  focoEnNegro?: boolean; // en Semana, los bloques de foco van en negro con "Protegido"
+  pasado?: boolean; // ya ha terminado: sin fondo y con el texto en gris
+  focoEnNegro?: boolean; // en Semana, los bloques de foco van destacados con "Protegido"
 };
 
-// Un evento con hora fija: barra del color de su tipo, hora, título y lugar.
+type NombreIcono = ComponentProps<typeof Ionicons>['name'];
+
+// El mismo icono que su casilla en Hoy.
+const ICONO_TIPO: Record<Evento['tipo'], NombreIcono> = {
+  cliente: 'briefcase-outline',
+  amigos: 'people-outline',
+  yo: 'person-outline',
+};
+
+// Un evento con hora fija, como una fila de movimientos: icono redondo del color de su
+// tipo a la izquierda, título y lugar en el centro y la hora, grande, a la derecha.
 // Al pulsarlo se abre su ficha.
 export function FilaEvento({ evento, pasado, focoEnNegro }: Props) {
   const { perfil } = usePerfil();
@@ -28,6 +39,8 @@ export function FilaEvento({ evento, pasado, focoEnNegro }: Props) {
   const detalle = [evento.empresa ? 'Empresa' : null, lugar?.nombre ?? lugar?.direccion, evento.foco && !negro ? 'Bloque de foco' : null]
     .filter(Boolean)
     .join(' · ');
+  const baldosa = colorBaldosa[evento.empresa ? 'empresa' : evento.tipo];
+  const icono: NombreIcono = negro ? 'lock-closed-outline' : evento.empresa ? 'business-outline' : ICONO_TIPO[evento.tipo];
 
   return (
     <Pressable
@@ -37,43 +50,41 @@ export function FilaEvento({ evento, pasado, focoEnNegro }: Props) {
       style={({ pressed }) => [
         estilos.fila,
         { minHeight: medidas.altoFila, paddingVertical: medidas.rellenoFila },
-        { borderLeftColor: apagado ? colores.cargaNormal : colorEvento(evento) },
-        negro && estilos.filaNegra,
+        negro && estilos.filaFoco,
         apagado && estilos.pasado,
         pressed && estilos.pulsado,
       ]}>
-      <View style={estilos.horas}>
-        <Texto style={[textoFila, estilos.hora, apagado && estilos.textoApagado, negro && estilos.textoClaro]}>
-          {evento.horaInicio}
-        </Texto>
-        <Texto pequeno secundario style={[estilos.horaFin, negro && estilos.textoClaro]}>
-          {evento.horaFin}
-        </Texto>
+      <View style={[estilos.icono, { backgroundColor: apagado ? colores.elevado : negro ? colores.acentoSuave : baldosa.fondo }]}>
+        <Ionicons
+          name={icono}
+          size={20}
+          color={apagado ? colores.textoSecundario : negro ? colores.principal : baldosa.icono}
+        />
       </View>
       <View style={estilos.textos}>
-        <Texto
-          fuerte
-          style={[textoFila, apagado && estilos.textoApagado, negro && estilos.textoClaro]}
-          numberOfLines={2}>
+        <Texto fuerte style={[textoFila, apagado && estilos.textoApagado]} numberOfLines={2}>
           {evento.titulo}
         </Texto>
         {negro ? (
-          <View style={estilos.protegido}>
-            <Ionicons name="lock-closed" size={13} color={colores.fondo} />
-            <Texto pequeno style={estilos.textoClaro}>
-              Protegido
-            </Texto>
-          </View>
+          <Texto pequeno style={estilos.protegido}>
+            Protegido
+          </Texto>
         ) : null}
         {detalle ? (
-          <Texto pequeno secundario style={negro && estilos.textoClaro} numberOfLines={1}>
+          <Texto pequeno secundario numberOfLines={1}>
             {detalle}
           </Texto>
         ) : null}
       </View>
-      {evento.repeticion !== 'nunca' ? (
-        <Ionicons name="repeat" size={16} color={negro ? colores.fondo : colores.textoSecundario} />
-      ) : null}
+      <View style={estilos.horas}>
+        <Texto style={[estilos.hora, apagado && estilos.textoApagado]}>{evento.horaInicio}</Texto>
+        <View style={estilos.fin}>
+          {evento.repeticion !== 'nunca' ? <Ionicons name="repeat" size={13} color={colores.textoSecundario} /> : null}
+          <Texto pequeno secundario style={estilos.horaFin}>
+            {evento.horaFin}
+          </Texto>
+        </View>
+      </View>
     </Pressable>
   );
 }
@@ -82,21 +93,29 @@ const estilos = StyleSheet.create({
   fila: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: espacio.m,
+    gap: espacio.m - 4,
     paddingHorizontal: espacio.m,
     backgroundColor: colores.tarjeta,
-    borderLeftWidth: 4, // barra del color de su tipo
+    borderRadius: radio.grande - 4,
   },
-  filaNegra: { backgroundColor: colores.texto, borderLeftColor: colores.texto },
+  // Bloque de foco en Semana: en naranja suave, con el candado.
+  filaFoco: { backgroundColor: colores.acentoSuave },
   // Sin opacidad: así el texto sigue pasando el contraste mínimo.
   pasado: { backgroundColor: 'transparent' },
   textoApagado: { color: colores.textoSecundario },
-  pulsado: { opacity: 0.75, transform: [{ scale: 0.99 }] },
-  horas: { width: 48 },
-  // Horas en letra de reloj: las cifras quedan alineadas de una fila a otra.
-  hora: { fontFamily: fuentes.horaFuerte },
-  horaFin: { fontFamily: fuentes.hora },
+  pulsado: { backgroundColor: colores.elevado, transform: [{ scale: 0.99 }] },
+  icono: {
+    width: 40,
+    height: 40,
+    borderRadius: radio.chip,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   textos: { flex: 1, gap: 2 },
-  textoClaro: { color: colores.fondo },
-  protegido: { flexDirection: 'row', alignItems: 'center', gap: espacio.xs },
+  protegido: { color: colores.principal, fontFamily: fuentes.textoMedio },
+  // La hora es la "cifra" de la fila: grande, gruesa y alineada a la derecha.
+  horas: { alignItems: 'flex-end', gap: 2 },
+  hora: { ...cifras, fontFamily: fuentes.horaFuerte, fontSize: tamanos.grande, lineHeight: 22, letterSpacing: -0.3 },
+  fin: { flexDirection: 'row', alignItems: 'center', gap: 4 },
+  horaFin: { ...cifras, fontFamily: fuentes.hora },
 });

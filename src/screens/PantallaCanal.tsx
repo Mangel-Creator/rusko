@@ -12,7 +12,7 @@ import { personasDe } from '@/services/empresa/roles';
 import { borrarMensaje, enviarMensaje, escucharCanal, leerMensajes } from '@/services/empresa/servidor';
 import { textoFallo } from '@/services/empresa/textos';
 import { claveDia, formatearHora } from '@/services/fechas';
-import { alturaTactil, colores, espacio, fuentes, radio, tamanos } from '@/theme';
+import { alturaTactil, cifras, colores, espacio, fuentes, radio, tamanos } from '@/theme';
 
 import { BotonVolver, Confirmar, Mensaje, useDatosEmpresa } from './empresa/piezas';
 
@@ -212,7 +212,7 @@ const estilos = StyleSheet.create({
   burbujaOtra: { backgroundColor: colores.tarjeta, borderLeftWidth: 3, borderLeftColor: colores.empresa },
   textoMio: { color: colores.textoSobreTinta },
   borrado: { fontStyle: 'italic', color: colores.textoSecundario },
-  hora: { fontFamily: fuentes.hora, fontSize: 11, color: colores.textoSecundario, alignSelf: 'flex-end' },
+  hora: { ...cifras, fontFamily: fuentes.hora, fontSize: 11, color: colores.textoSecundario, alignSelf: 'flex-end' },
   horaMia: { color: colores.textoSecundarioSobreTinta },
   escribir: { flexDirection: 'row', alignItems: 'flex-end', gap: espacio.s, marginTop: espacio.m },
   campo: {

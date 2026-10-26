@@ -18,7 +18,7 @@ import {
   minutosDesdeHora,
   sumarDias,
 } from '@/services/fechas';
-import { alturaTactil, colores, espacio, fuentes, radio } from '@/theme';
+import { alturaTactil, cifras, colores, espacio, fuentes, radio } from '@/theme';
 
 import { BotonVolver, Chip, Chips, FilaEmpresa, Mensaje, useDatosEmpresa } from './empresa/piezas';
 
@@ -276,7 +276,7 @@ const estilos = StyleSheet.create({
   ocupado: { backgroundColor: colores.cargaNormal, borderColor: colores.cargaNormal },
   libre: { backgroundColor: colores.tarjeta },
   letraClara: { color: colores.textoSobreTinta, fontFamily: fuentes.textoFuerte },
-  horaMono: { fontFamily: fuentes.hora },
+  horaMono: { ...cifras, fontFamily: fuentes.hora },
   pulsado: { opacity: 0.7 },
   flecha: {
     width: alturaTactil,

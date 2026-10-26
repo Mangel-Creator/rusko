@@ -1,50 +1,70 @@
+import type { TextStyle } from 'react-native';
+
 // Tema de Organizy: todos los colores, letras y medidas salen de aquí.
 // Si quieres cambiar un color, cámbialo en este archivo y se actualiza en toda la app.
 // El porqué de cada decisión está en BRIEF.md (raíz del repositorio).
 
 export const colores = {
-  fondo: '#F4F1EA',
-  tarjeta: '#FFFFFF',
-  texto: '#1A1C24',
-  textoSecundario: '#5E5A52',
-  borde: '#DDD6C8', // separadores y cajas; decorativo
-  bordeCampo: '#958D81', // borde de los campos de texto: se ve dónde escribir (3,3:1)
+  // Modo oscuro cálido (rediseño 'fintech' del 26/10/2026): fondo casi negro, superficies
+  // un punto más claras y nada de sombras. Las tarjetas se separan por el color de fondo.
+  fondo: '#0F0D0C',
+  tarjeta: '#1A1714',
+  elevado: '#24201C', // un nivel más arriba: botón secundario, casillas, chips
+  texto: '#F5F1EC',
+  textoSecundario: '#A39A90', // 6,4:1 sobre la tarjeta
+  borde: '#2E2924', // separadores sutiles; decorativo
+  bordeCampo: '#7A6F64', // borde de los campos de texto: se ve dónde escribir (3,6:1)
+  // Texto oscuro para lo que va sobre un fondo vivo (naranja, dorado, WhatsApp, degradados).
+  textoOscuro: '#0F0D0C',
 
-  // Tinta: la cabecera oscura de Hoy y lo que va dentro de ella.
-  tinta: '#1A1C24',
-  tintaSuave: '#2E313C', // tarjeta "Lo siguiente" dentro de la cabecera
-  textoSobreTinta: '#FFFFFF',
-  textoSecundarioSobreTinta: '#B9BCC8', // 6,8:1 sobre tintaSuave
+  // 'Tinta': cajas destacadas oscuras (alarma inteligente, aviso del mapa, burbujas).
+  // En modo oscuro es la superficie elevada, con el texto claro de siempre encima.
+  tinta: '#24201C',
+  tintaSuave: '#2E2924',
+  textoSobreTinta: '#F5F1EC',
+  textoSecundarioSobreTinta: '#A39A90',
 
-  // Azul tinta: botones, "+", pestaña activa, interruptores y el día de hoy.
-  principal: '#2B4BD8',
-  textoSobrePrincipal: '#FFFFFF',
+  // Naranja: solo acciones clave (botón principal, '+', pestaña activa, interruptores,
+  // hoy) y cifras destacadas. Encima, texto oscuro.
+  principal: '#FF6B1A',
+  principalHover: '#FF8A47',
+  principalPulsado: '#E0560A',
+  textoSobrePrincipal: '#0F0D0C',
+  // Naranja al 12 % sobre el fondo: lo elegido (chips, casillas, iconos activos).
+  acentoSuave: '#2C180E',
 
-  // Granate: errores, avisos ("pisa tu bloque de foco") y días muy cargados.
-  aviso: '#A1172F',
+  // Rojo: errores, avisos ('pisa tu bloque de foco') y días muy cargados.
+  aviso: '#FF4D4F',
 
-  // Colores por tipo de evento. Cada color significa una sola cosa:
-  // el naranja es solo Clientes, el verde solo Amigos y el negro solo Yo.
-  clientes: '#C4461E',
-  amigos: '#16734F',
-  yo: '#1A1C24',
+  // Colores por tipo de evento. Cada color significa una sola cosa: el violeta es solo
+  // Clientes, el verde solo Amigos y el blanco cálido solo Yo. (Clientes dejó el naranja
+  // el 26/10/2026: el naranja pasó a ser el color de pulsar.)
+  clientes: '#9C8BFF',
+  amigos: '#2BC48A',
+  yo: '#D9D1C7',
 
   // Barrita de carga en Semana cuando el día va normal y borde de los huecos libres
-  cargaNormal: '#8A8374',
+  cargaNormal: '#7A6F64',
 
-  // Dorado: solo para la Época dorada (franja, bloques de estudio, días con hito).
-  // Encima va texto oscuro (colores.texto): el blanco no se lee bien.
-  dorado: '#B7892B',
+  // Ámbar: solo para la Época dorada (franja, bloques de estudio, días con hito).
+  // Encima va texto oscuro (colores.textoOscuro).
+  dorado: '#FFB020',
 
-  // Verde de WhatsApp: solo el botón "Enviar por WhatsApp" (excepción elegida por el
-  // usuario el 26/09/2026, como los colores del tráfico en el Mapa). Es el de la
-  // marca, más claro y vivo que el verde de Amigos. Encima va texto oscuro
-  // (colores.texto, 8,8:1): el blanco no se lee bien sobre este verde.
+  // Verde de WhatsApp: solo el botón 'Enviar por WhatsApp' (excepción elegida por el
+  // usuario el 26/09/2026, como los colores del tráfico en el Mapa). Encima va texto
+  // oscuro (colores.textoOscuro).
   whatsapp: '#25D366',
 
   // Azul pizarra: solo lo que viene de la empresa (plan empresa, fase 15): turnos,
-  // eventos de empresa y tareas asignadas. Apagado, no se parece al azul de pulsar.
-  empresa: '#44576B',
+  // eventos de empresa y tareas asignadas.
+  empresa: '#7F93A8',
+} as const;
+
+// Degradados de las tarjetas destacadas: lo único llamativo de cada pantalla.
+// Encima, siempre texto oscuro (colores.textoOscuro).
+export const degradados = {
+  naranja: ['#FF6B1A', '#FFB020'], // naranja → ámbar: 'Lo siguiente' en Hoy
+  teja: ['#FF6B1A', '#C2361B'], // naranja → rojo teja
 } as const;
 
 // Color de cada tipo de evento (Cliente, Amigos, Yo)
@@ -54,20 +74,20 @@ export const colorTipo = {
   yo: colores.yo,
 } as const;
 
-// Colores del tráfico: la única excepción a "cada color significa una sola cosa", y
+// Colores del tráfico: la única excepción a 'cada color significa una sola cosa', y
 // solo dentro del mapa (es el código que todo el mundo reconoce en la carretera).
 export const coloresMapa = {
   atasco: '#D0312D', // rojo: tramo con atasco
   denso: '#F2B01E', // amarillo: tráfico denso
-  ruta: '#2B4BD8', // la ruta elegida (el azul de "pulsar": se puede tocar)
+  ruta: '#3D6BFF', // la ruta elegida: azul, para no confundirla con el naranja y rojo del tráfico
   rutaAlternativa: '#8A8374', // las otras rutas, en gris
   radar: '#1A1C24', // círculo negro con borde blanco
   bordeRadar: '#FFFFFF',
 } as const;
 
 // Botones para entrar con Google o Microsoft (BotonEntrarCon): los colores que exigen
-// sus normas de marca (tema claro) y los del logo de Microsoft. Otra excepción a "cada
-// color significa una sola cosa" (29/09/2026), solo en esos botones y en el logo de cada
+// sus normas de marca (tema claro) y los del logo de Microsoft. Otra excepción a 'cada
+// color significa una sola cosa' (29/09/2026), solo en esos botones y en el logo de cada
 // cuenta vinculada: sin ellos, Google y Microsoft pueden rechazar la app en su revisión.
 export const coloresMarca = {
   googleFondo: '#FFFFFF',
@@ -82,23 +102,19 @@ export const coloresMarca = {
   microsoftAmarillo: '#FFB900',
 } as const;
 
-// Los mismos colores, más claros, para cuando van sobre la cabecera oscura
-// (los normales no se distinguen sobre tintaSuave).
-export const colorTipoSobreTinta = {
-  cliente: '#F2956C',
-  amigos: '#5CC495',
-  yo: '#E4E6EC',
-} as const;
+// En modo oscuro todo va sobre fondo oscuro: los colores de tipo valen tal cual.
+// (Se mantiene el nombre para no tocar las pantallas que lo usan.)
+export const colorTipoSobreTinta = colorTipo;
 
-// Casillas del panel de Hoy: cuadrado de fondo suave con el icono en el tono oscuro
-// del mismo color (contraste de 6,3:1 o más). Mismo significado que colorTipo.
+// Iconos de tipo: círculo con el color del tipo al 14 % sobre la tarjeta y el icono
+// en el color del tipo. Mismo significado que colorTipo.
 export const colorBaldosa = {
-  cliente: { fondo: '#F7D9CC', icono: '#7A2A0A' },
-  amigos: { fondo: '#D3EEDF', icono: '#0E5A3C' },
-  yo: { fondo: '#E4E6EC', icono: '#1A1C24' },
-  estudio: { fondo: '#F3E6C7', icono: '#6B4D0E' }, // Época dorada
-  neutro: { fondo: '#F4F1EA', icono: '#1A1C24' }, // tareas, todo el día
-  empresa: { fondo: '#DDE3EA', icono: '#2C3B4A' }, // plan empresa (fase 15)
+  cliente: { fondo: '#2C2735', icono: colores.clientes },
+  amigos: { fondo: '#1C2F25', icono: colores.amigos },
+  yo: { fondo: colores.elevado, icono: colores.texto },
+  estudio: { fondo: '#3A2C16', icono: colores.dorado }, // Época dorada
+  neutro: { fondo: colores.elevado, icono: colores.texto }, // tareas, todo el día
+  empresa: { fondo: '#252A30', icono: colores.empresa }, // plan empresa (fase 15)
 } as const;
 
 // Color de la barra de un evento: el de su tipo o, si viene de la empresa, el de empresa.
@@ -107,26 +123,31 @@ export function colorEvento(evento: { tipo: keyof typeof colorTipo; empresa?: un
 }
 
 export function colorEventoSobreTinta(evento: { tipo: keyof typeof colorTipoSobreTinta; empresa?: unknown }): string {
-  return evento.empresa ? '#A9BBCD' : colorTipoSobreTinta[evento.tipo];
+  return colorEvento(evento);
 }
 
+// Inter para todo. Titulares muy gruesos (700-800) y apretados; las horas y cifras
+// llevan números tabulares (todas las cifras igual de anchas, como en un reloj).
 export const fuentes = {
-  titulo: 'IBMPlexSans_600SemiBold',
-  tituloFuerte: 'IBMPlexSans_700Bold',
-  texto: 'IBMPlexSans_400Regular',
-  textoMedio: 'IBMPlexSans_500Medium',
-  textoFuerte: 'IBMPlexSans_600SemiBold',
-  // Horas: letra de ancho fijo, como un reloj, para que las cifras queden alineadas.
-  hora: 'IBMPlexMono_500Medium',
-  horaFuerte: 'IBMPlexMono_600SemiBold',
+  titulo: 'Inter_700Bold',
+  tituloFuerte: 'Inter_800ExtraBold',
+  texto: 'Inter_400Regular',
+  textoMedio: 'Inter_500Medium',
+  textoFuerte: 'Inter_600SemiBold',
+  hora: 'Inter_500Medium',
+  horaFuerte: 'Inter_700Bold',
 } as const;
 
+// Para horas y cifras: que no bailen de una fila a otra.
+export const cifras: Pick<TextStyle, 'fontVariant'> = { fontVariant: ['tabular-nums'] };
+
 export const tamanos = {
-  pequeno: 13,
+  pequeno: 14,
   normal: 16,
   grande: 18,
-  titulo: 22,
-  tituloGrande: 30,
+  titulo: 24,
+  tituloGrande: 34,
+  cifra: 44, // horas y números destacados
 } as const;
 
 export const espacio = {
@@ -138,15 +159,18 @@ export const espacio = {
   xxl: 48,
 } as const;
 
-// Esquinas más bien rectas: aspecto de agenda, no de burbuja.
+// Esquinas muy redondeadas: tarjetas de 24 y botones en píldora.
 export const radio = {
-  pequeno: 6,
-  normal: 8,
-  grande: 10,
-  chip: 999, // redondo del todo: interruptores, barras de progreso y de carga
+  pequeno: 12, // campos, filas pequeñas
+  normal: 16, // casillas
+  grande: 24, // tarjetas
+  chip: 999, // redondo del todo: botones, chips, interruptores y barras
 } as const;
+
+// Duración de las transiciones: rápidas y sin rebotes.
+export const duracion = { corta: 150, normal: 200, larga: 250 } as const;
 
 // Altura mínima de cualquier cosa que se pueda pulsar
 export const alturaTactil = 44;
 
-export const tema = { colores, colorTipo, colorTipoSobreTinta, fuentes, tamanos, espacio, radio, alturaTactil };
+export const tema = { colores, colorTipo, colorTipoSobreTinta, degradados, fuentes, cifras, tamanos, espacio, radio, duracion, alturaTactil };

@@ -1,6 +1,5 @@
-import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { setStatusBarStyle } from 'expo-status-bar';
-import { useCallback, useEffect, useState } from 'react';
+import { router, useLocalSearchParams } from 'expo-router';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, LayoutAnimationConfig, LinearTransition } from 'react-native-reanimated';
 
@@ -12,6 +11,7 @@ import {
   Casilla,
   Pantalla,
   Selector,
+  Tarjeta,
   Texto,
   Titulo,
 } from '@/components';
@@ -54,7 +54,7 @@ import {
   saludoSegunHora,
   sumarDias,
 } from '@/services/fechas';
-import { colorBaldosa, colorEvento, colorEventoSobreTinta, colores, espacio, fuentes } from '@/theme';
+import { cifras, colorBaldosa, colores, colorEvento, espacio, fuentes, radio, tamanos } from '@/theme';
 
 import { CapturaRapida } from './captura/CapturaRapida';
 import { ConfirmacionMovidas } from './calendario/ConfirmacionMovidas';
@@ -149,13 +149,6 @@ export function PantallaHoy() {
   const nombre = perfil?.nombre ?? '';
   const saludo = saludoSegunHora(ahora, nombre);
 
-  // La cabecera es oscura: mientras Hoy está a la vista, la hora y la batería van en blanco.
-  useFocusEffect(
-    useCallback(() => {
-      setStatusBarStyle('light');
-      return () => setStatusBarStyle('dark');
-    }, []),
-  );
   const rindeMas = perfil?.rindeMas ?? 'manana';
 
   // Huecos a partir de ahora (redondeado al cuarto de hora) dentro del horario del perfil.
@@ -369,16 +362,16 @@ export function PantallaHoy() {
 
   return (
     <View style={estilos.contenedor}>
-      <Pantalla contentContainerStyle={estilos.contenido} colorArriba={colores.tinta}>
-        {/* Cabecera oscura: fecha, saludo y lo siguiente. */}
+      <Pantalla contentContainerStyle={estilos.contenido}>
+        {/* Cabecera: fecha, saludo gigante y lo siguiente en la tarjeta naranja. */}
         <View style={estilos.cabecera}>
           <View style={estilos.cabeceraFila}>
-            <View style={estilos.textos}>
-              <Texto style={estilos.fechaTinta}>{formatearDiaCorto(ahora)}</Texto>
-              <Titulo style={estilos.textoTinta}>{saludo}</Titulo>
-            </View>
-            <BotonInicial nombre={nombre} sobreTinta onPress={() => router.push('/perfil')} />
+            <Texto secundario style={estilos.fecha}>
+              {formatearDiaCorto(ahora)}
+            </Texto>
+            <BotonInicial nombre={nombre} onPress={() => router.push('/perfil')} />
           </View>
+          <Titulo style={estilos.saludo}>{saludo}</Titulo>
           {cargado && siguiente ? <TarjetaSiguiente siguiente={siguiente} hoy={hoy} perfil={perfil} ahora={ahora} /> : null}
         </View>
 
@@ -530,8 +523,8 @@ export function PantallaHoy() {
   );
 }
 
-// Lo siguiente (o lo que está en curso), dentro de la cabecera oscura. La barra de la
-// izquierda lleva el color de su tipo, en su versión clara para que se vea sobre la tinta.
+// Lo siguiente (o lo que está en curso): la tarjeta destacada de Hoy, con degradado
+// naranja y la hora en grande, como el saldo de una cuenta. Texto oscuro encima.
 type PropsSiguiente = { siguiente: Siguiente; hoy: string; perfil: Perfil | null; ahora: Date };
 
 function TarjetaSiguiente({ siguiente, hoy, perfil, ahora }: PropsSiguiente) {
@@ -547,27 +540,31 @@ function TarjetaSiguiente({ siguiente, hoy, perfil, ahora }: PropsSiguiente) {
   const lugar = resolverLugar(evento.lugar, perfil);
 
   return (
-    <View style={[estilos.siguiente, { borderLeftColor: colorEventoSobreTinta(evento) }]}>
+    <Tarjeta destacada="naranja" style={estilos.siguiente}>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${cuando}: ${evento.titulo}, ${rangoHoras(evento)}`}
         onPress={() => abrirEvento(evento.id)}
         style={({ pressed }) => [estilos.siguienteTextos, pressed && estilos.pulsado]}>
-        <Texto pequeno style={estilos.horaTinta}>
-          {cuando} · {rangoHoras(evento)}
+        <Texto pequeno style={estilos.cuando}>
+          {cuando}
         </Texto>
-        <Titulo nivel={3} style={estilos.textoTinta}>
+        <View style={estilos.cifraFila}>
+          <Texto style={estilos.cifra}>{evento.horaInicio}</Texto>
+          <Texto style={estilos.hasta}>hasta {evento.horaFin}</Texto>
+        </View>
+        <Titulo nivel={3} style={estilos.sobreDegradado}>
           {evento.titulo}
         </Titulo>
         {lugar ? (
-          <Texto pequeno style={estilos.fechaTinta}>
+          <Texto pequeno style={estilos.sobreDegradado}>
             {[lugar.nombre, lugar.direccion].filter(Boolean).join(' · ')}
           </Texto>
         ) : null}
       </Pressable>
       {/* "Sal a las 10:05 · 18 min en coche" y "Cómo llegar" (fase 6). */}
       <SalidaSiguiente evento={evento} dia={dia} enCurso={enCurso} ahora={ahora} />
-    </View>
+    </Tarjeta>
   );
 }
 
@@ -577,7 +574,7 @@ function FilaTarea({ tarea, detalle, apagada }: FilaTareaLista) {
     <View
       style={[
         estilos.tarea,
-        { borderLeftColor: apagada ? colores.cargaNormal : colorEvento(tarea) },
+        { borderLeftColor: apagada ? colores.borde : colorEvento(tarea) },
         { minHeight: medidas.altoFila, paddingVertical: Math.max(medidas.rellenoFila - 4, 0) },
         apagada && estilos.apagada,
       ]}>
@@ -617,30 +614,26 @@ function FilaTarea({ tarea, detalle, apagada }: FilaTareaLista) {
 const estilos = StyleSheet.create({
   contenedor: { flex: 1, backgroundColor: colores.fondo },
   contenido: { paddingBottom: 120 }, // deja sitio al botón "+"
-  // La cabecera ocupa todo el ancho: se come el margen de Pantalla.
-  cabecera: {
-    marginHorizontal: -espacio.l,
-    marginTop: -espacio.l,
-    paddingHorizontal: espacio.l,
-    paddingTop: espacio.m,
-    paddingBottom: espacio.l,
-    backgroundColor: colores.tinta,
-    gap: espacio.m,
-  },
-  cabeceraFila: { flexDirection: 'row', alignItems: 'flex-start', gap: espacio.m },
-  textos: { flex: 1, gap: espacio.xs },
-  fechaTinta: { color: colores.textoSecundarioSobreTinta },
-  textoTinta: { color: colores.textoSobreTinta },
-  horaTinta: { color: colores.textoSecundarioSobreTinta, fontFamily: fuentes.hora },
+  cabecera: { gap: espacio.m, paddingBottom: espacio.s },
+  cabeceraFila: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espacio.m },
+  fecha: { fontFamily: fuentes.textoMedio, textTransform: 'capitalize' },
+  // Saludo gigante y apretado, como el titular de una página.
+  saludo: { fontSize: 40, lineHeight: 44, letterSpacing: -1.6 },
   vista: { gap: espacio.m, marginTop: espacio.s },
-  siguiente: {
-    backgroundColor: colores.tintaSuave,
-    borderLeftWidth: 4,
-    paddingHorizontal: espacio.m,
-    paddingVertical: espacio.s + 4,
-    gap: 2,
-  },
+  siguiente: { marginTop: espacio.xs },
   siguienteTextos: { gap: 2 },
+  cuando: { color: colores.textoOscuro, fontFamily: fuentes.textoFuerte, textTransform: 'uppercase', letterSpacing: 0.6 },
+  cifraFila: { flexDirection: 'row', alignItems: 'baseline', gap: espacio.s },
+  cifra: {
+    ...cifras,
+    color: colores.textoOscuro,
+    fontFamily: fuentes.tituloFuerte,
+    fontSize: tamanos.cifra + 8,
+    lineHeight: tamanos.cifra + 14,
+    letterSpacing: -2,
+  },
+  hasta: { ...cifras, color: colores.textoOscuro, fontFamily: fuentes.textoMedio },
+  sobreDegradado: { color: colores.textoOscuro },
   pulsado: { opacity: 0.85, transform: [{ scale: 0.99 }] },
   tarea: {
     flexDirection: 'row',
@@ -648,7 +641,8 @@ const estilos = StyleSheet.create({
     gap: espacio.xs,
     paddingRight: espacio.m,
     backgroundColor: colores.tarjeta,
-    borderLeftWidth: 4, // barra del color de su tipo
+    borderRadius: radio.grande - 4,
+    borderLeftWidth: 4, // raya del color de su tipo
   },
   tareaTextos: { flex: 1, minHeight: 44, justifyContent: 'center' },
   // Sin opacidad, para que el texto siga pasando el contraste mínimo.

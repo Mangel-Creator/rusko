@@ -6,7 +6,7 @@ import type { Hito, TemaHito } from '@/data/epocas';
 import { horasDeTemas } from '@/services/epoca';
 import { temasConIA } from '@/services/epoca/ia';
 import { MAX_TEXTO_TEMARIO, type PropuestaTemas } from '@/services/epoca/validarIA';
-import { colores, espacio, fuentes } from '@/theme';
+import { cifras, colores, espacio, fuentes } from '@/theme';
 
 import { BotonIcono } from './EditorImprescindibles';
 import { formatoHoras } from './textos';
@@ -140,7 +140,7 @@ const estilos = StyleSheet.create({
   lista: { gap: espacio.s },
   tema: { flexDirection: 'row', alignItems: 'center', gap: espacio.s, minHeight: 32 },
   flex: { flex: 1 },
-  horas: { fontFamily: fuentes.hora },
+  horas: { ...cifras, fontFamily: fuentes.hora },
   campo: { minHeight: 110, paddingVertical: espacio.s, textAlignVertical: 'top' },
   error: { color: colores.aviso },
 });

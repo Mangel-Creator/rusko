@@ -7,7 +7,8 @@ type Props = Omit<PressableProps, 'children'> & {
   variante?: 'principal' | 'secundario';
 };
 
-// Botón de la app. "principal" es naranja; "secundario" es blanco con borde.
+// Botón de la app, en forma de píldora. "principal" es naranja con texto oscuro;
+// "secundario" es gris cálido con texto claro. Sin bordes ni sombras.
 export function Boton({ titulo, variante = 'principal', disabled, style, ...resto }: Props) {
   const esPrincipal = variante === 'principal';
   return (
@@ -18,7 +19,7 @@ export function Boton({ titulo, variante = 'principal', disabled, style, ...rest
       style={(estado) => [
         estilos.base,
         esPrincipal ? estilos.principal : estilos.secundario,
-        estado.pressed && estilos.pulsado,
+        estado.pressed && (esPrincipal ? estilos.pulsadoPrincipal : estilos.pulsado),
         disabled && estilos.desactivado,
         typeof style === 'function' ? style(estado) : style,
       ]}
@@ -34,17 +35,14 @@ const estilos = StyleSheet.create({
   base: {
     minHeight: alturaTactil + 6,
     paddingHorizontal: espacio.l,
-    borderRadius: radio.normal,
+    borderRadius: radio.chip,
     alignItems: 'center',
     justifyContent: 'center',
   },
   principal: { backgroundColor: colores.principal },
-  secundario: {
-    backgroundColor: colores.tarjeta,
-    borderWidth: 1,
-    borderColor: colores.borde,
-  },
-  pulsado: { opacity: 0.85, transform: [{ scale: 0.98 }] },
+  secundario: { backgroundColor: colores.elevado },
+  pulsadoPrincipal: { backgroundColor: colores.principalPulsado, transform: [{ scale: 0.98 }] },
+  pulsado: { backgroundColor: colores.borde, transform: [{ scale: 0.98 }] },
   desactivado: { opacity: 0.45 },
   texto: { fontFamily: fuentes.textoFuerte, fontSize: tamanos.normal },
   textoPrincipal: { color: colores.textoSobrePrincipal },

@@ -12,7 +12,7 @@ import { nombreDe, personasDe } from '@/services/empresa/roles';
 import { abrirPrivado } from '@/services/empresa/servidor';
 import { textoFallo } from '@/services/empresa/textos';
 import { claveDia, formatearHora } from '@/services/fechas';
-import { alturaTactil, colorBaldosa, colores, espacio, fuentes, radio } from '@/theme';
+import { alturaTactil, cifras, colorBaldosa, colores, espacio, fuentes, radio } from '@/theme';
 
 import { BotonVolver, Chip, Chips, Mensaje, useDatosEmpresa } from './empresa/piezas';
 
@@ -176,7 +176,7 @@ const estilos = StyleSheet.create({
   inicial: { color: colorBaldosa.empresa.icono },
   textos: { flex: 1, gap: 2 },
   linea: { flexDirection: 'row', alignItems: 'center', gap: espacio.s },
-  hora: { fontFamily: fuentes.hora },
+  hora: { ...cifras, fontFamily: fuentes.hora },
   sinLeerTexto: { color: colores.texto, fontFamily: fuentes.textoMedio },
   globo: {
     minWidth: 22,

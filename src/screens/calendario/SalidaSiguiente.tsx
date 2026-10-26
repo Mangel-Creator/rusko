@@ -8,7 +8,7 @@ import { useSalida } from '@/data/salidas';
 import { formatearHora, type ClaveDia } from '@/services/fechas';
 import { textoSalida } from '@/services/rutas';
 import { citaDe } from '@/services/rutas/citas';
-import { alturaTactil, colores, espacio, fuentes, radio, tamanos } from '@/theme';
+import { alturaTactil, cifras, colores, espacio, fuentes, radio, tamanos } from '@/theme';
 
 // Dentro de la tarjeta "Lo siguiente" de Hoy (fase 6): "Sal a las 10:05 · 18 min en
 // coche" y el botón "Cómo llegar", que abre el Mapa con la ruta hasta el evento.
@@ -50,21 +50,21 @@ const estilos = StyleSheet.create({
   fila: { flexDirection: 'row', alignItems: 'center', gap: espacio.s, marginTop: espacio.xs },
   texto: {
     flex: 1,
-    color: colores.textoSobreTinta,
-    fontFamily: fuentes.hora,
+    color: colores.textoOscuro,
+    ...cifras, fontFamily: fuentes.hora,
     fontSize: tamanos.pequeno,
     lineHeight: 18,
   },
-  // Granate claro no pasa el contraste sobre la tinta: se usa el texto claro en negrita.
-  tarde: { fontFamily: fuentes.horaFuerte },
+  // El rojo no se lee sobre el degradado naranja: se usa el texto oscuro en negrita.
+  tarde: { ...cifras, fontFamily: fuentes.horaFuerte },
   hueco: { flex: 1 },
   boton: {
     minHeight: alturaTactil,
     paddingHorizontal: espacio.m,
-    borderRadius: radio.normal,
-    backgroundColor: colores.principal,
+    borderRadius: radio.chip,
+    backgroundColor: colores.textoOscuro,
     justifyContent: 'center',
   },
   pulsado: { opacity: 0.85, transform: [{ scale: 0.97 }] },
-  textoBoton: { color: colores.textoSobrePrincipal, fontFamily: fuentes.textoFuerte, fontSize: tamanos.pequeno },
+  textoBoton: { color: colores.texto, fontFamily: fuentes.textoFuerte, fontSize: tamanos.pequeno },
 });

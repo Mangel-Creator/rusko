@@ -3,7 +3,7 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Texto } from '@/components';
 import { textoDistancia, textoDuracion, textoRadares, textoRetraso, type Ruta } from '@/services/rutas';
-import { alturaTactil, colores, coloresMapa, espacio, fuentes, radio, tamanos } from '@/theme';
+import { alturaTactil, cifras, colores, coloresMapa, espacio, fuentes, radio, tamanos } from '@/theme';
 
 import type { Destino } from './destinos';
 
@@ -115,6 +115,6 @@ const estilos = StyleSheet.create({
     gap: 2,
   },
   rutaArriba: { flexDirection: 'row', alignItems: 'baseline', gap: espacio.s },
-  duracion: { fontFamily: fuentes.horaFuerte, fontSize: tamanos.grande, lineHeight: 24 },
-  retraso: { fontFamily: fuentes.hora, fontSize: tamanos.normal, color: colores.aviso },
+  duracion: { ...cifras, fontFamily: fuentes.horaFuerte, fontSize: tamanos.grande, lineHeight: 24 },
+  retraso: { ...cifras, fontFamily: fuentes.hora, fontSize: tamanos.normal, color: colores.aviso },
 });
