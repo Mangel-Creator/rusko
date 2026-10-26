@@ -95,7 +95,7 @@ describe('limpiar y resumir', () => {
 });
 
 describe('analizarCorreo y avisos', () => {
-  it('un correo con plazo lleva fecha y tarea', () => {
+  it('un correo con plazo lleva fecha y tarea, sin resumen', () => {
     const a = reglas.analizarCorreo({
       asunto: 'RE: Declaración trimestral',
       de: 'Gestoría <g@g.es>',
@@ -104,37 +104,91 @@ describe('analizarCorreo y avisos', () => {
     });
     expect(a).toEqual({
       titulo: 'Declaración trimestral',
-      resumen: 'Necesito las facturas antes del 10 de octubre para presentar el IVA.',
+      resumen: '',
       fechaLimite: '2026-10-10',
       tarea: 'Declaración trimestral',
+      importante: false,
       via: 'reglas',
     });
   });
 
-  it('un correo normal es solo un resumen', () => {
+  it('un correo normal no tiene fecha ni es importante', () => {
     const a = reglas.analizarCorreo({ asunto: 'Fotos del finde', de: 'Ana', cuerpo: '¡Mira qué bien salimos!', recibido: RECIBIDO });
     expect(a.fechaLimite).toBeNull();
     expect(a.tarea).toBeNull();
+    expect(a.importante).toBe(false);
   });
 
-  it('un aviso por plazo y uno solo para muchos correos normales', () => {
-    const normal = (i) => ({ titulo: `Correo ${i}`, de: 'Ana', resumen: 'Algo', fechaLimite: null, tarea: null });
+  it('avisa de lo que tiene fecha y de lo importante; del resto, nada', () => {
+    const normal = (i) => ({ titulo: `Correo ${i}`, de: 'Ana', resumen: '', fechaLimite: null, tarea: null, importante: false });
+    const importante = (i) => ({ ...normal(i), importante: true, resumen: 'Te pide que confirmes hoy.' });
     const avisos = reglas.avisosDeCorreos(
-      [
-        { titulo: 'IVA', de: 'Gestoría', resumen: '', fechaLimite: '2026-10-05', tarea: 'Mandar facturas' },
-        normal(1),
-        normal(2),
-        normal(3),
-        normal(4),
-      ],
+      [{ titulo: 'IVA', de: 'Gestoría', resumen: '', fechaLimite: '2026-10-05', tarea: 'Mandar facturas' }, normal(1), normal(2), importante(3)],
       RECIBIDO,
     );
-    expect(avisos).toHaveLength(2);
-    expect(avisos[0].titulo).toBe('Vence el lun 5 oct: Mandar facturas');
-    expect(avisos[1].titulo).toBe('4 correos nuevos');
-    expect(reglas.avisosDeCorreos([normal(1)], RECIBIDO)).toEqual([{ titulo: 'Correo 1', cuerpo: 'Ana · Algo' }]);
+    expect(avisos).toEqual([
+      { titulo: 'El lun 5 oct: Mandar facturas', cuerpo: 'Te lo he apuntado en las tareas. Correo de Gestoría.' },
+      { titulo: 'Ana: Correo 3', cuerpo: 'Te pide que confirmes hoy.' },
+    ]);
+    expect(reglas.avisosDeCorreos([normal(1), normal(2)], RECIBIDO)).toEqual([]);
     expect(
       reglas.avisosDeCorreos([{ titulo: 'X', de: 'Y', resumen: '', fechaLimite: '2026-09-28', tarea: 'X' }], RECIBIDO)[0].titulo,
-    ).toBe('Vence mañana: X');
+    ).toBe('Mañana: X');
+    expect(reglas.textoCuando(HOY, HOY)).toBe('Hoy');
+  });
+
+  it('muchos importantes van en un solo aviso', () => {
+    const imp = (i) => ({ titulo: `Asunto ${i}`, de: `Persona ${i}`, resumen: '', fechaLimite: null, tarea: null, importante: true });
+    const avisos = reglas.avisosDeCorreos([imp(1), imp(2), imp(3), imp(4)], RECIBIDO);
+    expect(avisos).toHaveLength(1);
+    expect(avisos[0].titulo).toBe('4 correos importantes');
+    expect(reglas.avisosDeCorreos([imp(1)], RECIBIDO)[0].cuerpo).toBe('Correo importante en Principal.');
+  });
+});
+
+describe('resultadoDeIA', () => {
+  const correo = { asunto: 'RE: Cita', recibido: RECIBIDO };
+
+  it('se queda con lo válido y la línea del aviso solo si es importante', () => {
+    expect(
+      reglas.resultadoDeIA({ titulo: 'Cita en el dentista', fechaLimite: '2026-10-02', tarea: 'Dentista a las 10', importante: true, resumen: 'Confírmala.' }, correo),
+    ).toEqual({
+      titulo: 'Cita en el dentista',
+      resumen: 'Confírmala.',
+      fechaLimite: '2026-10-02',
+      tarea: 'Dentista a las 10',
+      importante: true,
+      via: 'ia',
+    });
+    expect(reglas.resultadoDeIA({ titulo: 'Oferta', fechaLimite: null, importante: false, resumen: 'Compra ya' }, correo)).toMatchObject({
+      resumen: '',
+      importante: false,
+      tarea: null,
+    });
+  });
+
+  it('descarta fechas pasadas, lejanas o mal escritas', () => {
+    expect(reglas.resultadoDeIA({ titulo: 'A', fechaLimite: '2026-09-01' }, correo).fechaLimite).toBeNull();
+    expect(reglas.resultadoDeIA({ titulo: 'A', fechaLimite: '2028-01-01' }, correo).fechaLimite).toBeNull();
+    expect(reglas.resultadoDeIA({ titulo: 'A', fechaLimite: '5 oct' }, correo).fechaLimite).toBeNull();
+    expect(reglas.resultadoDeIA({ titulo: '', fechaLimite: null }, correo).titulo).toBe('Cita');
+  });
+});
+
+describe('avisarme siempre de', () => {
+  it('por nombre, por dirección o por dominio', () => {
+    const de = '"Gestoría López" <info@gl.es>';
+    expect(reglas.siempreAvisar(de, ['gestoria lopez'])).toBe(true);
+    expect(reglas.siempreAvisar(de, ['info@gl.es'])).toBe(true);
+    expect(reglas.siempreAvisar(de, ['@gl.es'])).toBe(true);
+    expect(reglas.siempreAvisar(de, ['López'])).toBe(false);
+    expect(reglas.siempreAvisar(de, ['.es'])).toBe(false);
+    expect(reglas.siempreAvisar(de, [])).toBe(false);
+  });
+
+  it('limpia la lista que manda la app', () => {
+    expect(reglas.leerSiempre('Ana')).toBeNull();
+    expect(reglas.leerSiempre([' Ana ', '', 3, 'x'.repeat(121)])).toEqual(['Ana']);
+    expect(reglas.leerSiempre(Array.from({ length: 40 }, (_, i) => `P${i}`))).toHaveLength(30);
   });
 });

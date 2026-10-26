@@ -6,7 +6,7 @@ import { fechaDesdeClave, minutosDesdeHora, sumarDias, type ClaveDia } from '@/s
 import type { AvisoPlanificado } from './tipos';
 
 // Plazos que llegaron por correo (fase 11): la víspera, a la hora de levantarse, un
-// aviso "Mañana vence: Pagar el IBI". Solo si su tarea sigue en el calendario sin
+// aviso "Mañana: Pagar el IBI". Solo si su tarea sigue en el calendario sin
 // hacer (si la borras o la marcas, no hay aviso). El aviso de cuando llega el correo
 // no es de aquí: lo manda el ayudante de Gmail al momento.
 
@@ -28,7 +28,7 @@ export function avisosDePlazos(
         tipo: 'plazo-correo' as const,
         dia,
         cuando: new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate(), 0, minutosDesdeHora(perfil.horario.levantarse)),
-        titulo: `Mañana vence: ${tarea.titulo}`,
+        titulo: `Mañana: ${tarea.titulo}`,
         cuerpo: `Del correo de ${correo.de}. Lo tienes en las tareas.`,
         destino: { pantalla: 'evento' as const, id: tarea.id },
       },

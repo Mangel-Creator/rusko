@@ -37,9 +37,12 @@ export type CorreoRemoto = {
   de: string; // "Gestoría López"
   asunto: string;
   titulo: string;
+  // Desde el 26/10/2026 no hay resúmenes: solo la línea del aviso de un correo
+  // importante ("Te pide que le confirmes hoy…"), o vacío. Los antiguos pueden traer uno.
   resumen: string;
-  fechaLimite: ClaveDia | null; // si pide algo con plazo
-  tarea: string | null; // lo que hay que hacer, para el calendario
+  fechaLimite: ClaveDia | null; // el día que importa: un plazo, una cita, un cargo
+  tarea: string | null; // lo que hay que hacer (o la cita), para el calendario
+  importante?: boolean; // lo dice la IA, o es de "Avisarme siempre de…"
   via: 'reglas' | 'ia';
   enlace: string; // abre el correo en Gmail u Outlook
   origen?: ProveedorCorreo; // solo en los de las cuentas vinculadas
@@ -67,13 +70,15 @@ type Estado = {
   cuentas: CuentaCorreo[];
   proveedores: ProveedoresCorreo | null; // null hasta que conteste el servidor
   correos: CorreoResumido[];
+  siempre: string[]; // "Avisarme siempre de…": remitentes tal como salen en la lista
 };
 
 const CLAVE_CONEXION = 'correo';
 const CLAVE_CORREOS = 'correos';
 const CLAVE_CUENTAS = 'cuentasCorreo';
+const CLAVE_SIEMPRE = 'correoSiempre';
 
-let estado: Estado = { cargado: false, conexion: null, cuentas: [], proveedores: null, correos: [] };
+let estado: Estado = { cargado: false, conexion: null, cuentas: [], proveedores: null, correos: [], siempre: [] };
 let cargando: Promise<void> | null = null;
 const oyentes = new Set<() => void>();
 
@@ -88,11 +93,13 @@ export function cargarCorreos(): Promise<void> {
       leerAjuste<ConexionCorreo | null>(CLAVE_CONEXION, null),
       leerAjuste<CorreoResumido[]>(CLAVE_CORREOS, []),
       leerAjuste<CuentaCorreo[]>(CLAVE_CUENTAS, []),
-    ]).then(([conexion, correos, cuentas]) =>
+      leerAjuste<string[]>(CLAVE_SIEMPRE, []),
+    ]).then(([conexion, correos, cuentas, siempre]) =>
       cambiar({
         conexion,
         correos: Array.isArray(correos) ? correos : [],
         cuentas: Array.isArray(cuentas) ? cuentas : [],
+        siempre: Array.isArray(siempre) ? siempre.filter((s) => typeof s === 'string') : [],
       }),
     );
   }
@@ -121,6 +128,12 @@ export async function guardarCorreos(correos: CorreoResumido[]): Promise<void> {
   await cargarCorreos();
   cambiar({ correos });
   await guardarAjuste(CLAVE_CORREOS, correos);
+}
+
+export async function guardarSiempre(siempre: string[]): Promise<void> {
+  await cargarCorreos();
+  cambiar({ siempre });
+  await guardarAjuste(CLAVE_SIEMPRE, siempre);
 }
 
 function suscribirse(avisar: () => void) {

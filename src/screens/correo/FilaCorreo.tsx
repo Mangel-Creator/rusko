@@ -3,19 +3,23 @@ import { useState } from 'react';
 import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { Boton, Texto } from '@/components';
-import type { CorreoResumido } from '@/data/correos';
-import { esPlazo, NOMBRE_PROVEEDOR, quitarPlazo, textoVence } from '@/services/correo';
+import { useCorreos, type CorreoResumido } from '@/data/correos';
+import { alternarSiempre, avisaSiempre, esPlazo, NOMBRE_PROVEEDOR, quitarPlazo, textoParaDia } from '@/services/correo';
 import { formatearHora } from '@/services/fechas';
 import { alturaTactil, cifras, colores, colorTipo, espacio, fuentes, radio } from '@/theme';
 
-// Un correo resumido en Resúmenes (fase 11): remitente, hora, título, plazo y resumen.
-// Al tocarlo se abre: "Abrir en Gmail/Outlook", "Ver la tarea" y "No es un plazo".
+// Un correo en la pestaña Correo (fase 11): remitente, hora, de qué va, el día que
+// importa y, si es importante, la línea del aviso. Sin resúmenes (26/10/2026).
+// Al tocarlo se abre: "Abrir en Gmail/Outlook", "Ver la tarea", "Quitar de las tareas"
+// y "Avisarme siempre de…".
 
 export function FilaCorreo({ correo, hoy, nuevo }: { correo: CorreoResumido; hoy: string; nuevo: boolean }) {
+  const { siempre } = useCorreos();
   const [abierta, setAbierta] = useState(false);
   const plazo = esPlazo(correo) ? correo.fechaLimite : null;
   const hora = formatearHora(new Date(correo.recibido));
   const donde = correo.origen ? NOMBRE_PROVEEDOR[correo.origen] : 'Gmail';
+  const conAviso = correo.de ? avisaSiempre(siempre, correo.de) : false;
   return (
     <View style={[estilos.fila, plazo && estilos.filaPlazo]}>
       <Pressable
@@ -23,10 +27,11 @@ export function FilaCorreo({ correo, hoy, nuevo }: { correo: CorreoResumido; hoy
         accessibilityState={{ expanded: abierta }}
         accessibilityLabel={[
           nuevo ? 'Nuevo.' : '',
+          correo.importante ? 'Importante.' : '',
           `${correo.titulo}.`,
           `De ${correo.de}, a las ${hora}.`,
-          plazo ? `${textoVence(plazo, hoy)}.` : '',
-          abierta ? '' : correo.resumen,
+          plazo ? `${textoParaDia(plazo, hoy)}.` : '',
+          correo.resumen,
         ].join(' ')}
         onPress={() => setAbierta((a) => !a)}
         style={({ pressed }) => [estilos.cabecera, pressed && estilos.pulsado]}>
@@ -48,14 +53,19 @@ export function FilaCorreo({ correo, hoy, nuevo }: { correo: CorreoResumido; hoy
         <Texto fuerte numberOfLines={abierta ? undefined : 2}>
           {correo.titulo}
         </Texto>
+        {correo.importante ? (
+          <Texto pequeno fuerte style={estilos.aviso}>
+            Importante
+          </Texto>
+        ) : null}
         {plazo ? (
           <Texto pequeno fuerte style={plazo <= hoy ? estilos.aviso : undefined}>
-            {textoVence(plazo, hoy)}
+            {textoParaDia(plazo, hoy)}
             {correo.tarea && correo.tarea !== correo.titulo ? ` · ${correo.tarea}` : ''}
           </Texto>
         ) : null}
         {correo.resumen ? (
-          <Texto pequeno secundario numberOfLines={abierta ? undefined : 3}>
+          <Texto pequeno secundario numberOfLines={abierta ? undefined : 2}>
             {correo.resumen}
           </Texto>
         ) : null}
@@ -82,7 +92,18 @@ export function FilaCorreo({ correo, hoy, nuevo }: { correo: CorreoResumido; hoy
             />
           ) : null}
           {plazo ? (
-            <Boton variante="secundario" titulo="No es un plazo" onPress={() => quitarPlazo(correo.id).catch(() => {})} />
+            <Boton
+              variante="secundario"
+              titulo="Quitar de las tareas"
+              onPress={() => quitarPlazo(correo.id).catch(() => {})}
+            />
+          ) : null}
+          {correo.de ? (
+            <Boton
+              variante="secundario"
+              titulo={conAviso ? `Dejar de avisarme siempre de ${correo.de}` : `Avisarme siempre de ${correo.de}`}
+              onPress={() => alternarSiempre(correo.de).catch(() => {})}
+            />
           ) : null}
         </View>
       ) : null}
@@ -92,7 +113,7 @@ export function FilaCorreo({ correo, hoy, nuevo }: { correo: CorreoResumido; hoy
 
 const estilos = StyleSheet.create({
   fila: { backgroundColor: colores.tarjeta },
-  // Los plazos son tareas tuyas: barra del color de "Yo".
+  // Lo que tiene fecha ya es una tarea tuya: barra del color de "Yo".
   filaPlazo: { borderLeftWidth: 4, borderLeftColor: colorTipo.yo },
   cabecera: { gap: 2, minHeight: alturaTactil, paddingHorizontal: espacio.m, paddingVertical: espacio.s },
   pulsado: { opacity: 0.8 },

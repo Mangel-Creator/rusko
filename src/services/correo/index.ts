@@ -6,6 +6,7 @@ import {
   guardarConexion,
   guardarCorreos,
   guardarCuentas,
+  guardarSiempre,
   leerCorreos,
   type CorreoRemoto,
   type CorreoResumido,
@@ -17,7 +18,7 @@ import { datosPublicosSupabase } from '@/data/supabase';
 import { claveDia } from '@/services/fechas';
 import { escucharPush, tokenDeAvisos } from '@/services/planes/push';
 
-import { correosSinTarea, leerEnlace, mezclarCorreos, sinCuenta, tareaDeCorreo, validarRemoto } from './correos';
+import { cambiarSiempre, correosSinTarea, leerEnlace, mezclarCorreos, sinCuenta, tareaDeCorreo, validarRemoto } from './correos';
 import { empezarEnServidor, estadoEnServidor, quitarEnServidor, type FalloServidor } from './servidor';
 
 // Resúmenes de correo (fase 11). Dos vías, que se juntan en la misma lista:
@@ -49,7 +50,7 @@ async function pedirAlAyudante(enlace: string): Promise<Respuesta> {
     const respuesta = await fetch(enlace, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ token, supabase: datosPublicosSupabase }),
+      body: JSON.stringify({ token, supabase: datosPublicosSupabase, siempre: (await leerCorreos()).siempre }),
       signal: control.signal,
     });
     const datos = (await respuesta.json().catch(() => null)) as {
@@ -112,7 +113,7 @@ async function traerDelAyudante(): Promise<CorreoRemoto[]> {
 async function traerDelServidor(siempre: boolean): Promise<CorreoRemoto[]> {
   const { cuentas } = await leerCorreos();
   if (!siempre && cuentas.length === 0) return [];
-  const respuesta = await estadoEnServidor(await tokenDeAvisos().catch(() => null));
+  const respuesta = await estadoEnServidor(await tokenDeAvisos().catch(() => null), (await leerCorreos()).siempre);
   if (!respuesta.ok) return [];
   await guardarCuentas(respuesta.datos.cuentas, respuesta.datos.proveedores);
   return respuesta.datos.correos;
@@ -206,6 +207,14 @@ export async function desconectarCorreo(): Promise<void> {
   const { correos } = await leerCorreos();
   await guardarConexion(null);
   await guardarCorreos(correos.filter((c) => c.cuenta !== undefined));
+}
+
+// "Avisarme siempre de…": pone o quita al remitente y se lo dice al servidor y al
+// ayudante (se manda con cada petición).
+export async function alternarSiempre(de: string): Promise<void> {
+  const { siempre, cuentas } = await leerCorreos();
+  await guardarSiempre(cambiarSiempre(siempre, de));
+  await actualizarCorreos({ servidor: cuentas.length > 0 }).catch(() => {});
 }
 
 export async function marcarCorreosVistos(): Promise<void> {

@@ -20,12 +20,12 @@ import { CuentasCorreo } from './correo/CuentasCorreo';
 import { FilaCorreo } from './correo/FilaCorreo';
 import { VincularAyudante, VincularCorreo } from './correo/VincularCorreo';
 
-// Resúmenes de correo (fase 11): /resumenes, desde la casilla de Hoy o al tocar un
-// aviso de correo.
+// Pestaña Correo (fase 11): /resumenes, desde la barra inferior o al tocar un aviso de
+// correo. Sin resúmenes (26/10/2026): de cada correo, de qué va y el día que importa.
 // - Sin nada vinculado: "Vincular con Gmail / Outlook" (solo iniciar sesión), cómo
 //   meter iCloud y, plegado, el ayudante de Gmail (QR o enlace).
-// - Con algo vinculado: tus cuentas, lo que tiene fecha límite (ya en las tareas) y el
-//   resto de correos resumidos, por día; "Vincular otra cuenta" plegado.
+// - Con algo vinculado: tus cuentas, lo que tiene fecha (ya en las tareas) y el
+//   resto de correos, por día; "Vincular otra cuenta" plegado.
 // Llegan aquí también la vuelta del inicio de sesión en la web (?correo=ok&cuenta=…) y
 // el QR del ayudante (#ayudante=<enlace>, detrás de "#" para que no llegue a ningún
 // servidor).
@@ -106,7 +106,7 @@ export function PantallaResumenes() {
 
   return (
     <Pantalla>
-      <Titulo>Resúmenes</Titulo>
+      <Titulo>Correo</Titulo>
 
       {mensaje ? (
         <Tarjeta style={estilos.mensaje}>
@@ -139,16 +139,16 @@ export function PantallaResumenes() {
             <View style={estilos.vacio}>
               <Ionicons name="mail-open-outline" size={48} color={colores.textoSecundario} />
               <Texto secundario style={estilos.centrado}>
-                Nada nuevo en tu correo. Cuando llegue algo a Principal, lo verás aquí resumido.
+                Nada nuevo en tu correo. Cuando llegue algo a Principal, lo verás aquí.
               </Texto>
             </View>
           ) : null}
 
           {plazos.length > 0 ? (
             <View style={estilos.seccion}>
-              <Titulo nivel={3}>Con fecha límite</Titulo>
+              <Titulo nivel={3}>Con fecha</Titulo>
               <Texto pequeno secundario>
-                Ya están en tus tareas, el día que vencen.
+                Ya están en tus tareas, ese día.
               </Texto>
               {plazos.map((c) => (
                 <FilaCorreo key={c.id} correo={c} hoy={hoy} nuevo={!c.visto} />

@@ -22,7 +22,7 @@ import { usuarioDeLaPeticion } from '../_shared/usuario.ts';
 
 // El mismo modelo que la captura y el correo (barato y rápido). Se puede cambiar
 // sin tocar la app con el secreto EPOCA_MODELO (por ejemplo, claude-sonnet-5).
-const MODELO = Deno.env.get('EPOCA_MODELO') || 'claude-haiku-4-5';
+const MODELO = Deno.env.get('EPOCA_MODELO') || 'claude-haiku-5-5';
 
 const LIMITE_POR_USUARIO = numeroDeEntorno('EPOCA_LIMITE_USUARIO', 30);
 const LIMITE_GLOBAL = numeroDeEntorno('EPOCA_LIMITE_GLOBAL', 1000);
@@ -278,7 +278,8 @@ const ESQUEMAS: Record<Accion, Record<string, unknown>> = {
   },
 };
 
-const MAX_TOKENS: Record<Accion, number> = { preparar: 3000, temario: 2000, repaso: 1500 };
+// Con sitio para que piense un poco antes de contestar (Haiku 5.5 piensa solo).
+const MAX_TOKENS: Record<Accion, number> = { preparar: 4000, temario: 3000, repaso: 2500 };
 
 // ---------- Servidor ----------
 
@@ -317,7 +318,7 @@ Deno.serve(async (req) => {
       max_tokens: MAX_TOKENS[accion],
       system: INSTRUCCIONES[accion],
       messages: [{ role: 'user', content: mensaje }],
-      output_config: { format: { type: 'json_schema', schema: ESQUEMAS[accion] } },
+      output_config: { effort: 'low', format: { type: 'json_schema', schema: ESQUEMAS[accion] } },
     });
     await apuntarIA(usuario, 'epoca', MODELO, respuesta.usage);
     if (respuesta.stop_reason !== 'end_turn') {

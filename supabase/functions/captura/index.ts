@@ -15,8 +15,9 @@ import { numeroDeEntorno, sumarUso } from '../_shared/limite.ts';
 import { apuntarIA, cuerpoLimiteIA, permitirIA } from '../_shared/limiteIA.ts';
 import { usuarioDeLaPeticion } from '../_shared/usuario.ts';
 
-// Modelo pequeño y barato de Claude (Haiku 4.5): de sobra para entender una frase.
-const MODELO = 'claude-haiku-4-5';
+// Modelo pequeño y barato de Claude (Haiku 5.5, desde el 26/10/2026), pensando poco:
+// de sobra para entender una frase.
+const MODELO = 'claude-haiku-5-5';
 
 // Se pueden cambiar sin tocar el código, con secretos de Supabase del mismo nombre.
 const LIMITE_POR_USUARIO = numeroDeEntorno('CAPTURA_LIMITE_USUARIO', 50);
@@ -149,10 +150,10 @@ Deno.serve(async (req) => {
   try {
     const respuesta = await anthropic.messages.create({
       model: MODELO,
-      max_tokens: 512,
+      max_tokens: 1024, // con sitio para que piense un poco antes de contestar
       system: INSTRUCCIONES,
       messages: [{ role: 'user', content: mensajeUsuario(peticion) }],
-      output_config: { format: { type: 'json_schema', schema: ESQUEMA } },
+      output_config: { effort: 'low', format: { type: 'json_schema', schema: ESQUEMA } },
     });
     await apuntarIA(usuario, 'captura', MODELO, respuesta.usage);
     if (respuesta.stop_reason !== 'end_turn') {

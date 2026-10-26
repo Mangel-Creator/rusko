@@ -18,9 +18,10 @@ export const LIMITES_IA = {
 };
 
 // Dólares por millón de tokens (entrada, salida) = millonésimas de dólar por token.
-// Precios oficiales de Anthropic a 29/09/2026. Un modelo que no esté aquí se cobra
+// Precios oficiales de Anthropic a 26/10/2026. Un modelo que no esté aquí se cobra
 // como el más caro que podría usarse, para no quedarse corto.
 const PRECIOS: Record<string, [number, number]> = {
+  'claude-haiku-5-5': [0.1, 0.5],
   'claude-haiku-4-5': [1, 5],
   'claude-sonnet-5-5': [2, 10],
   'claude-sonnet-5': [2, 10],

@@ -1,23 +1,22 @@
-// Organizy · Resumen de correos con IA para el ayudante de Gmail (fase 11).
+// Organizy · IA de los correos para el ayudante de Gmail (fase 11).
 //
 // La llama el ayudante de Gmail del usuario (gmail/organizy-correo.js, en su cuenta
 // de Google) con un correo ya limpio: asunto, remitente y hasta 4000 letras. Devuelve
-// título, resumen y, si pide algo con plazo, la fecha límite. No guarda nada: ni el
-// correo ni el resultado (en los registros solo quedan los tokens gastados).
+// qué es, la fecha que importa (con su tarea) y si es importante; sin resumen. No
+// guarda nada: ni el correo ni el resultado (en los registros solo quedan los tokens).
 //
 // - Sin la clave de Anthropic (ANTHROPIC_API_KEY) contesta "sin-clave" y el ayudante
 //   usa sus reglas; cuando se ponga la clave, empieza a usarla solo.
-// - Solo con sesión (anónima) de Supabase, como la app. Límite por usuario y día, y
-//   los de 5 horas y semana (limiteIA.ts): al llegar, contesta 429 y el ayudante usa
-//   sus reglas un rato.
+// - Solo con sesión (anónima) de Supabase, como la app. No gasta de los límites de IA
+//   de 5 horas y semana: tiene su propio máximo de correos al día; al llegar, contesta
+//   429 y el ayudante usa sus reglas un rato.
 
 import { respuestaJson, respuestaPrevia } from '../_shared/cors.ts';
 import { analizarConClaude, iaDisponible, leerPeticionIA } from '../_shared/iaCorreo.ts';
 import { numeroDeEntorno, sumarUso } from '../_shared/limite.ts';
-import { cuerpoLimiteIA, permitirIA } from '../_shared/limiteIA.ts';
 import { usuarioDeLaPeticion } from '../_shared/usuario.ts';
 
-const LIMITE_POR_USUARIO = numeroDeEntorno('CORREO_LIMITE_USUARIO', 150);
+const LIMITE_POR_USUARIO = numeroDeEntorno('CORREO_LIMITE_USUARIO', 100);
 const LIMITE_GLOBAL = numeroDeEntorno('CORREO_LIMITE_GLOBAL', 3000);
 
 Deno.serve(async (req) => {
@@ -33,9 +32,6 @@ Deno.serve(async (req) => {
   const peticion = leerPeticionIA(await req.json().catch(() => null));
   if (!peticion) return respuestaJson(req, { error: 'peticion' }, 400);
 
-  const permiso = await permitirIA(usuario);
-  if (!permiso.permitido) return respuestaJson(req, cuerpoLimiteIA(permiso), 429);
-
   try {
     const uso = await sumarUso(usuario, 'correo', LIMITE_POR_USUARIO, LIMITE_GLOBAL);
     if (!uso.permitido) return respuestaJson(req, { error: uso.motivo }, 429);
@@ -44,7 +40,7 @@ Deno.serve(async (req) => {
     return respuestaJson(req, { error: 'servidor' }, 500);
   }
 
-  const analisis = await analizarConClaude(peticion, usuario);
+  const analisis = await analizarConClaude(peticion);
   if (!analisis) return respuestaJson(req, { error: 'ia' }, 502);
   return respuestaJson(req, { analisis });
 });

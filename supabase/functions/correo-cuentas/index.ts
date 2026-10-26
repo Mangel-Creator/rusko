@@ -6,8 +6,9 @@
 //   - GET ?code=&state= : vuelta del inicio de sesión. Canjea el código por la llave
 //     (refresh token), la guarda CIFRADA, recoge el último día sin avisar y vuelve a la
 //     app con ?correo=ok (o cancelado / error).
-//   - POST { accion: 'estado', tokenPush? } (con sesión): cuentas vinculadas y
-//     resúmenes de los últimos 7 días. Apunta el móvil para los avisos.
+//   - POST { accion: 'estado', tokenPush?, siempre? } (con sesión): cuentas vinculadas y
+//     correos de los últimos 7 días. Apunta el móvil para los avisos y guarda la lista
+//     de "Avisarme siempre de…".
 //   - POST { accion: 'quitar', id } (con sesión): desvincula y borra todo lo de la cuenta.
 //   - POST { accion: 'revisar' } con la cabecera x-organizy-cron: lo lanza pg_cron cada
 //     5 minutos (supabase/migrations/20260927000000_correo_cuentas.sql). Mira los correos
@@ -23,7 +24,6 @@ import { respuestaJson, respuestaPrevia } from '../_shared/cors.ts';
 import { cifrar, descifrar } from '../_shared/cifrado.ts';
 import { analizarConClaude, iaDisponible } from '../_shared/iaCorreo.ts';
 import { numeroDeEntorno, sumarUso } from '../_shared/limite.ts';
-import { permitirIA } from '../_shared/limiteIA.ts';
 import {
   conResultado,
   emailDeCuenta,
@@ -40,10 +40,11 @@ import {
   analizarCorreo,
   avisosDeCorreos,
   diaDe,
-  limpiarAsunto,
+  leerSiempre,
   limpiarCuerpo,
   nombreRemitente,
-  sumarDias,
+  resultadoDeIA,
+  siempreAvisar,
 } from '../_shared/reglasCorreo.js';
 import { clienteAdmin, usuarioDeLaPeticion } from '../_shared/usuario.ts';
 
@@ -54,7 +55,8 @@ const CLIENTES: Record<Proveedor, { id: string; secreto: string }> = {
   gmail: { id: Deno.env.get('GOOGLE_CLIENT_ID') ?? '', secreto: Deno.env.get('GOOGLE_CLIENT_SECRET') ?? '' },
   outlook: { id: Deno.env.get('MICROSOFT_CLIENT_ID') ?? '', secreto: Deno.env.get('MICROSOFT_CLIENT_SECRET') ?? '' },
 };
-const LIMITE_IA_USUARIO = numeroDeEntorno('CORREO_LIMITE_USUARIO', 150);
+// Correos al día con IA por persona (no gastan de los límites de 5 horas y semana).
+const LIMITE_IA_USUARIO = numeroDeEntorno('CORREO_LIMITE_USUARIO', 100);
 const LIMITE_IA_GLOBAL = numeroDeEntorno('CORREO_LIMITE_GLOBAL', 3000);
 const MAX_POR_VUELTA = 25;
 const MAX_TOKENS_PUSH = 5;
@@ -71,6 +73,7 @@ type Cuenta = {
   estado: 'ok' | 'caducada';
   ultima_revision: string | null;
   vistos: string[];
+  siempre_avisar: string[]; // "Avisarme siempre de…" (nombres, direcciones o dominios)
 };
 
 class LlaveCaducada extends Error {}
@@ -157,35 +160,28 @@ type Resumen = {
   resumen: string;
   fechaLimite: string | null;
   tarea: string | null;
+  importante: boolean;
   via: 'reglas' | 'ia';
   enlace: string;
 };
 
 async function analizar(cuenta: Cuenta, m: MensajeLeido): Promise<Resumen> {
   const base = { id: m.id, recibido: m.recibido.toISOString(), de: nombreRemitente(m.de), asunto: m.asunto.slice(0, 200), enlace: m.enlace };
-  // Con la IA agotada (5 horas o semana) o sin clave, se usan las reglas.
-  if (iaDisponible && (await permitirIA(cuenta.usuario)).permitido) {
+  const siempre = siempreAvisar(m.de, cuenta.siempre_avisar ?? []);
+  // Sin clave o pasado el máximo de correos del día, se usan las reglas.
+  if (iaDisponible) {
     const uso = await sumarUso(cuenta.usuario, 'correo', LIMITE_IA_USUARIO, LIMITE_IA_GLOBAL).catch(() => null);
     if (uso?.permitido) {
-      const hoy = diaDe(m.recibido);
-      const a = await analizarConClaude({ asunto: base.asunto, de: base.de, cuerpo: limpiarCuerpo(m.cuerpo).slice(0, 4000), hoy }, cuenta.usuario);
+      const correo = { asunto: m.asunto, recibido: m.recibido };
+      const a = await analizarConClaude({ asunto: base.asunto, de: base.de, cuerpo: limpiarCuerpo(m.cuerpo).slice(0, 4000), hoy: diaDe(m.recibido) });
       if (a) {
-        let fecha = typeof a.fechaLimite === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(a.fechaLimite) ? a.fechaLimite : null;
-        if (fecha && (fecha < hoy || fecha > sumarDias(hoy, 366))) fecha = null;
-        const titulo = String(a.titulo ?? '').trim().slice(0, 120) || limpiarAsunto(m.asunto);
-        return {
-          ...base,
-          titulo,
-          resumen: String(a.resumen ?? '').trim().slice(0, 400),
-          fechaLimite: fecha,
-          tarea: fecha ? String(a.tarea ?? titulo).trim().slice(0, 80) : null,
-          via: 'ia',
-        };
+        const r = resultadoDeIA(a, correo);
+        return { ...base, ...r, importante: r.importante || siempre, via: 'ia' };
       }
     }
   }
   const r = analizarCorreo({ asunto: m.asunto, de: m.de, cuerpo: m.cuerpo, recibido: m.recibido });
-  return { ...base, titulo: r.titulo, resumen: r.resumen, fechaLimite: r.fechaLimite, tarea: r.tarea, via: 'reglas' };
+  return { ...base, titulo: r.titulo, resumen: r.resumen, fechaLimite: r.fechaLimite, tarea: r.tarea, importante: siempre, via: 'reglas' };
 }
 
 async function mandarAvisos(cuenta: Cuenta, avisos: { titulo: string; cuerpo: string }[]) {
@@ -242,6 +238,7 @@ async function revisarCuenta(cuenta: Cuenta, acceso: string, desde: Date, avisar
         resumen: r.resumen,
         fecha_limite: r.fechaLimite,
         tarea: r.tarea,
+        importante: r.importante,
         via: r.via,
         enlace: r.enlace,
       })),
@@ -370,7 +367,7 @@ async function vuelta(req: Request): Promise<Response> {
 
 const tokenPushValido = (t: unknown): t is string => typeof t === 'string' && /^Expo(nent)?PushToken\[.+\]$/.test(t) && t.length < 200;
 
-async function estadoDelUsuario(usuario: string, tokenPush: unknown) {
+async function estadoDelUsuario(usuario: string, tokenPush: unknown, siempre: unknown) {
   const db = clienteAdmin();
   const { data } = await db
     .from('correo_cuentas')
@@ -378,6 +375,9 @@ async function estadoDelUsuario(usuario: string, tokenPush: unknown) {
     .eq('usuario', usuario)
     .order('creada');
   const cuentas = (data ?? []) as Pick<Cuenta, 'id' | 'proveedor' | 'email' | 'estado' | 'ultima_revision' | 'tokens_push'>[];
+  // "Avisarme siempre de…": la lista es de la persona, la misma en todas sus cuentas.
+  const lista = leerSiempre(siempre);
+  if (lista && cuentas.length) await db.from('correo_cuentas').update({ siempre_avisar: lista }).eq('usuario', usuario);
   if (tokenPushValido(tokenPush)) {
     for (const c of cuentas) {
       if (c.tokens_push.includes(tokenPush)) continue;
@@ -417,6 +417,7 @@ async function estadoDelUsuario(usuario: string, tokenPush: unknown) {
       resumen: f.resumen,
       fechaLimite: f.fecha_limite,
       tarea: f.tarea,
+      importante: f.importante === true,
       via: f.via,
       enlace: f.enlace,
       origen: cuentaDe.get(f.cuenta)?.proveedor,
@@ -443,7 +444,7 @@ Deno.serve(async (req) => {
   if (!usuario) return respuestaJson(req, { error: 'sin-sesion' }, 401);
 
   try {
-    if (datos.accion === 'estado') return respuestaJson(req, await estadoDelUsuario(usuario, datos.tokenPush));
+    if (datos.accion === 'estado') return respuestaJson(req, await estadoDelUsuario(usuario, datos.tokenPush, datos.siempre));
 
     if (datos.accion === 'empezar') {
       const proveedor = datos.proveedor as Proveedor;

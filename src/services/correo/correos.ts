@@ -41,6 +41,7 @@ export function validarRemoto(dato: unknown): CorreoRemoto | null {
     resumen: esTexto(d.resumen, 600) ? d.resumen : '',
     fechaLimite: fecha,
     tarea: fecha && esTexto(d.tarea, 200) && d.tarea.trim() ? d.tarea.trim() : null,
+    importante: d.importante === true,
     via: d.via === 'ia' ? 'ia' : 'reglas',
     enlace,
     ...(origen ? { origen } : {}),
@@ -62,7 +63,7 @@ export function textoVuelta(datos: {
   motivo?: string;
 }): { bien: boolean; texto: string } | null {
   if (datos.correo === 'ok') {
-    return { bien: true, texto: `Listo: ${datos.cuenta ?? 'tu correo'} ya está vinculado. Te aviso en cuanto llegue algo.` };
+    return { bien: true, texto: `Listo: ${datos.cuenta ?? 'tu correo'} ya está vinculado. Te aviso de lo que importe.` };
   }
   if (datos.correo === 'cancelado') return { bien: false, texto: 'No se ha vinculado: cancelaste el inicio de sesión.' };
   if (datos.correo === 'error') {
@@ -130,11 +131,28 @@ export function textoDiaCorto(dia: ClaveDia): string {
   return `${DIAS_SEMANA_CORTOS[diaSemanaDesdeLunes(fecha)]} ${fecha.getDate()} ${MESES_CORTOS[fecha.getMonth()]}`;
 }
 
-// "Vence hoy", "Vence mañana", "Vence el lun 5 oct", "Venció el vie 2 oct".
-export function textoVence(dia: ClaveDia, hoy: ClaveDia): string {
-  if (dia === hoy) return 'Vence hoy';
-  if (dia === sumarDias(hoy, 1)) return 'Vence mañana';
-  return `${dia < hoy ? 'Venció' : 'Vence'} el ${textoDiaCorto(dia)}`;
+// "Para hoy", "Para mañana", "Para el lun 5 oct", "Era el vie 2 oct". Vale para un
+// plazo, una cita o un cargo.
+export function textoParaDia(dia: ClaveDia, hoy: ClaveDia): string {
+  if (dia === hoy) return 'Para hoy';
+  if (dia === sumarDias(hoy, 1)) return 'Para mañana';
+  return `${dia < hoy ? 'Era' : 'Para'} el ${textoDiaCorto(dia)}`;
+}
+
+// Máximo de remitentes en "Avisarme siempre de…" (el servidor guarda 30).
+export const MAX_SIEMPRE = 30;
+
+const mismoNombre = (a: string, b: string) => a.trim().toLocaleLowerCase('es') === b.trim().toLocaleLowerCase('es');
+
+export function avisaSiempre(siempre: string[], de: string): boolean {
+  return siempre.some((s) => mismoNombre(s, de));
+}
+
+// Pone o quita a un remitente de "Avisarme siempre de…".
+export function cambiarSiempre(siempre: string[], de: string): string[] {
+  if (!de.trim()) return siempre;
+  if (avisaSiempre(siempre, de)) return siempre.filter((s) => !mismoNombre(s, de));
+  return [...siempre, de.trim()].slice(-MAX_SIEMPRE);
 }
 
 // "Hoy", "Ayer" o "lun 5 oct", para agrupar los resúmenes por día.

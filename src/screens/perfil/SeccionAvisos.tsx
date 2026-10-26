@@ -121,7 +121,7 @@ export function SeccionAvisos({ permiso, alActivarPermiso }: Props) {
       />
       <Interruptor
         etiqueta="Plazos de tus correos"
-        ayuda={`La víspera, a las ${perfil?.horario.levantarse ?? '07:30'}: "Mañana vence…". Solo si conectaste tu Gmail en Hoy > Resúmenes.`}
+        ayuda={`La víspera, a las ${perfil?.horario.levantarse ?? '07:30'}: "Mañana: …". Solo si vinculaste tu correo en la pestaña Correo.`}
         valor={ajustes.plazosCorreo}
         alCambiar={(plazosCorreo) => cambiarAjustesAvisos({ plazosCorreo })}
       />

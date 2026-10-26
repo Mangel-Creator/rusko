@@ -3,13 +3,15 @@
  *
  * Este código vive en TU cuenta de Google (script.google.com), no en Organizy.
  * Cada 10 minutos mira los correos nuevos de la pestaña "Principal" de tu Gmail y:
- *   - si piden algo con fecha límite ("el plazo acaba el 5 de octubre"), avisa al
- *     móvil y Organizy lo apunta como tarea ese día;
- *   - si no, te manda un aviso con el título y un resumen corto.
+ *   - si piden algo con fecha ("el plazo acaba el 5 de octubre"), avisa al móvil y
+ *     Organizy lo apunta como tarea ese día;
+ *   - si son importantes (lo dice la IA de Organizy) o de alguien de "Avisarme siempre
+ *     de…", te manda un aviso corto;
+ *   - del resto no avisa: en Organizy sale solo quién lo manda y el asunto.
  * Organizy recoge los resultados al abrirse, desde el enlace de "Aplicación web".
  *
  * Tus correos no se guardan en ningún servidor de Organizy: se leen aquí, dentro de
- * tu cuenta. Aquí solo se guardan 7 días los títulos y resúmenes, para la app.
+ * tu cuenta. Aquí solo se guardan 7 días los asuntos y las fechas, para la app.
  * Si algún día activas la IA de Organizy, el texto del correo se manda a su servidor
  * para entenderlo mejor y no se guarda allí.
  *
@@ -29,7 +31,7 @@
  * reglas, que comparte con el servidor). No lo edites a mano.
  */
 /* global GmailApp, PropertiesService, ScriptApp, UrlFetchApp, ContentService, HtmlService, Utilities, Session, LockService, Logger */
-/* global analizarCorreo, avisosDeCorreos, diaDe, limpiarAsunto, limpiarCuerpo, nombreRemitente, sumarDias, ZONA_CORREO */
+/* global analizarCorreo, avisosDeCorreos, leerSiempre, limpiarCuerpo, nombreRemitente, resultadoDeIA, siempreAvisar, ZONA_CORREO */
 
 var AJUSTES = {
   // Qué correos mira: los de "Principal" de la bandeja de entrada que no mandas tú.
@@ -99,7 +101,7 @@ function revisarCorreo() {
 }
 
 // Organizy pide aquí los resúmenes (con un POST desde la app).
-// Manda { token?, supabase? } y recibe { ok, correos, ultimaRevision }.
+// Manda { token?, supabase?, siempre? } y recibe { ok, correos, ultimaRevision }.
 function doPost(e) {
   var datos = {};
   try {
@@ -108,6 +110,9 @@ function doPost(e) {
     datos = {};
   }
   if (typeof datos.token === 'string' && /^Expo(nent)?PushToken\[.+\]$/.test(datos.token)) guardarToken_(datos.token);
+  // "Avisarme siempre de…" (lo elige la persona en Organizy).
+  var siempre = leerSiempre(datos.siempre);
+  if (siempre) PropertiesService.getScriptProperties().setProperty('siempre', JSON.stringify(siempre));
   var supabase = datos.supabase;
   if (
     supabase &&
@@ -177,6 +182,7 @@ function revisar_(desde, avisar) {
     });
 
     var guardados = [];
+    var siempre = leerJson_('siempre', []);
     nuevos.forEach(function (m) {
       var correo = {
         asunto: m.getSubject() || '',
@@ -194,6 +200,7 @@ function revisar_(desde, avisar) {
         resumen: analisis.resumen,
         fechaLimite: analisis.fechaLimite,
         tarea: analisis.tarea,
+        importante: analisis.importante || siempreAvisar(correo.de, siempre),
         via: analisis.via,
         enlace: 'https://mail.google.com/mail/?authuser=' + encodeURIComponent(yo) + '#all/' + m.getThread().getId(),
       };
@@ -330,18 +337,7 @@ function analizarConIA_(correo) {
     if (respuesta.getResponseCode() !== 200 || !datos.analisis) {
       return pausar(datos.error === 'sin-clave' ? 6 * 60 : 30);
     }
-    var a = datos.analisis;
-    var hoy = diaDe(correo.recibido);
-    var fecha = typeof a.fechaLimite === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(a.fechaLimite) ? a.fechaLimite : null;
-    if (fecha && (fecha < hoy || fecha > sumarDias(hoy, 366))) fecha = null;
-    var titulo = String(a.titulo || '').trim().slice(0, 120) || limpiarAsunto(correo.asunto);
-    return {
-      titulo: titulo,
-      resumen: String(a.resumen || '').trim().slice(0, 400),
-      fechaLimite: fecha,
-      tarea: fecha ? String(a.tarea || titulo).trim().slice(0, 80) : null,
-      via: 'ia',
-    };
+    return resultadoDeIA(datos.analisis, correo);
   } catch (error) {
     return pausar(30);
   }
@@ -401,8 +397,10 @@ function respuestaJson_(datos) {
 
 // Hora de España para saber qué día llegó un correo.
 var ZONA_CORREO = 'Europe/Madrid';
-// Con más correos normales que estos en una vuelta, un solo aviso para todos.
+// Con más correos importantes que estos en una vuelta, un solo aviso para todos.
 var MAX_AVISOS_SUELTOS = 3;
+// Remitentes de "Avisarme siempre de…" que se guardan como mucho.
+var MAX_SIEMPRE = 30;
 
 var MESES = {
   enero: 1, ene: 1,
@@ -656,7 +654,8 @@ function fechaLimiteEn(texto, hoy) {
     .sort()[0];
 }
 
-// Qué es un correo: título, resumen y, si pide algo con plazo, la fecha límite.
+// Qué es un correo sin IA: el asunto y, si pide algo con plazo, la fecha límite. Sin
+// resumen y sin saber si es importante (eso solo lo sabe la IA o "Avisarme siempre").
 function analizarCorreo(correo) {
   var hoy = diaDe(correo.recibido);
   var titulo = limpiarAsunto(correo.asunto);
@@ -664,11 +663,57 @@ function analizarCorreo(correo) {
   var fecha = fechaLimiteEn(correo.asunto || '', hoy) || fechaLimiteEn(cuerpo, hoy);
   return {
     titulo: titulo.slice(0, 120),
-    resumen: resumir(correo.cuerpo),
+    resumen: '',
     fechaLimite: fecha,
     tarea: fecha ? titulo.slice(0, 80) : null,
+    importante: false,
     via: 'reglas',
   };
+}
+
+// Lo que contesta la IA (función "correo"), comprobado: fecha real entre hoy y un año,
+// textos recortados y la línea del aviso solo si es importante.
+function resultadoDeIA(a, correo) {
+  var hoy = diaDe(correo.recibido);
+  var fecha = typeof a.fechaLimite === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(a.fechaLimite) ? a.fechaLimite : null;
+  if (fecha && (fecha < hoy || fecha > sumarDias(hoy, 366))) fecha = null;
+  var titulo = String(a.titulo || '').trim().slice(0, 120) || limpiarAsunto(correo.asunto);
+  var importante = a.importante === true;
+  return {
+    titulo: titulo,
+    resumen: importante ? String(a.resumen || '').trim().slice(0, 160) : '',
+    fechaLimite: fecha,
+    tarea: fecha ? String(a.tarea || titulo).trim().slice(0, 80) : null,
+    importante: importante,
+    via: 'ia',
+  };
+}
+
+// ¿Es de alguien de "Avisarme siempre de…"? Vale el nombre tal como sale en la lista
+// ("Gestoría López") o, si lleva @ o punto, una dirección o un dominio ("@gl.es").
+function siempreAvisar(de, lista) {
+  if (!Array.isArray(lista) || !lista.length) return false;
+  var nombre = normalizar(nombreRemitente(de)).trim();
+  var completo = normalizar(de);
+  return lista.some(function (entrada) {
+    var x = normalizar(entrada).trim();
+    if (!x) return false;
+    if (x === nombre) return true;
+    return /[@.]/.test(x) && x.length >= 4 && completo.indexOf(x) !== -1;
+  });
+}
+
+// La lista de "Avisarme siempre de…" que manda la app, limpia (o null si no vale).
+function leerSiempre(valor) {
+  if (!Array.isArray(valor)) return null;
+  return valor
+    .filter(function (v) {
+      return typeof v === 'string' && v.trim() && v.length <= 120;
+    })
+    .map(function (v) {
+      return v.trim();
+    })
+    .slice(0, MAX_SIEMPRE);
 }
 
 // "lun 5 oct"
@@ -681,28 +726,34 @@ function recortar(texto, max) {
   return texto.length <= max ? texto : texto.slice(0, max - 1).replace(/\s+\S*$/, '') + '…';
 }
 
-// Los avisos de una vuelta: uno por cada plazo y, para el resto, uno por correo o
-// uno solo para todos si son muchos.
+// "Hoy", "Mañana" o "El lun 5 oct".
+function textoCuando(dia, hoy) {
+  if (dia === hoy) return 'Hoy';
+  if (dia === sumarDias(hoy, 1)) return 'Mañana';
+  return 'El ' + textoDia(dia);
+}
+
+// Los avisos de una vuelta: uno por cada correo con fecha (ya es una tarea) y uno por
+// cada importante (o uno solo para todos si son muchos). Del resto, nada.
 function avisosDeCorreos(correos, ahora) {
   var hoy = diaDe(ahora);
   var avisos = [];
-  var normales = [];
+  var importantes = [];
   correos.forEach(function (c) {
     if (c.fechaLimite) {
-      var cuando = c.fechaLimite === hoy ? 'hoy' : c.fechaLimite === sumarDias(hoy, 1) ? 'mañana' : 'el ' + textoDia(c.fechaLimite);
       avisos.push({
-        titulo: recortar('Vence ' + cuando + ': ' + (c.tarea || c.titulo), 90),
+        titulo: recortar(textoCuando(c.fechaLimite, hoy) + ': ' + (c.tarea || c.titulo), 90),
         cuerpo: 'Te lo he apuntado en las tareas. Correo de ' + c.de + '.',
       });
-    } else {
-      normales.push(c);
+    } else if (c.importante) {
+      importantes.push(c);
     }
   });
-  if (normales.length > MAX_AVISOS_SUELTOS) {
+  if (importantes.length > MAX_AVISOS_SUELTOS) {
     avisos.push({
-      titulo: normales.length + ' correos nuevos',
+      titulo: importantes.length + ' correos importantes',
       cuerpo: recortar(
-        normales
+        importantes
           .map(function (c) {
             return c.de + ': ' + c.titulo;
           })
@@ -711,10 +762,10 @@ function avisosDeCorreos(correos, ahora) {
       ),
     });
   } else {
-    normales.forEach(function (c) {
+    importantes.forEach(function (c) {
       avisos.push({
-        titulo: recortar(c.titulo, 90),
-        cuerpo: recortar(c.de + (c.resumen ? ' · ' + c.resumen : ''), 180),
+        titulo: recortar(c.de + ': ' + c.titulo, 90),
+        cuerpo: recortar(c.resumen || 'Correo importante en Principal.', 180),
       });
     });
   }

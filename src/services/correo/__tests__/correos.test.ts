@@ -5,6 +5,8 @@ import type { Perfil } from '@/data/perfil';
 import { avisosDePlazos } from '@/services/avisos/correos';
 
 import {
+  avisaSiempre,
+  cambiarSiempre,
   correosSinTarea,
   leerEnlace,
   mezclarCorreos,
@@ -12,7 +14,7 @@ import {
   ordenarCorreos,
   tareaDeCorreo,
   textoGrupo,
-  textoVence,
+  textoParaDia,
   textoVuelta,
   validarRemoto,
 } from '../correos';
@@ -62,7 +64,8 @@ describe('leerEnlace', () => {
 
 describe('validarRemoto', () => {
   it('se queda con lo válido', () => {
-    expect(validarRemoto(remoto())).toEqual(remoto());
+    expect(validarRemoto(remoto())).toEqual({ ...remoto(), importante: false });
+    expect(validarRemoto({ ...remoto(), importante: true })?.importante).toBe(true);
     expect(validarRemoto({ ...remoto(), fechaLimite: '5 oct', tarea: 'Algo' })).toMatchObject({ fechaLimite: null, tarea: null });
     expect(validarRemoto({ ...remoto(), enlace: 'https://otro.com' })?.enlace).toBe('');
     expect(validarRemoto({ ...remoto(), via: 'x' })?.via).toBe('reglas');
@@ -125,11 +128,11 @@ describe('plazos y tareas', () => {
     expect(tarea.notas).toContain('https://mail.google.com/');
   });
 
-  it('textos de vencimiento y de grupo', () => {
-    expect(textoVence('2026-09-27', HOY)).toBe('Vence hoy');
-    expect(textoVence('2026-09-28', HOY)).toBe('Vence mañana');
-    expect(textoVence('2026-10-05', HOY)).toBe('Vence el lun 5 oct');
-    expect(textoVence('2026-09-25', HOY)).toBe('Venció el vie 25 sept');
+  it('textos del día y de grupo', () => {
+    expect(textoParaDia('2026-09-27', HOY)).toBe('Para hoy');
+    expect(textoParaDia('2026-09-28', HOY)).toBe('Para mañana');
+    expect(textoParaDia('2026-10-05', HOY)).toBe('Para el lun 5 oct');
+    expect(textoParaDia('2026-09-25', HOY)).toBe('Era el vie 25 sept');
     expect(textoGrupo('2026-09-27', HOY)).toBe('Hoy');
     expect(textoGrupo('2026-09-26', HOY)).toBe('Ayer');
     expect(textoGrupo('2026-09-24', HOY)).toBe('jue 24 sept');
@@ -164,7 +167,7 @@ describe('aviso de la víspera', () => {
     const [aviso] = avisosDePlazos([correo], [tarea], perfil, '2026-10-04');
     expect(aviso).toMatchObject({
       tipo: 'plazo-correo',
-      titulo: 'Mañana vence: Pagar el IBI',
+      titulo: 'Mañana: Pagar el IBI',
       destino: { pantalla: 'evento', id: 'e1' },
     });
     expect(aviso.cuando).toEqual(new Date(2026, 9, 4, 7, 30));
@@ -198,10 +201,27 @@ describe('cuentas vinculadas', () => {
   it('dice qué pasó al volver de iniciar sesión', () => {
     expect(textoVuelta({ correo: 'ok', cuenta: 'yo@gmail.com' })).toEqual({
       bien: true,
-      texto: 'Listo: yo@gmail.com ya está vinculado. Te aviso en cuanto llegue algo.',
+      texto: 'Listo: yo@gmail.com ya está vinculado. Te aviso de lo que importe.',
     });
     expect(textoVuelta({ correo: 'cancelado' })?.bien).toBe(false);
     expect(textoVuelta({ correo: 'error', motivo: 'demasiadas' })?.texto).toContain('5 cuentas');
     expect(textoVuelta({})).toBeNull();
+  });
+});
+
+describe('avisarme siempre de', () => {
+  it('pone y quita al remitente sin mirar mayúsculas', () => {
+    const lista = cambiarSiempre([], 'Gestoría López');
+    expect(lista).toEqual(['Gestoría López']);
+    expect(avisaSiempre(lista, 'gestoría lópez ')).toBe(true);
+    expect(cambiarSiempre(lista, 'GESTORÍA LÓPEZ')).toEqual([]);
+    expect(cambiarSiempre(lista, '  ')).toBe(lista);
+  });
+
+  it('guarda como mucho 30', () => {
+    let lista: string[] = [];
+    for (let i = 0; i < 35; i++) lista = cambiarSiempre(lista, `Persona ${i}`);
+    expect(lista).toHaveLength(30);
+    expect(lista[0]).toBe('Persona 5');
   });
 });

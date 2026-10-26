@@ -3,13 +3,15 @@
  *
  * Este código vive en TU cuenta de Google (script.google.com), no en Organizy.
  * Cada 10 minutos mira los correos nuevos de la pestaña "Principal" de tu Gmail y:
- *   - si piden algo con fecha límite ("el plazo acaba el 5 de octubre"), avisa al
- *     móvil y Organizy lo apunta como tarea ese día;
- *   - si no, te manda un aviso con el título y un resumen corto.
+ *   - si piden algo con fecha ("el plazo acaba el 5 de octubre"), avisa al móvil y
+ *     Organizy lo apunta como tarea ese día;
+ *   - si son importantes (lo dice la IA de Organizy) o de alguien de "Avisarme siempre
+ *     de…", te manda un aviso corto;
+ *   - del resto no avisa: en Organizy sale solo quién lo manda y el asunto.
  * Organizy recoge los resultados al abrirse, desde el enlace de "Aplicación web".
  *
  * Tus correos no se guardan en ningún servidor de Organizy: se leen aquí, dentro de
- * tu cuenta. Aquí solo se guardan 7 días los títulos y resúmenes, para la app.
+ * tu cuenta. Aquí solo se guardan 7 días los asuntos y las fechas, para la app.
  * Si algún día activas la IA de Organizy, el texto del correo se manda a su servidor
  * para entenderlo mejor y no se guarda allí.
  *
@@ -29,7 +31,7 @@
  * reglas, que comparte con el servidor). No lo edites a mano.
  */
 /* global GmailApp, PropertiesService, ScriptApp, UrlFetchApp, ContentService, HtmlService, Utilities, Session, LockService, Logger */
-/* global analizarCorreo, avisosDeCorreos, diaDe, limpiarAsunto, limpiarCuerpo, nombreRemitente, sumarDias, ZONA_CORREO */
+/* global analizarCorreo, avisosDeCorreos, leerSiempre, limpiarCuerpo, nombreRemitente, resultadoDeIA, siempreAvisar, ZONA_CORREO */
 
 var AJUSTES = {
   // Qué correos mira: los de "Principal" de la bandeja de entrada que no mandas tú.
@@ -99,7 +101,7 @@ function revisarCorreo() {
 }
 
 // Organizy pide aquí los resúmenes (con un POST desde la app).
-// Manda { token?, supabase? } y recibe { ok, correos, ultimaRevision }.
+// Manda { token?, supabase?, siempre? } y recibe { ok, correos, ultimaRevision }.
 function doPost(e) {
   var datos = {};
   try {
@@ -108,6 +110,9 @@ function doPost(e) {
     datos = {};
   }
   if (typeof datos.token === 'string' && /^Expo(nent)?PushToken\[.+\]$/.test(datos.token)) guardarToken_(datos.token);
+  // "Avisarme siempre de…" (lo elige la persona en Organizy).
+  var siempre = leerSiempre(datos.siempre);
+  if (siempre) PropertiesService.getScriptProperties().setProperty('siempre', JSON.stringify(siempre));
   var supabase = datos.supabase;
   if (
     supabase &&
@@ -177,6 +182,7 @@ function revisar_(desde, avisar) {
     });
 
     var guardados = [];
+    var siempre = leerJson_('siempre', []);
     nuevos.forEach(function (m) {
       var correo = {
         asunto: m.getSubject() || '',
@@ -194,6 +200,7 @@ function revisar_(desde, avisar) {
         resumen: analisis.resumen,
         fechaLimite: analisis.fechaLimite,
         tarea: analisis.tarea,
+        importante: analisis.importante || siempreAvisar(correo.de, siempre),
         via: analisis.via,
         enlace: 'https://mail.google.com/mail/?authuser=' + encodeURIComponent(yo) + '#all/' + m.getThread().getId(),
       };
@@ -330,18 +337,7 @@ function analizarConIA_(correo) {
     if (respuesta.getResponseCode() !== 200 || !datos.analisis) {
       return pausar(datos.error === 'sin-clave' ? 6 * 60 : 30);
     }
-    var a = datos.analisis;
-    var hoy = diaDe(correo.recibido);
-    var fecha = typeof a.fechaLimite === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(a.fechaLimite) ? a.fechaLimite : null;
-    if (fecha && (fecha < hoy || fecha > sumarDias(hoy, 366))) fecha = null;
-    var titulo = String(a.titulo || '').trim().slice(0, 120) || limpiarAsunto(correo.asunto);
-    return {
-      titulo: titulo,
-      resumen: String(a.resumen || '').trim().slice(0, 400),
-      fechaLimite: fecha,
-      tarea: fecha ? String(a.tarea || titulo).trim().slice(0, 80) : null,
-      via: 'ia',
-    };
+    return resultadoDeIA(datos.analisis, correo);
   } catch (error) {
     return pausar(30);
   }
