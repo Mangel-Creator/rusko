@@ -457,6 +457,8 @@ sesión que fuera**:
   se carga, ver "Fase 7").
 - Dictado por voz: `expo-speech-recognition` (solo en la app propia; en Expo Go no se carga,
   ver "Fase 9"). En la web, el reconocimiento del navegador.
+- Leer en voz alta: `expo-speech` (viene en Expo Go) en `services/voz.ts`; en la web, la voz
+  del navegador (`voz.web.ts`). Lo usa la respuesta a "¿qué tengo el miércoles?".
 - Instala librerías siempre con `npx expo install <paquete>`.
 - Pruebas automáticas con Jest (`jest-expo`): `npm test`. Están junto al código en
   carpetas `__tests__`. Importa `describe`, `it` y `expect` de `@jest/globals`
@@ -521,6 +523,9 @@ src/
                        avisos/ (notificaciones locales; con pruebas),
                        epoca/ (plan, progreso y cuenta atrás de la época; con pruebas),
                        captura/ (captura rápida con IA y validación; con pruebas),
+                       consulta/ ("¿qué tengo el miércoles?" sin IA: entender la
+                       pregunta y la respuesta para leerla; con pruebas),
+                       voz.ts (leer en voz alta; voz.web.ts en la web),
                        dictado/ (voz a texto para el micro de la captura; con pruebas),
                        rutas/ (rutas con tráfico, hora de salida, horas punta,
                        abrir Waze/Google Maps/Mapas y parkings; con pruebas),
@@ -1052,6 +1057,12 @@ borran solos a los 7 días.
   `/evento?fecha=...&propuesta=<id>` con un borrador en memoria
   (`services/captura/borrador.ts`: `dejarBorrador` y `leerBorrador`), para no poner la
   frase en la dirección de la página.
+- **Preguntas por la agenda, sin IA** (26/10/2026, lo pidió el usuario): antes de mandar la
+  frase a la IA, `entenderPregunta` (`services/consulta/`) mira si es "¿qué tengo el
+  miércoles?", "¿tengo algo mañana?", "¿estoy libre el 5 de noviembre?"... Si lo es, no sale
+  nada del móvil: `respuestaDelDia` contesta en una tarjeta ("El miércoles 28 tienes 2 cosas:
+  a las 10:00, Reunión en Oficina y…"; de hoy, solo lo que queda) y la lee en voz alta
+  (`hablar`, con "Escuchar"/"Callar" y "Cerrar"). Lo que no es pregunta sigue a la captura.
 - Coste aproximado: 0,2 céntimos de dólar por frase (unos 1.300 tokens de entrada y 120 de
   salida, a 1 $ y 5 $ por millón): unas 500 frases por dólar. Gasto en console.anthropic.com > Usage / Cost; conviene poner
   también un límite de gasto mensual en la consola.
@@ -1157,8 +1168,9 @@ borran solos a los 7 días.
   Supabase gratis: 500.000 llamadas a funciones al mes. "Parkings cercanos": 1 petición por
   destino y día; "Está lleno, llévame a otro" no gasta (usa la lista ya traída).
 - **Sin guía por voz ni mapa en grande** (quitados el 26/10/2026): ya no están
-  `navegacion.ts`, `motorNavegacion.ts`, `navegacionFondo.ts`, `services/voz.ts` ni
-  `MapaGrande.tsx`, ni las librerías expo-speech, expo-keep-awake y expo-task-manager; el
+  `navegacion.ts`, `motorNavegacion.ts`, `navegacionFondo.ts` ni
+  `MapaGrande.tsx`, ni las librerías expo-keep-awake y expo-task-manager (`services/voz.ts`
+  y expo-speech volvieron ese mismo día para "¿qué tengo el miércoles?"); el
   servidor ya no pide indicaciones (`instructionsType`). En `app.json` ya no se pide
   ubicación en segundo plano y expo-audio no reproduce en segundo plano. Para navegar con
   el móvil bloqueado, Waze o la app elegida.
