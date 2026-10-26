@@ -27,9 +27,10 @@ alarmas. En español de España.
 - **Lo que no puede hacer la web** (quedará solo para la app): alarma que suena como
   despertador con el móvil bloqueado, widget y voz sin abrir la app (en web, como
   mucho, un Atajo del iPhone). En web lo que no funcione se oculta o se avisa.
-- Avisos en web: solo con la web añadida a la pantalla de inicio y con un servidor
-  pequeño de notificaciones push. La fase 4 se hizo sin servidor, así que en la web
-  no hay avisos (Perfil lo explica); los push web quedan pendientes para más adelante.
+- Avisos en web: solo con la web añadida a la pantalla de inicio (en iPhone, iOS 16.4+)
+  y activándolos en Perfil > Avisos; los manda el servidor con Web Push (26/10/2026,
+  ver "Fase 4" > "Avisos en la web"). Las alarmas de la web pasan al Reloj del iPhone
+  con un Atajo (ver "Fase 7").
 - Funciones que necesiten claves secretas (IA, WhatsApp Business) irán detrás de un
   servidor pequeño propio, nunca dentro de la app.
 - Instalar en el iPhone una versión propia (alarmas, widget, voz) exige la cuenta
@@ -408,6 +409,21 @@ sesión que fuera**:
   correo y Época dorada. Coste esperado con su uso: unos 0,30 $ al mes; en el peor caso, 3-4 $.
   Conviene un límite de gasto mensual de 5 $ en la consola de Anthropic (es el tope de verdad).
   La IA va por la API de Anthropic, aparte de su plan de Claude: no puede usar el plan.
+- 26/10/2026 — **Avisos y alarmas para el dueño, gratis y sin Expo Go** (sesión "15 · Avisos
+  y alarmas"). Usa Organizy solo él, en su iPhone, sin cuenta de Apple, y en Expo Go no le
+  sonaban. Elegido:
+  - **Avisos con sonido en la web instalada** (Web Push, iOS 16.4+, solo abriéndola desde el
+    icono de la pantalla de inicio): Perfil > Avisos > "Activar avisos". Llegan con la web
+    cerrada y el sonido normal del iPhone. Ver "Fase 4" > "Avisos en la web".
+  - **Alarmas en el Reloj del iPhone con un Atajo**: cada noche a las 22:00 una
+    automatización de Atajos lee un enlace personal y crea en el Reloj las alarmas de las 24
+    h siguientes (etiqueta "Organizy · …"), borrando antes las suyas. Ver "Fase 7".
+  - **Sexta excepción** a "los datos solo en el dispositivo", aceptada por el usuario: el
+    servidor guarda **la hora y el texto** de los avisos de los próximos 7 días (se borran 2
+    días después de mandarlos) y **la hora y el nombre** de las alarmas de los próximos 14
+    días (se borran al dejar de usar el Atajo). Nada más.
+  - Expo Go y el código nativo de alarmas (AlarmKit, `react-native-alarm-scheduler`) se
+    quedan para cuando haya app propia.
 
 ## Cómo prueba el usuario en el iPhone
 
@@ -534,6 +550,7 @@ src/
                        salidas.ts y horasPunta.ts (tráfico calculado), navegador.ts
                        (app de navegación elegida), parkings.ts (parkings llenos),
                        alarmas.ts (alarmas, ajustes y adelantos de la inteligente),
+                       alarmasReloj.ts (enlace del Atajo del Reloj, web),
                        planes.ts (planes con votación y sus votos),
                        copia.ts (reunir y recuperar la copia de seguridad),
                        correos.ts (resúmenes de correo y enlace del ayudante de Gmail),
@@ -545,7 +562,8 @@ src/
                        lugares.ts (texto -> coordenadas), permisos.ts,
                        agenda/ (huecos, carga, resumen, reparto, prioridad de las
                        tareas con la matriz de Eisenhower; con pruebas),
-                       avisos/ (notificaciones locales; con pruebas),
+                       avisos/ (notificaciones locales y, en la web, Web Push:
+                       push.web.ts y destinos.ts; con pruebas),
                        epoca/ (plan, progreso y cuenta atrás de la época; con pruebas),
                        captura/ (captura rápida con IA y validación; con pruebas),
                        consulta/ ("¿qué tengo el miércoles?" sin IA: entender la
@@ -879,9 +897,10 @@ animaciones infinitas.
 
 ## Fase 4: avisos (decisiones)
 
-- Notificaciones locales con expo-notifications, sin servidor. Solo en el móvil: en
-  la web no se programan (el navegador no puede con la web cerrada) y Perfil > Avisos
-  lo explica; la ficha de evento oculta el selector de aviso.
+- Notificaciones locales con expo-notifications, sin servidor, en el móvil. En la web,
+  desde el 26/10/2026, Web Push a través de Supabase (ver "Avisos en la web" al final de
+  esta sección); donde no se puede, Perfil > Avisos lo explica y la ficha de evento
+  oculta el selector de aviso (`avisosDisponibles`).
 - `src/services/avisos/`:
   - `planificar.ts` (puro, con pruebas): `planificarAvisos(ctx)` recorre los días
     (desde ayer hasta 7 días) y llama a los `GENERADORES` activos. Quita lo pasado,
@@ -935,6 +954,42 @@ animaciones infinitas.
      AlarmManager en la app propia), que no pasen por aquí o las borrará.
   4. Sonido: `sound: 'default'`. Un sonido propio no funciona en Expo Go y no suena
      con el móvil en silencio.
+
+### Avisos en la web (Web Push, 26/10/2026)
+
+- **Dónde funciona**: navegadores con service worker y Push (Chrome, Edge, Firefox) y, en
+  iPhone, **solo con la web abierta desde el icono de la pantalla de inicio** (iOS 16.4+).
+  `soportePush()` (`services/avisos/push.web.ts`): `si`, `instalar` (Safari del iPhone sin
+  instalar: Perfil dice "Primero, a la pantalla de inicio") o `no`.
+- **Piezas**: `public/manifest.json` (`display: standalone`, enlazado en `+html.tsx`) y
+  `public/sw.js` (sin caché ni `fetch`: solo `push`, que **siempre** enseña el aviso —
+  iOS quita el permiso si no— y `notificationclick`, que abre `data.url`). Los avisos web
+  no llevan botones: al tocarlos se abre la pantalla de su destino (`urlDeDestino`,
+  `services/avisos/destinos.ts`).
+- **Activar** (Perfil > Avisos, `ActivarAvisosWeb`): "Activar avisos" pide el permiso **lo
+  primero, en el mismo toque** (Safari lo exige; la clave pública se trae antes con
+  `prepararPush`), suscribe con la clave VAPID y guarda la suscripción en el servidor.
+  Bloqueado: explica dónde se cambia. "Apagar los avisos en este móvil" la quita.
+- **Programar**: `programar.web.ts` usa los mismos `GENERADORES` que el móvil y sube los
+  avisos (id, hora, título, texto y url; máx. 120) con la acción `programar`, que cambia
+  todos los pendientes de esa persona. No resube lo mismo en 10 min. Si no abre la web en
+  una semana, se acaban. Sin enlace del Reloj (ver "Fase 7"), una alarma de salida no
+  quita el push "Sal ya" de su cita (en la web no sonaría nada).
+- **Servidor** (función `avisos-web`, `verify_jwt = false`; migración
+  `20261026010000_avisos_web.sql`): tablas `avisos_web_suscripciones` (máx. 5 por persona) y
+  `avisos_web` (RLS sin políticas). `pg_cron` cada minuto llama a `lanzar_avisos_web()`, que
+  solo hace la petición (`pg_net`, cabecera `x-organizy-cron` con la contraseña de la bóveda
+  `correo_cron`, la misma del correo) si hay algo que mandar. La función marca los avisos
+  como enviados antes de mandarlos (nunca dos veces), salta los de más de 30 min de
+  retraso y borra las suscripciones caducadas (404/410). Otra tarea borra cada noche los
+  avisos de hace más de 2 días. Acciones: `clave`, `suscribir`, `quitar`, `programar`,
+  `prueba` (40 al día por persona) y `enviar` (solo el cron).
+- **Cifrado** sin librerías (`supabase/functions/_shared/webPush.ts`, WebCrypto: RFC 8291
+  aes128gcm y VAPID RFC 8292), con pruebas contra el ejemplo oficial del RFC.
+- **Claves VAPID**: secreto de Supabase `VAPID_CLAVES` (JSON con las dos claves JWK), creado
+  con `node scripts/crear-claves-vapid.mjs` (no las enseña; `--cambiar` para renovarlas,
+  y entonces todos tienen que volver a activar los avisos). La pública la da la acción
+  `clave`. Nunca en git ni en el chat.
 
 ## Fase 4b: Época dorada (decisiones)
 
@@ -1044,7 +1099,7 @@ borran solos a los 7 días.
   `supabase/config.toml` (comprueba el usuario por dentro; así pasa el preflight CORS).
 - **Base de datos**: `supabase/migrations/` (tabla `usos_diarios` y función `sumar_uso`,
   que solo puede llamar el servidor; tablas de planes de la fase 8; cuentas de correo
-  vinculadas de la fase 11). Se aplica pegando el
+  vinculadas de la fase 11; avisos web y alarmas del Reloj, 26/10/2026). Se aplica pegando el
   SQL en el SQL Editor del panel o, con la sesión de la CLI, con
   `npx supabase db query --linked --project-ref <ref> --file <archivo.sql>` (así se aplicó
   la de la fase 8). Mirar qué hay: `npx supabase db query --linked --project-ref <ref> "select ..."`.
@@ -1228,11 +1283,9 @@ borran solos a los 7 días.
     y salidas son avisos con sonido de la fase 4 (tipos `alarma` y `alarma-salida`, con
     botones "Posponer 5 min", "Parar" y, en las de salida, "Cómo llegar"). **Con el
     móvil en silencio no suenan** y el sonido es corto: la pestaña lo dice.
-  - **"web"**: nada suena. En la web de un iPhone, cada alarma ofrece "Crear en el Reloj
-    del iPhone" con el Atajo "Organizy alarma" (`services/alarmas/atajo.ts`: enlace
-    oficial `shortcuts://run-shortcut?name=...&input=text&text=07:30|Nombre`; los pasos
-    para crearlo están plegados en la pestaña y en la guía). Los días de repetición no se
-    pueden pasar al Atajo. **El Atajo no está probado** desde aquí.
+  - **"web"**: la web no suena, pero las alarmas **pasan cada noche al Reloj del iPhone**
+    (26/10/2026; sustituye al botón "Crear en el Reloj" de cada alarma y al Atajo
+    "Organizy alarma"). Ver "Alarmas al Reloj del iPhone" al final de esta sección.
 - **La librería no se importa directamente**: `requireOptionalNativeModule('AlarmScheduler')`
   (de `expo`) devuelve null en Expo Go, así el túnel sigue funcionando.
 - **Plugin propio `plugins/alarmas.js`** (28/09/2026), no el de la librería: el de
@@ -1324,6 +1377,33 @@ borran solos a los 7 días.
   - Antes de publicar convendrá repasar permisos que Expo añade por defecto y la app no
     usa (`SYSTEM_ALERT_WINDOW`, `READ/WRITE_EXTERNAL_STORAGE`, `WRITE_CONTACTS`) con
     `android.blockedPermissions`, comprobando que no los necesita ninguna fase.
+
+### Alarmas al Reloj del iPhone (web, 26/10/2026)
+
+- **Cómo funciona**: en Alarmas (web), `SeccionReloj` ("Que suenen en el Reloj del
+  iPhone") crea un **enlace personal** (`crearEnlaceReloj`, función `alarmas-reloj`):
+  `.../functions/v1/alarmas-reloj?t=<llave>`. El Atajo **"Organizy alarmas"** (pasos en
+  `PASOS_ATAJO` de `services/alarmas/atajo.ts` y en la guía "Fase 15 - Avisos y
+  alarmas.md") lo lee, borra las alarmas del Reloj cuya etiqueta empieza por "Organizy" y
+  crea las nuevas. Lo lanza una automatización personal de Atajos a las 22:00
+  (`HORA_AUTOMATIZACION`, "Ejecutar inmediatamente"); "Pasarlas ahora al Reloj" lo abre a
+  mano (`shortcuts://run-shortcut?name=Organizy%20alarmas`).
+- **Qué devuelve el enlace** (GET, texto): primera línea `Organizy` (el Atajo comprueba que
+  empieza así antes de borrar nada) y una línea `HH:MM|Organizy · etiqueta` por alarma de las
+  **24 h siguientes**, sin horas repetidas. Enlace malo: 404 "Enlace no válido".
+- **Qué se sube** (`alarmasParaReloj`, `services/alarmas/reloj.ts`, puro, con pruebas): las
+  de los próximos **14 días** (`DIAS_RELOJ`) con la hora ya ajustada (inteligente con su
+  adelanto: "Trabajo · 15 min antes por el tráfico") y las de salida ("Sal ya: …"). Lo sube
+  `sincronizarAlarmas` en nivel "web" solo si hay enlace (`subirAlarmasReloj`: no repite lo
+  mismo salvo cada 12 h). Si la app no se abre en 14 días, se acaban.
+- **Servidor**: tabla `alarmas_reloj` (usuario, `llave` = SHA-256 del enlace, alarmas en
+  JSON, `ultima_lectura`; RLS sin políticas). Acciones POST con la sesión: `estado`,
+  `crear-enlace` (cambia el anterior), `subir` (máx. 200) y `quitar`. La pestaña enseña
+  cuándo lo leyó el Atajo por última vez.
+- En la app el enlace está en `organizy:alarmasReloj` (`data/alarmasReloj.ts`, en
+  `NO_VIAJAN`: es una llave atada a la sesión del dispositivo).
+- **Sin probar en el iPhone** (lo prueba el usuario con la guía): si "Eliminar alarmas" pide
+  confirmación cada noche y si la automatización corre sin abrir nada.
 
 ## Fase 8: planes con WhatsApp y votación (decisiones)
 
