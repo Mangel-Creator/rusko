@@ -142,11 +142,12 @@ export default function LayoutRaiz() {
 
   // Hasta completar la bienvenida solo se puede ver esa pantalla. Al completarla,
   // "bienvenidaCompletada" pasa a true y la app salta sola a las pestañas.
+  // redirectTo hace falta: sin él, expo-router manda a la primera pantalla libre, /votar.
   return (
     <ThemeProvider value={temaNavegacion}>
       <StatusBar style="light" />
       <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colores.fondo } }}>
-        <Stack.Protected guard={bienvenidaCompletada}>
+        <Stack.Protected guard={bienvenidaCompletada} redirectTo="/bienvenida">
           <Stack.Screen name="(tabs)" />
           <Stack.Screen name="perfil" />
           <Stack.Screen name="evento" />
@@ -157,7 +158,7 @@ export default function LayoutRaiz() {
           <Stack.Screen name="planes" />
           <Stack.Screen name="alarmas" />
         </Stack.Protected>
-        <Stack.Protected guard={!bienvenidaCompletada}>
+        <Stack.Protected guard={!bienvenidaCompletada} redirectTo="/">
           <Stack.Screen name="bienvenida" options={{ gestureEnabled: false }} />
         </Stack.Protected>
         {/* Página de votación de un plan (fase 8): la abren los invitados desde el enlace
