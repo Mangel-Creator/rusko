@@ -1,12 +1,15 @@
-import { ScrollViewStyleReset } from 'expo-router/html';
+import { ScrollViewStyleReset, useServerDocumentContext } from 'expo-router/html';
 import type { PropsWithChildren } from 'react';
 
 // Plantilla HTML de la versión web (solo se usa en web).
 // Las etiquetas "apple-*" permiten guardarla en la pantalla de inicio del iPhone
 // y que se abra a pantalla completa, como una app.
+// Desde el SDK 58 los scripts y estilos de la app llegan en headNodes y bodyNodes:
+// sin ellos la página publicada sale en blanco.
 export default function Root({ children }: PropsWithChildren) {
+  const { htmlAttributes, bodyAttributes, headNodes, bodyNodes } = useServerDocumentContext();
   return (
-    <html lang="es">
+    <html lang="es" {...htmlAttributes}>
       <head>
         <meta charSet="utf-8" />
         <meta httpEquiv="X-UA-Compatible" content="IE=edge" />
@@ -23,8 +26,12 @@ export default function Root({ children }: PropsWithChildren) {
         <link rel="apple-touch-icon" href="/organizy/icono-app.png" />
         <ScrollViewStyleReset />
         <style dangerouslySetInnerHTML={{ __html: 'body{background-color:#0F0D0C;color-scheme:dark;}' }} />
+        {headNodes}
       </head>
-      <body>{children}</body>
+      <body {...bodyAttributes}>
+        {children}
+        {bodyNodes}
+      </body>
     </html>
   );
 }

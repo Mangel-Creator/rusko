@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useState } from 'react';
-import { PanResponder, Pressable, StyleSheet, View } from 'react-native';
+import { PanResponder, Pressable, StyleSheet, View, type PanResponderGestureState } from 'react-native';
 import Animated, { FadeIn, LayoutAnimationConfig } from 'react-native-reanimated';
 
 import { BotonFlotante, Pantalla, Tarjeta, Texto, Titulo } from '@/components';
@@ -99,16 +99,21 @@ export function PantallaSemana() {
   const fechaElegida = fechaDesdeClave(elegido);
 
   const cambiarSemana = (semanas: number) => setElegido((actual) => sumarDias(actual, 7 * semanas));
-  // Deslizar a los lados sobre la tira de días cambia de semana.
-  const [deslizar] = useState(() =>
-    PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) => Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy) * 2,
+  // Deslizar a los lados sobre la cabecera (mes, "Semana N", leyenda y tira de días)
+  // cambia de semana. Se pide en la fase de captura para ganar a los días, que son
+  // botones, y no se suelta para que el scroll vertical no lo corte a medias.
+  const [deslizar] = useState(() => {
+    const esHorizontal = (g: PanResponderGestureState) => Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy) * 2;
+    return PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) => esHorizontal(g),
+      onMoveShouldSetPanResponderCapture: (_, g) => esHorizontal(g),
+      onPanResponderTerminationRequest: () => false,
       onPanResponderRelease: (_, g) => {
         if (g.dx < -50) setElegido((actual) => sumarDias(actual, 7));
         else if (g.dx > 50) setElegido((actual) => sumarDias(actual, -7));
       },
-    }),
-  );
+    });
+  });
 
   const diaElegido = delDiaConEpoca(elegido);
   const delDia = diaElegido.eventos;
@@ -119,77 +124,79 @@ export function PantallaSemana() {
   return (
     <View style={estilos.contenedor}>
       <Pantalla contentContainerStyle={estilos.contenido}>
-        <View style={estilos.cabecera}>
-          <View style={estilos.textos}>
-            <Titulo>{nombreMes(fechaDesdeClave(sumarDias(lunes, 3)))}</Titulo>
-            <Texto secundario>Semana {numeroSemana(fechaElegida)}</Texto>
+        <View style={estilos.zonaDeslizable} {...deslizar.panHandlers}>
+          <View style={estilos.cabecera}>
+            <View style={estilos.textos}>
+              <Titulo>{nombreMes(fechaDesdeClave(sumarDias(lunes, 3)))}</Titulo>
+              <Texto secundario>Semana {numeroSemana(fechaElegida)}</Texto>
+            </View>
+            <BotonIcono icono="chevron-back" etiqueta="Semana anterior" onPress={() => cambiarSemana(-1)} />
+            <BotonIcono icono="chevron-forward" etiqueta="Semana siguiente" onPress={() => cambiarSemana(1)} />
           </View>
-          <BotonIcono icono="chevron-back" etiqueta="Semana anterior" onPress={() => cambiarSemana(-1)} />
-          <BotonIcono icono="chevron-forward" etiqueta="Semana siguiente" onPress={() => cambiarSemana(1)} />
-        </View>
 
-        <View style={estilos.leyendaFila}>
-          <View style={estilos.leyenda}>
-            <Leyenda color={colorTipo.cliente} texto="Clientes" />
-            <Leyenda color={colorTipo.amigos} texto="Amigos" />
-            <Leyenda color={colorTipo.yo} texto="Yo" />
-          </View>
-          {elegido !== hoy ? (
-            <Pressable
-              accessibilityRole="button"
-              accessibilityLabel="Volver a hoy"
-              onPress={() => setElegido(hoy)}
-              style={({ pressed }) => [estilos.botonHoy, pressed && estilos.pulsado]}>
-              <Texto fuerte pequeno>
-                Hoy
-              </Texto>
-            </Pressable>
-          ) : null}
-        </View>
-
-        <Tarjeta style={estilos.tira} {...deslizar.panHandlers}>
-          {dias.map((dia, i) => {
-            const conEpoca = delDiaConEpoca(dia);
-            const ocupados = conEpoca.eventos.map(intervaloDe);
-            const hayHito = conEpoca.epoca?.hitos.some((h) => h.fecha === dia) ?? false;
-            const minutosTareas = tareasPendientes(eventos, dia, hoy).reduce((t, e) => t + duracionTarea(e), 0);
-            const carga = cargaDelDia(ocupados, minutosTareas, conEpoca.jornada);
-            const esElegido = dia === elegido;
-            const fecha = fechaDesdeClave(dia);
-            return (
+          <View style={estilos.leyendaFila}>
+            <View style={estilos.leyenda}>
+              <Leyenda color={colorTipo.cliente} texto="Clientes" />
+              <Leyenda color={colorTipo.amigos} texto="Amigos" />
+              <Leyenda color={colorTipo.yo} texto="Yo" />
+            </View>
+            {elegido !== hoy ? (
               <Pressable
-                key={dia}
                 accessibilityRole="button"
-                accessibilityLabel={`${formatearDiaCorto(fecha)}, ${Math.round(carga.proporcion * 100)} % ocupado${hayHito ? ', con examen o entrega' : ''}`}
-                accessibilityState={{ selected: esElegido }}
-                onPress={() => setElegido(dia)}
-                style={({ pressed }) => [estilos.dia, pressed && estilos.pulsado]}>
-                <Texto pequeno secundario>
-                  {DIAS_SEMANA_LETRA[i]}
+                accessibilityLabel="Volver a hoy"
+                onPress={() => setElegido(hoy)}
+                style={({ pressed }) => [estilos.botonHoy, pressed && estilos.pulsado]}>
+                <Texto fuerte pequeno>
+                  Hoy
                 </Texto>
-                <View style={[estilos.numero, esElegido && estilos.numeroElegido]}>
-                  <Texto
-                    fuerte
-                    style={[esElegido && estilos.numeroTextoElegido, !esElegido && dia === hoy && estilos.numeroHoy]}>
-                    {fecha.getDate()}
-                  </Texto>
-                </View>
-                <View style={[estilos.marcaHito, hayHito && estilos.marcaHitoVisible]} />
-                <View style={estilos.barraFondo}>
-                  <View
-                    style={[
-                      estilos.barra,
-                      {
-                        height: Math.min(carga.proporcion, 1) * ALTURA_BARRA,
-                        backgroundColor: carga.alta ? colores.aviso : colores.cargaNormal,
-                      },
-                    ]}
-                  />
-                </View>
               </Pressable>
-            );
-          })}
-        </Tarjeta>
+            ) : null}
+          </View>
+
+          <Tarjeta style={estilos.tira}>
+            {dias.map((dia, i) => {
+              const conEpoca = delDiaConEpoca(dia);
+              const ocupados = conEpoca.eventos.map(intervaloDe);
+              const hayHito = conEpoca.epoca?.hitos.some((h) => h.fecha === dia) ?? false;
+              const minutosTareas = tareasPendientes(eventos, dia, hoy).reduce((t, e) => t + duracionTarea(e), 0);
+              const carga = cargaDelDia(ocupados, minutosTareas, conEpoca.jornada);
+              const esElegido = dia === elegido;
+              const fecha = fechaDesdeClave(dia);
+              return (
+                <Pressable
+                  key={dia}
+                  accessibilityRole="button"
+                  accessibilityLabel={`${formatearDiaCorto(fecha)}, ${Math.round(carga.proporcion * 100)} % ocupado${hayHito ? ', con examen o entrega' : ''}`}
+                  accessibilityState={{ selected: esElegido }}
+                  onPress={() => setElegido(dia)}
+                  style={({ pressed }) => [estilos.dia, pressed && estilos.pulsado]}>
+                  <Texto pequeno secundario>
+                    {DIAS_SEMANA_LETRA[i]}
+                  </Texto>
+                  <View style={[estilos.numero, esElegido && estilos.numeroElegido]}>
+                    <Texto
+                      fuerte
+                      style={[esElegido && estilos.numeroTextoElegido, !esElegido && dia === hoy && estilos.numeroHoy]}>
+                      {fecha.getDate()}
+                    </Texto>
+                  </View>
+                  <View style={[estilos.marcaHito, hayHito && estilos.marcaHitoVisible]} />
+                  <View style={estilos.barraFondo}>
+                    <View
+                      style={[
+                        estilos.barra,
+                        {
+                          height: Math.min(carga.proporcion, 1) * ALTURA_BARRA,
+                          backgroundColor: carga.alta ? colores.aviso : colores.cargaNormal,
+                        },
+                      ]}
+                    />
+                  </View>
+                </Pressable>
+              );
+            })}
+          </Tarjeta>
+        </View>
 
         <LayoutAnimationConfig skipEntering>
           <Animated.View key={elegido} entering={CAMBIO_DE_DIA} style={estilos.contenidoDia}>
@@ -367,6 +374,8 @@ const ANCHO_HORAS = 48;
 const estilos = StyleSheet.create({
   contenedor: { flex: 1, backgroundColor: colores.fondo },
   contenido: { paddingBottom: 120 }, // deja sitio al botón "+"
+  // Mismo gap que Pantalla, que separa sus hijos directos.
+  zonaDeslizable: { gap: espacio.l - 4 },
   cabecera: { flexDirection: 'row', alignItems: 'center', gap: espacio.s },
   textos: { flex: 1 },
   botonIcono: {
