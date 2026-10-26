@@ -1,9 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useLocalSearchParams } from 'expo-router';
+import { Redirect, useLocalSearchParams } from 'expo-router';
 import { useEffect, useState, useSyncExternalStore } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
 import { Boton, CampoTexto, Pantalla, Tarjeta, Texto, Titulo } from '@/components';
+import { usePerfil } from '@/data/perfil';
 import { claveNombre, contarVotos, ganadoras, textoGanan } from '@/services/planes/votos';
 import {
   codigoDeLaDireccion,
@@ -46,6 +47,7 @@ function escucharDireccion(avisar: () => void): () => void {
 
 export function PantallaVotar() {
   const { c } = useLocalSearchParams<{ c?: string }>();
+  const { bienvenidaCompletada } = usePerfil();
   // El código se lee de la dirección (en el navegador, detrás de "#"). Al preparar la
   // página en el servidor de GitHub no hay dirección: undefined = "cargando".
   const codigo = useSyncExternalStore(
@@ -94,6 +96,11 @@ export function PantallaVotar() {
     setVotado(null);
   };
 
+  // Sin nada detrás de "#" no viene de un enlace de plan: es el dueño abriendo la web, y
+  // expo-router lo ha traído aquí al no tener hecha la bienvenida. Se le lleva a su sitio.
+  if (codigo === null && !leerHash().replace(/^#/, '') && !c) {
+    return <Redirect href={bienvenidaCompletada ? '/' : '/bienvenida'} />;
+  }
   if (codigo === undefined || (codigo && !datos && !error)) {
     return (
       <Pantalla contentContainerStyle={estilos.pagina}>
