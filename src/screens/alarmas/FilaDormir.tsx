@@ -10,7 +10,7 @@ import { espacio } from '@/theme';
 const ANTES: Opcion<string>[] = ANTES_DE_DORMIR.map((m) => ({ valor: String(m), etiqueta: `${m} min` }));
 
 // Hora de dormir: un aviso suave (no una alarma) antes de acostarte, con la hora del
-// perfil. En la web no llega: se dice.
+// perfil. En la web llega como aviso push si están activados en Perfil (26/10/2026).
 export function FilaDormir() {
   const { ajustes } = useAlarmas();
   const { perfil } = usePerfil();
@@ -24,7 +24,7 @@ export function FilaDormir() {
         etiqueta="Hora de dormir"
         ayuda={
           nivel === 'web'
-            ? 'En la web no llega: solo en la app del móvil.'
+            ? `Un aviso a las ${hora}, si tienes los avisos activados en Perfil.`
             : `Un aviso suave a las ${hora}, ${ajustes.dormirAntesMin} min antes de acostarte.`
         }
         valor={ajustes.dormir}
