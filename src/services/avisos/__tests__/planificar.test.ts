@@ -262,6 +262,14 @@ describe('Sal ya (fase 6)', () => {
     expect(avisos[0].destino).toEqual({ pantalla: 'mapa', id: 'e1', dia: '2026-09-24' });
   });
 
+  it('dice con qué app se abre al tocarlo', () => {
+    const [aviso] = planificarAvisos(
+      { ahora, eventos: [], perfil, ajustes: AJUSTES_AVISOS_POR_DEFECTO, salidas: [salida], navegador: 'Waze' },
+      1,
+    ).filter((a) => a.tipo === 'salida');
+    expect(aviso.cuerpo).toBe('18 min en coche hasta Oficina para llegar a las 10:30. Toca para ir con Waze.');
+  });
+
   it('no avisa si está desactivado o si ya ha pasado la hora', () => {
     const desactivado = planificarAvisos(
       { ahora, eventos: [], perfil, ajustes: { ...AJUSTES_AVISOS_POR_DEFECTO, salida: false }, salidas: [salida] },

@@ -11,7 +11,7 @@ import { ubicacionActual } from '@/services/ubicacion';
 import { hayQueRecalcular, proximasCitas, YA_ESTAS_ALLI_M } from './citas';
 import { horasDeAtasco, MINUTOS_MUESTRA, type Muestra } from './horasPunta';
 import { calcularRutas } from './index';
-import { distanciaM } from './radares';
+import { distanciaM } from './distancia';
 import { pedirAlServidor } from './servidor';
 import { horaDeSalida } from './textos';
 import { modoDeViaje, type Punto } from './tipos';

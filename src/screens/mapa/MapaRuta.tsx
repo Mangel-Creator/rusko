@@ -3,14 +3,14 @@ import { StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, Polyline, type LatLng } from 'react-native-maps';
 
 import type { Punto } from '@/services/rutas';
-import { cifras, colores, coloresMapa, fuentes } from '@/theme';
+import { colores, coloresMapa, fuentes } from '@/theme';
 
-import { CENTRO_POR_DEFECTO, marcasDeRadares, puntosDeTramo, puntosVisibles, type PropsMapa } from './tipos';
+import { CENTRO_POR_DEFECTO, puntosDeTramo, puntosVisibles, type PropsMapa } from './tipos';
 
 // Mapa del móvil con react-native-maps (viene en Expo Go, sin claves): en el iPhone
 // es el mapa de Apple y en Android el de Google. "showsTraffic" pinta el tráfico de
 // todas las carreteras, como Waze. Encima va la ruta elegida con sus tramos de
-// tráfico, las alternativas en gris y los radares.
+// tráfico, las alternativas en gris y, si los has pedido, los parkings ("P").
 // En la web se usa MapaRuta.web.tsx.
 
 function aLatLng([latitude, longitude]: Punto): LatLng {
@@ -23,26 +23,19 @@ export function MapaRuta({
   rutas,
   elegida,
   alElegir,
-  radares,
+  parkings,
+  parkingElegido,
   centroInicial,
-  seguir,
   style,
 }: PropsMapa) {
   const mapa = useRef<MapView>(null);
   const ruta = rutas[elegida];
 
-  // Navegando: la cámara va contigo, de cerca y un poco inclinada.
-  const aqui = seguir ? ubicacion : null;
-  useEffect(() => {
-    if (!aqui) return;
-    mapa.current?.animateCamera({ center: aLatLng(aqui), zoom: 17, pitch: 40 }, { duration: 800 });
-  }, [aqui]);
-
   // Encuadra la ruta (o tu posición y el destino) cada vez que cambian.
-  const visibles = puntosVisibles({ ubicacion, destino, rutas });
+  const visibles = puntosVisibles({ ubicacion, destino, rutas, parkings });
   const huella = `${visibles.length}:${visibles[0]?.join()}:${visibles[visibles.length - 1]?.join()}`;
   useEffect(() => {
-    if (seguir || visibles.length === 0) return;
+    if (visibles.length === 0) return;
     if (visibles.length === 1) {
       mapa.current?.animateToRegion({ ...aLatLng(visibles[0]), latitudeDelta: 0.05, longitudeDelta: 0.05 });
       return;
@@ -96,16 +89,17 @@ export function MapaRuta({
             zIndex={3}
           />
         ))}
-        {marcasDeRadares(radares).map((m) => (
+        {parkings.map((p) => (
           <Marker
-            key={m.clave}
-            coordinate={aLatLng(m.punto)}
+            // Con la clave cambia al elegirlo: tracksViewChanges={false} no lo repintaría.
+            key={`${p.id}:${p.id === parkingElegido}`}
+            coordinate={aLatLng(p.punto)}
             anchor={{ x: 0.5, y: 0.5 }}
             tracksViewChanges={false}
-            title={m.titulo}
-            description={m.detalle}>
-            <View style={[estilos.radar, m.limite ? estilos.radarConLimite : null]}>
-              {m.limite ? <Text style={estilos.limite}>{m.limite}</Text> : null}
+            title={p.nombre}
+            description={p.direccion}>
+            <View style={[estilos.parking, p.id === parkingElegido && estilos.parkingElegido]}>
+              <Text style={estilos.letraP}>P</Text>
             </View>
           </Marker>
         ))}
@@ -117,15 +111,17 @@ export function MapaRuta({
 
 const estilos = StyleSheet.create({
   contenedor: { overflow: 'hidden', backgroundColor: colores.borde },
-  radar: {
-    width: 16,
-    height: 16,
-    borderRadius: 8,
-    backgroundColor: coloresMapa.radar,
-    borderWidth: 3,
-    borderColor: coloresMapa.bordeRadar,
+  // "P" blanca en un cuadrado azul, como las señales de aparcamiento.
+  parking: {
+    width: 26,
+    height: 26,
+    borderRadius: 6,
+    backgroundColor: coloresMapa.parking,
+    borderWidth: 2,
+    borderColor: coloresMapa.bordeParking,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
-  // Con límite: más grande, con el número dentro (como una señal).
-  radarConLimite: { width: 30, height: 30, borderRadius: 15, alignItems: 'center', justifyContent: 'center' },
-  limite: { color: coloresMapa.bordeRadar, ...cifras, fontFamily: fuentes.horaFuerte, fontSize: 11 },
+  parkingElegido: { width: 34, height: 34, borderRadius: 8, borderWidth: 3 },
+  letraP: { color: coloresMapa.bordeParking, fontFamily: fuentes.textoFuerte, fontSize: 14 },
 });

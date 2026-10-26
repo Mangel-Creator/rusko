@@ -3,7 +3,7 @@ import type { Perfil } from '@/data/perfil';
 import { eventosDelDia, intervaloDe, NOMBRE_CASA, resolverLugar } from '@/services/agenda';
 import { claveDia, fechaDesdeClave, sumarDias, type ClaveDia } from '@/services/fechas';
 
-import { distanciaM } from './radares';
+import { distanciaM } from './distancia';
 import type { Punto } from './tipos';
 
 // Qué citas necesitan hora de salida y cuándo hay que volver a calcularla.

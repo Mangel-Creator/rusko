@@ -27,18 +27,6 @@ export type Ruta = {
   llegada: string;
   puntos: Punto[];
   tramos: TramoTrafico[];
-  // Indicaciones giro a giro (solo si se pidieron con "instrucciones: true").
-  instrucciones?: Instruccion[];
-};
-
-// Una indicación de la navegación: "Gira a la derecha por Calle Mayor".
-export type Instruccion = {
-  indice: number; // punto de la ruta donde está la maniobra
-  distanciaM: number; // metros desde la salida hasta la maniobra
-  maniobra: string; // código de TomTom: TURN_RIGHT, ROUNDABOUT_RIGHT, ARRIVE...
-  calle: string | null; // nombre de la calle o carretera a la que se entra
-  salida: number | null; // número de salida en rotondas y autovías
-  mensaje: string; // el texto de TomTom (de reserva)
 };
 
 // Cómo se viaja. El transporte público no tiene tráfico que calcular: TomTom no lo
@@ -57,7 +45,6 @@ export type PeticionRutas = {
   alternativas: number; // 0 = solo la mejor; 2 = hasta 3 rutas
   llegada?: string; // ISO: para llegar a esa hora (tráfico previsto)
   salida?: string; // ISO: saliendo a esa hora (tráfico previsto)
-  instrucciones?: boolean; // traer las indicaciones para navegar (pesa más)
 };
 
 // Qué ha pasado al pedir rutas.

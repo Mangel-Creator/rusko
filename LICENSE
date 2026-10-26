@@ -21,8 +21,6 @@ Componentes de terceros (conservan su propia licencia)
 -------------------------------------------------------------------------------
 
 - Librerías de package.json: cada una con su licencia, en node_modules/<paquete>/.
-- Datos de radares (src/data/radares/radares-dgt.json): licencia ODbL 1.0. Ver
-  src/data/radares/LICENCIA.md.
 - Letras IBM Plex Sans, IBM Plex Mono y Google Sans: SIL Open Font License 1.1.
 - Logos de Google y Microsoft: marcas de sus dueños. Solo se usan en los botones
   para iniciar sesión con ellos, como dicen sus normas de marca.

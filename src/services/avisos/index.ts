@@ -8,6 +8,7 @@ import { leerEpocas, suscribirseEpocas } from '@/data/epocas';
 import { leerAgenda } from '@/data/agenda';
 import { suscribirseEmpresa } from '@/data/empresa';
 import { leerEventos, moverTareas, suscribirseEventos } from '@/data/eventos';
+import { leerNavegador, suscribirseNavegador } from '@/data/navegador';
 import { cargarPerfil, suscribirsePerfil } from '@/data/perfil';
 import { leerPlanes, suscribirsePlanes } from '@/data/planes';
 import { leerRecordatorios, suscribirseRecordatorios } from '@/data/recordatorios';
@@ -19,6 +20,7 @@ import { mandarRecordatorio } from '@/services/clientes/enviar';
 import { epocaProxima, planificarEpoca } from '@/services/epoca';
 import { claveDia, formatearHora, sumarDias } from '@/services/fechas';
 import { consultarPermiso } from '@/services/permisos';
+import { navegadorPara, NOMBRE_NAVEGADOR } from '@/services/rutas/navegador';
 import { enlaceWhatsapp } from '@/services/rutas/textos';
 
 import { avisosDeClientes } from './clientes';
@@ -49,7 +51,8 @@ export async function probarAvisoDeHoy(tipo: 'resumen-manana' | 'cierre-dia' | '
   const { perfil } = await cargarPerfil();
   if (!perfil) return;
   const [eventos, ajustes, salidas] = await Promise.all([leerAgenda({ tareas: false }), leerAjustesAvisos(), leerSalidas()]);
-  const ctx = { ahora: new Date(), eventos, perfil, ajustes, salidas: Object.values(salidas) };
+  const navegador = NOMBRE_NAVEGADOR[navegadorPara(await leerNavegador(), perfil.transporte)];
+  const ctx = { ahora: new Date(), eventos, perfil, ajustes, salidas: Object.values(salidas), navegador };
   await enviarAvisoDePrueba(avisoDeHoy(tipo, ctx));
 }
 
@@ -121,6 +124,7 @@ export function reprogramarAvisos(): Promise<void> {
         ajustes,
         epoca: datosEpoca,
         salidas: Object.values(salidas),
+        navegador: NOMBRE_NAVEGADOR[navegadorPara(await leerNavegador(), perfil.transporte)],
         // Alarmas (fase 7): como avisos solo si no hay alarmas de verdad (Expo Go).
         alarmas: { lista: alarmas.alarmas, ajustes: alarmas.ajustes, adelantos, comoAvisos: nivel === 'avisos' },
         // Planes (fase 8): "Recordar a todos 3 h antes".
@@ -159,6 +163,7 @@ export function iniciarAvisos(): () => void {
     suscribirseAjustesAvisos(reprogramarEnUnMomento),
     suscribirseEpocas(reprogramarEnUnMomento),
     suscribirseSalidas(reprogramarEnUnMomento), // nueva hora de salida con el tráfico (fase 6)
+    suscribirseNavegador(reprogramarEnUnMomento), // "Toca para ir con Waze" del Sal ya
     suscribirseAlarmas(reprogramarEnUnMomento), // alarmas (fase 7)
     suscribirseAdelantos(reprogramarEnUnMomento),
     suscribirsePermisoAlarmas(reprogramarEnUnMomento),

@@ -6,7 +6,7 @@ import { StyleSheet, View, type HostInstance } from 'react-native';
 
 import { colores, coloresMapa, fuentes } from '@/theme';
 
-import { CENTRO_POR_DEFECTO, marcasDeRadares, puntosDeTramo, puntosVisibles, type PropsMapa } from './tipos';
+import { CENTRO_POR_DEFECTO, puntosDeTramo, puntosVisibles, type PropsMapa } from './tipos';
 
 // Mapa de la web con Leaflet. Leaflet necesita el navegador, así que se carga al
 // montar el componente (no al compilar la web estática).
@@ -22,7 +22,7 @@ const CLAVE_MAPA = process.env.EXPO_PUBLIC_TOMTOM_MAPA_KEY ?? '';
 const ATRIBUCION_OSM = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 const ATRIBUCION_TOMTOM = '© <a href="https://www.tomtom.com">TomTom</a>';
 
-type Capas = { rutas: L.LayerGroup; radares: L.LayerGroup; marcas: L.LayerGroup };
+type Capas = { rutas: L.LayerGroup; parkings: L.LayerGroup; marcas: L.LayerGroup };
 
 export function MapaRuta({
   ubicacion,
@@ -30,9 +30,9 @@ export function MapaRuta({
   rutas,
   elegida,
   alElegir,
-  radares,
+  parkings,
+  parkingElegido,
   centroInicial,
-  seguir,
   style,
 }: PropsMapa) {
   const contenedor = useRef<HostInstance>(null);
@@ -70,11 +70,11 @@ export function MapaRuta({
       }
       capas.current = {
         rutas: Lf.layerGroup().addTo(m),
-        radares: Lf.layerGroup().addTo(m),
+        parkings: Lf.layerGroup().addTo(m),
         marcas: Lf.layerGroup().addTo(m),
       };
       mapa.current = m;
-      // Si cambia el tamaño (por ejemplo, al abrirlo en grande), Leaflet se recoloca.
+      // Si cambia el tamaño, Leaflet se recoloca.
       observador = new ResizeObserver(() => m.invalidateSize());
       observador.observe(nodo);
       setLeaflet(Lf);
@@ -90,13 +90,13 @@ export function MapaRuta({
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
-  // Rutas, tramos de tráfico, radares y marcas.
+  // Rutas, tramos de tráfico, parkings y marcas.
   useEffect(() => {
     const Lf = leaflet;
     const c = capas.current;
     if (!Lf || !c) return;
     c.rutas.clearLayers();
-    c.radares.clearLayers();
+    c.parkings.clearLayers();
     c.marcas.clearLayers();
 
     rutas.forEach((r, i) => {
@@ -115,17 +115,17 @@ export function MapaRuta({
         }).addTo(c.rutas);
       }
     }
-    // Radares: círculo negro con borde blanco y, si se sabe, el límite dentro.
-    for (const r of marcasDeRadares(radares)) {
-      const lado = r.limite ? 30 : 16;
+    // Parkings: "P" blanca en un cuadrado azul, como las señales; el elegido, más grande.
+    for (const pk of parkings) {
+      const lado = pk.id === parkingElegido ? 34 : 26;
       const icono = Lf.divIcon({
         className: '',
         iconSize: [lado, lado],
-        html: `<div style="width:${lado}px;height:${lado}px;border-radius:50%;box-sizing:border-box;background:${coloresMapa.radar};border:3px solid ${coloresMapa.bordeRadar};color:${coloresMapa.bordeRadar};font:600 11px ${fuentes.horaFuerte},monospace;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.4)">${r.limite ?? ''}</div>`,
+        html: `<div style="width:${lado}px;height:${lado}px;border-radius:6px;box-sizing:border-box;background:${coloresMapa.parking};border:2px solid ${coloresMapa.bordeParking};color:${coloresMapa.bordeParking};font:600 14px ${fuentes.textoFuerte},sans-serif;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 3px rgba(0,0,0,.4)">P</div>`,
       });
-      Lf.marker(r.punto, { icon: icono, keyboard: false })
-        .bindTooltip(`${r.titulo} · ${r.detalle}`)
-        .addTo(c.radares);
+      Lf.marker(pk.punto, { icon: icono, keyboard: false })
+        .bindTooltip(`${pk.nombre} · ${pk.direccion}`)
+        .addTo(c.parkings);
     }
     if (ubicacion) {
       Lf.circleMarker(ubicacion, {
@@ -145,20 +145,14 @@ export function MapaRuta({
         fillOpacity: 1,
       }).addTo(c.marcas);
     }
-  }, [leaflet, rutas, elegida, alElegir, radares, ubicacion, destino]);
-
-  // Navegando: el mapa va centrado en ti, de cerca.
-  const aqui = seguir ? ubicacion : null;
-  useEffect(() => {
-    if (leaflet && aqui) mapa.current?.setView(aqui, 17, { animate: true });
-  }, [leaflet, aqui]);
+  }, [leaflet, rutas, elegida, alElegir, parkings, parkingElegido, ubicacion, destino]);
 
   // Encuadrar la ruta (o tu posición y el destino) al cambiar.
-  const visibles = puntosVisibles({ ubicacion, destino, rutas });
+  const visibles = puntosVisibles({ ubicacion, destino, rutas, parkings });
   const huella = `${visibles.length}:${visibles[0]?.join()}:${visibles[visibles.length - 1]?.join()}`;
   useEffect(() => {
     const m = mapa.current;
-    if (!leaflet || !m || seguir || visibles.length === 0) return;
+    if (!leaflet || !m || visibles.length === 0) return;
     if (visibles.length === 1) m.setView(visibles[0], 14);
     else m.fitBounds(leaflet.latLngBounds(visibles), { padding: [30, 30] });
     // eslint-disable-next-line react-hooks/exhaustive-deps

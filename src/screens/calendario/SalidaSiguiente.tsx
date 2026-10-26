@@ -3,15 +3,18 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Texto } from '@/components';
 import type { Evento } from '@/data/eventos';
+import { useNavegador } from '@/data/navegador';
 import { usePerfil } from '@/data/perfil';
 import { useSalida } from '@/data/salidas';
 import { formatearHora, type ClaveDia } from '@/services/fechas';
-import { textoSalida } from '@/services/rutas';
+import { navegadorPara, NOMBRE_NAVEGADOR, textoSalida } from '@/services/rutas';
+import { irACita } from '@/services/rutas/abrir';
 import { citaDe } from '@/services/rutas/citas';
 import { alturaTactil, cifras, colores, espacio, fuentes, radio, tamanos } from '@/theme';
 
 // Dentro de la tarjeta "Lo siguiente" de Hoy (fase 6): "Sal a las 10:05 · 18 min en
-// coche" y el botón "Cómo llegar", que abre el Mapa con la ruta hasta el evento.
+// coche" y el botón "Ir con Waze" (o la app elegida en el Mapa), que la abre con el sitio
+// del evento puesto. Si el evento ya no tiene lugar, enseña el Mapa.
 // La hora de salida la calcula services/rutas/actualizar.ts con el tráfico previsto.
 
 type Props = { evento: Evento; dia: ClaveDia; enCurso: boolean; ahora: Date };
@@ -19,10 +22,12 @@ type Props = { evento: Evento; dia: ClaveDia; enCurso: boolean; ahora: Date };
 export function SalidaSiguiente({ evento, dia, enCurso, ahora }: Props) {
   const { perfil } = usePerfil();
   const salida = useSalida(evento.id, dia);
+  const navegador = useNavegador();
   if (enCurso || !evento.lugar || !citaDe(evento, dia, perfil)) return null;
 
   const hora = salida ? new Date(salida.salida) : null;
   const tarde = hora ? hora.getTime() < ahora.getTime() : false;
+  const ir = `Ir con ${NOMBRE_NAVEGADOR[navegadorPara(navegador, perfil?.transporte)]}`;
 
   return (
     <View style={estilos.fila}>
@@ -37,10 +42,12 @@ export function SalidaSiguiente({ evento, dia, enCurso, ahora }: Props) {
       )}
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`Cómo llegar a ${evento.titulo}`}
-        onPress={() => router.navigate({ pathname: '/mapa', params: { evento: evento.id, dia } })}
+        accessibilityLabel={`${ir} hasta ${evento.titulo}`}
+        onPress={async () => {
+          if (!(await irACita(evento.id, dia))) router.navigate({ pathname: '/mapa', params: { evento: evento.id, dia } });
+        }}
         style={({ pressed }) => [estilos.boton, pressed && estilos.pulsado]}>
-        <Texto style={estilos.textoBoton}>Cómo llegar</Texto>
+        <Texto style={estilos.textoBoton}>{ir}</Texto>
       </Pressable>
     </View>
   );

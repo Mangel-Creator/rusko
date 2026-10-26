@@ -73,6 +73,8 @@ export type ContextoAvisos = {
   epoca?: EpocaParaAvisos | null;
   // Horas de salida calculadas con el tráfico (fase 6, data/salidas.ts).
   salidas?: Salida[];
+  // Nombre de la app con la que se abre la ruta al tocar el "Sal ya" ("Waze").
+  navegador?: string;
   // Planes con votación (fase 8), para "Recordar a todos 3 h antes".
   planes?: Plan[];
   // Recordatorios a clientes (fase 10): interruptor, hora y lo ya enviado.
@@ -242,20 +244,26 @@ export function textoAvisoSalida(salida: Salida): { titulo: string; cuerpo: stri
   };
 }
 
-function avisosDeSalida({ salidas = [], alarmas }: ContextoAvisos, dia: ClaveDia): AvisoPlanificado[] {
+// Al tocarlo se abre directamente Waze (o la app elegida) con el sitio puesto
+// (26/10/2026): "... para llegar a las 10:30. Toca para ir con Waze."
+function avisosDeSalida({ salidas = [], alarmas, navegador }: ContextoAvisos, dia: ClaveDia): AvisoPlanificado[] {
   // Si la cita tiene alarma de salida (fase 7), suena la alarma y no hace falta el aviso.
   const conAlarma = new Set(alarmas?.ajustes.salidas ?? []);
   return salidas
     .filter((s) => s.dia === dia && !conAlarma.has(s.eventoId))
-    .map((s) => ({
-      id: `salida:${s.clave}`,
-      tipo: 'salida' as const,
-      dia,
-      cuando: new Date(s.salida),
-      ...textoAvisoSalida(s),
-      destino: { pantalla: 'mapa' as const, id: s.eventoId, dia: s.dia },
-      categoria: 'salida' as const,
-    }));
+    .map((s) => {
+      const { titulo, cuerpo } = textoAvisoSalida(s);
+      return {
+        id: `salida:${s.clave}`,
+        tipo: 'salida' as const,
+        dia,
+        cuando: new Date(s.salida),
+        titulo,
+        cuerpo: navegador ? `${cuerpo} Toca para ir con ${navegador}.` : cuerpo,
+        destino: { pantalla: 'mapa' as const, id: s.eventoId, dia: s.dia },
+        categoria: 'salida' as const,
+      };
+    });
 }
 
 // --- Alarmas (fase 7) ---

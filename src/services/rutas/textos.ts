@@ -1,9 +1,9 @@
-import type { Transporte } from '@/data/perfil';
 import { formatearDuracion, formatearHora } from '@/services/fechas';
 
-import type { ModoViaje, Punto } from './tipos';
+import type { ModoViaje } from './tipos';
 
-// Hora de salida, textos y enlaces para abrir otras apps. Funciones puras, con pruebas.
+// Hora de salida, textos y el enlace de WhatsApp. (Los de Waze, Google Maps y
+// Mapas están en navegador.ts.) Funciones puras, con pruebas.
 
 // Margen para llegar a tiempo: se sale 5 minutos antes de lo justo.
 export const MARGEN_SALIDA_MIN = 5;
@@ -47,35 +47,6 @@ export const COMO_VIAJA: Record<ModoViaje, string> = {
 // "Sal a las 10:05 · 18 min en coche"
 export function textoSalida(salida: Date, duracionSeg: number, modo: ModoViaje): string {
   return `Sal a las ${formatearHora(salida)} · ${textoDuracion(duracionSeg)} ${COMO_VIAJA[modo]}`;
-}
-
-// "1 radar", "3 radares", "Sin radares"
-export function textoRadares(n: number): string {
-  if (n === 0) return 'Sin radares';
-  return n === 1 ? '1 radar' : `${n} radares`;
-}
-
-// --- Enlaces para abrir otras apps ---
-
-function coordenadas([lat, lon]: Punto): string {
-  return `${lat.toFixed(6)},${lon.toFixed(6)}`;
-}
-
-// Abre Waze navegando hasta el destino (si no está instalado, abre su web).
-export function enlaceWaze(destino: Punto): string {
-  return `https://waze.com/ul?ll=${coordenadas(destino)}&navigate=yes`;
-}
-
-const MODO_GOOGLE: Record<Transporte, string> = {
-  coche: 'driving',
-  moto: 'two-wheeler',
-  'transporte-publico': 'transit',
-  'a-pie': 'walking',
-};
-
-// Abre Google Maps con las indicaciones hasta el destino, desde donde estés.
-export function enlaceGoogleMaps(destino: Punto, transporte: Transporte = 'coche'): string {
-  return `https://www.google.com/maps/dir/?api=1&destination=${coordenadas(destino)}&travelmode=${MODO_GOOGLE[transporte]}`;
 }
 
 export const MENSAJE_RETRASO = 'Voy con unos 10 min de retraso, lo siento';

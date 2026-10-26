@@ -1,55 +1,75 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
-import { Boton, CampoTexto, Pantalla, Tarjeta, Texto, Titulo } from '@/components';
+import { Boton, CampoTexto, Pantalla, Selector, Tarjeta, Texto, Titulo, type Opcion } from '@/components';
 import { useAgenda } from '@/data/agenda';
 import { useHorasPunta } from '@/data/horasPunta';
+import { guardarNavegador, useNavegador } from '@/data/navegador';
+import { empezarAparcar, parkingLleno, terminarAparcar, useAparcando, useParkingsLlenos } from '@/data/parkings';
 import { usePerfil } from '@/data/perfil';
-import { RADARES } from '@/data/radares';
 import { useSalidas } from '@/data/salidas';
 import { formatearHora } from '@/services/fechas';
 import { ATRIBUCION_OPENSTREETMAP, buscarCoordenadas, usaOpenStreetMap } from '@/services/lugares';
 import { consultarPermiso, pedirPermiso } from '@/services/permisos';
 import {
+  buscarParkings,
   calcularRutas,
-  enlaceGoogleMaps,
-  enlaceWaze,
   fraseHorasPunta,
   horaDeSalida,
   modoDeViaje,
-  radaresCerca,
-  radaresEnRuta,
+  navegadorPara,
+  NOMBRE_NAVEGADOR,
+  ordenarParkings,
+  textoAndando,
+  type Navegador,
+  type Parking,
   type Punto,
+  type ResultadoParkings,
   type ResultadoRutas,
 } from '@/services/rutas';
+import { abrirEnNavegador } from '@/services/rutas/abrir';
 import { claveCita } from '@/services/rutas/citas';
-import { empezarNavegacion } from '@/services/rutas/motorNavegacion';
 import { ubicacionActual } from '@/services/ubicacion';
 import { colores, espacio, fuentes, radio } from '@/theme';
 
 import { useAhora } from './calendario/useAhora';
 import { destinoDeEvento, sugerencias, type Destino } from './mapa/destinos';
-import { MapaGrande } from './mapa/MapaGrande';
 import { MapaRuta } from './mapa/MapaRuta';
-import { FilaDestino, Leyenda, TarjetaRuta } from './mapa/PiezasMapa';
+import { FilaDestino, FilaParking, Leyenda, TarjetaRuta } from './mapa/PiezasMapa';
 
-// Pestaña Mapa (fase 6): "¿A dónde vas?", el mapa con el tráfico, 2 o 3 rutas con
-// su duración, retraso y radares, la hora de salir si el destino es un evento y
-// botones para abrir Waze o Google Maps. Se abre también desde "Cómo llegar" en
-// Hoy con /mapa?evento=<id>&dia=<AAAA-MM-DD>.
+// Pestaña Mapa (fase 6; cambiada el 26/10/2026): "¿A dónde vas?", el mapa con el
+// tráfico, 2 o 3 rutas con su duración y retraso, la hora de salir si el destino es
+// un evento y el botón "Ir con Waze" (o la app de "Abrir siempre con"): Organizy no
+// guía, te manda a tu app de siempre. "Parkings cercanos" busca dónde dejar el coche
+// cerca del destino y, si al llegar está lleno, "Está lleno, llévame a otro" te lleva
+// al siguiente. Se abre también con /mapa?evento=<id>&dia=<AAAA-MM-DD>.
 
 type EstadoRutas = { estado: 'cargando' } | ResultadoRutas | null;
+type EstadoParkings = { estado: 'cargando' } | ResultadoParkings | null;
 
-// Radares que se enseñan alrededor de ti (o de tu casa) cuando aún no hay ruta.
-const RADIO_RADARES_CERCA_M = 25000;
+// Cuántos parkings se proponen (los demás quedan de reserva para "llévame a otro").
+const PARKINGS_A_LA_VISTA = 5;
+
+const OPCIONES_NAVEGADOR: Opcion<Navegador>[] = [
+  { valor: 'waze', etiqueta: NOMBRE_NAVEGADOR.waze },
+  { valor: 'google', etiqueta: NOMBRE_NAVEGADOR.google },
+  // Mapas de Apple solo está en el iPhone (en la web del iPhone también se abre).
+  ...(Platform.OS === 'android' ? [] : [{ valor: 'apple' as const, etiqueta: NOMBRE_NAVEGADOR.apple }]),
+];
+
+function claveDe(punto: Punto): string {
+  return punto.join();
+}
 
 export function PantallaMapa() {
   const { perfil } = usePerfil();
   const { eventos } = useAgenda();
   const salidas = useSalidas();
   const horasPunta = useHorasPunta();
+  const navegador = useNavegador();
+  const llenos = useParkingsLlenos();
+  const aparcando = useAparcando();
   const ahora = useAhora();
   const parametros = useLocalSearchParams<{ evento?: string; dia?: string }>();
 
@@ -59,10 +79,13 @@ export function PantallaMapa() {
   const [ubicacion, setUbicacion] = useState<Punto | null>(null);
   const [sinPermiso, setSinPermiso] = useState(false);
   const [elegida, setElegida] = useState(0);
-  const [grande, setGrande] = useState(false);
-  const [avisoNavegar, setAvisoNavegar] = useState<string | null>(null);
+  // Destino (su clave) del que se han pedido los parkings, y lo que ha contestado.
+  const [verParkings, setVerParkings] = useState<string | null>(null);
+  const [parkingsDe, setParkingsDe] = useState<{ clave: string; resultado: ResultadoParkings } | null>(null);
+  const [avisoParking, setAvisoParking] = useState<string | null>(null);
 
   const modo = modoDeViaje(perfil?.transporte);
+  const app = navegadorPara(navegador, perfil?.transporte);
   const casa: Punto | null = perfil?.vivienda.coordenadas
     ? [perfil.vivienda.coordenadas.latitud, perfil.vivienda.coordenadas.longitud]
     : null;
@@ -99,6 +122,7 @@ export function PantallaMapa() {
     setErrorBusqueda(null);
     setElegida(0);
     setTexto('');
+    setAvisoParking(null);
     setDestino(nuevo);
   }
 
@@ -108,8 +132,8 @@ export function PantallaMapa() {
     elegirDestino({ id: 'busqueda', nombre: escrito, detalle: '', direccion: escrito, punto: null, cita: null });
   }
 
-  // Desde "Cómo llegar" (Hoy) llega un evento: se elige como destino una sola vez
-  // (se ajusta al pintar, como recomienda React, en vez de en un efecto).
+  // Desde un aviso o desde Hoy llega un evento (si no se pudo abrir Waze directamente):
+  // se elige como destino una sola vez (se ajusta al pintar, como recomienda React).
   const { evento: eventoId, dia } = parametros;
   const claveParametros = eventoId && dia ? `${eventoId}:${dia}` : null;
   const [parametrosVistos, setParametrosVistos] = useState<string | null>(null);
@@ -153,8 +177,7 @@ export function PantallaMapa() {
   useEffect(() => {
     if (!huella || !punto || !origen || !modo) return;
     let activo = true;
-    // Con las indicaciones: así "Empezar" no gasta otra llamada.
-    calcularRutas({ origen, destino: punto, modo, alternativas: 2, instrucciones: true }).then((resultado) => {
+    calcularRutas({ origen, destino: punto, modo, alternativas: 2 }).then((resultado) => {
       if (activo) setCalculadas({ huella, resultado });
     });
     return () => {
@@ -170,22 +193,7 @@ export function PantallaMapa() {
       : { estado: 'cargando' };
 
   const lista = rutas?.estado === 'ok' ? rutas.rutas : [];
-  const radaresPorRuta = lista.map((r) => radaresEnRuta(r.puntos, RADARES));
   const rutaElegida = lista[elegida] ?? lista[0];
-  const radaresEnMapa = rutaElegida
-    ? (radaresPorRuta[lista.indexOf(rutaElegida)] ?? [])
-    : origen
-      ? radaresCerca(origen, RADARES, RADIO_RADARES_CERCA_M)
-      : [];
-  const propsMapa = {
-    ubicacion,
-    destino: punto,
-    rutas: lista,
-    elegida: rutaElegida ? lista.indexOf(rutaElegida) : 0,
-    alElegir: setElegida,
-    radares: radaresEnMapa,
-    centroInicial: casa,
-  };
 
   // Hora de salida si el destino es un evento: la calculada con el tráfico previsto
   // (services/rutas/actualizar.ts) o, si aún no está, con la ruta elegida.
@@ -197,27 +205,89 @@ export function PantallaMapa() {
   }
   const vaTarde = salida ? salida.getTime() < ahora.getTime() : false;
 
-  const propuestas = destino ? [] : sugerencias(perfil, eventos, ahora, texto);
+  // --- Parkings cerca del destino ---
+  // Solo en coche o en moto. Se piden al tocar "Parkings cercanos" (cada búsqueda
+  // gasta una petición de TomTom; después se guardan un día).
+  const conCoche = modo === 'coche' || modo === 'moto';
+  const clavePunto = punto ? claveDe(punto) : null;
+  const pedidos = !!clavePunto && verParkings === clavePunto;
+  useEffect(() => {
+    if (!pedidos || !punto || !clavePunto) return;
+    let activo = true;
+    buscarParkings(punto).then((resultado) => {
+      if (activo) setParkingsDe({ clave: clavePunto, resultado });
+    });
+    return () => {
+      activo = false;
+    };
+    // clavePunto resume el destino.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [pedidos, clavePunto]);
+  const parkings: EstadoParkings = !pedidos
+    ? null
+    : parkingsDe?.clave === clavePunto
+      ? parkingsDe.resultado
+      : { estado: 'cargando' };
+  // Cuándo llegarás: a la hora del evento o ahora más lo que se tarda.
+  const llegada = destino?.cita
+    ? new Date(destino.cita.llegada)
+    : new Date(ahora.getTime() + (rutaElegida?.duracionSeg ?? 0) * 1000);
+  const ordenados = parkings?.estado === 'ok' ? ordenarParkings(parkings.parkings, llenos, llegada) : [];
 
-  // Empezar a navegar con la ruta elegida. En el móvil primero hace falta el permiso
-  // de ubicación; en la web lo pide el navegador (y la voz tiene que salir del toque).
-  async function empezar() {
-    if (!rutaElegida || !punto || !modo || !destino) return;
-    if (Platform.OS !== 'web' && sinPermiso) {
-      if ((await pedirPermiso('ubicacion')) !== 'concedido') {
-        setAvisoNavegar('Para guiarte necesito tu ubicación. Actívala en los Ajustes del teléfono.');
-        return;
-      }
-      setSinPermiso(false);
-    }
-    setAvisoNavegar(null);
-    setGrande(false);
-    empezarNavegacion({ ruta: rutaElegida, destino: punto, nombreDestino: destino.nombre, modo });
+  async function irAlParking(parking: Parking) {
+    if (!punto || !destino) return;
+    setAvisoParking(null);
+    await empezarAparcar({ destinoNombre: destino.nombre, destino: punto, parkings: ordenados, actual: parking.id });
+    await abrirEnNavegador(parking.punto);
   }
-  const sePuedeNavegar = !!rutaElegida?.instrucciones?.length;
+
+  // "Está lleno, llévame a otro": lo apunta (así aprende) y abre el siguiente.
+  async function estaLleno() {
+    const siguiente = await parkingLleno();
+    if (siguiente) {
+      setAvisoParking(null);
+      await abrirEnNavegador(siguiente.punto);
+    } else {
+      setAvisoParking('No quedan más parkings cerca de ahí. Prueba a buscar otro sitio.');
+    }
+  }
+
+  // Mientras vas a un parking, el mapa lo enseña aunque no hayas elegido destino aquí
+  // (por ejemplo, al volver a la app desde Waze).
+  const actual = aparcando?.parkings.find((p) => p.id === aparcando.actual) ?? null;
+  const enMapa = {
+    destino: punto ?? aparcando?.destino ?? null,
+    parkings: ordenados.length > 0 ? ordenados.slice(0, PARKINGS_A_LA_VISTA) : !punto ? (aparcando?.parkings ?? []) : [],
+  };
+
+  const propuestas = destino ? [] : sugerencias(perfil, eventos, ahora, texto);
 
   return (
     <Pantalla>
+      {aparcando && actual ? (
+        <Tarjeta>
+          <Texto fuerte>Vas al parking {actual.nombre}</Texto>
+          <Texto pequeno secundario>
+            {textoAndando(actual.distanciaM)} ({aparcando.destinoNombre}).
+          </Texto>
+          <View style={estilos.botones}>
+            <Boton titulo="Está lleno, llévame a otro" onPress={estaLleno} />
+            <Boton
+              variante="secundario"
+              titulo={`Volver a abrir ${NOMBRE_NAVEGADOR[app]}`}
+              onPress={() => abrirEnNavegador(actual.punto)}
+            />
+          </View>
+          <Pressable
+            accessibilityRole="button"
+            onPress={terminarAparcar}
+            style={({ pressed }) => [estilos.enlaceFila, pressed && estilos.pulsado]}>
+            <Texto style={estilos.enlace}>Ya he aparcado</Texto>
+          </Pressable>
+        </Tarjeta>
+      ) : null}
+      {avisoParking ? <Texto style={estilos.tarde}>{avisoParking}</Texto> : null}
+
       <Titulo>¿A dónde vas?</Titulo>
       <View style={estilos.buscador}>
         <View style={estilos.campo}>
@@ -260,36 +330,25 @@ export function PantallaMapa() {
           </View>
           <Pressable
             accessibilityRole="button"
-            onPress={() => {
-              setDestino(null);
-            }}
+            onPress={() => setDestino(null)}
             style={({ pressed }) => [estilos.quitar, pressed && estilos.pulsado]}>
             <Texto style={estilos.enlace}>Cambiar</Texto>
           </Pressable>
         </View>
       ) : null}
 
-      <View>
-        <MapaRuta style={estilos.mapa} {...propsMapa} />
-        <Pressable
-          accessibilityRole="button"
-          accessibilityLabel="Ver el mapa en grande"
-          onPress={() => setGrande(true)}
-          style={({ pressed }) => [estilos.agrandar, pressed && estilos.pulsado]}>
-          <Ionicons name="expand" size={18} color={colores.texto} />
-          <Texto pequeno fuerte>
-            En grande
-          </Texto>
-        </Pressable>
-      </View>
-      <Leyenda />
-      <MapaGrande
-        {...propsMapa}
-        visible={grande}
-        nombreDestino={destino?.nombre ?? 'Mapa'}
-        alCerrar={() => setGrande(false)}
-        alEmpezar={sePuedeNavegar ? empezar : null}
+      <MapaRuta
+        style={estilos.mapa}
+        ubicacion={ubicacion}
+        destino={enMapa.destino}
+        rutas={lista}
+        elegida={rutaElegida ? lista.indexOf(rutaElegida) : 0}
+        alElegir={setElegida}
+        parkings={enMapa.parkings}
+        parkingElegido={aparcando?.actual ?? null}
+        centroInicial={casa}
       />
+      <Leyenda conParkings={enMapa.parkings.length > 0} />
 
       {sinPermiso ? (
         <Boton variante="secundario" titulo="Usar mi ubicación" onPress={usarMiUbicacion} />
@@ -305,7 +364,7 @@ export function PantallaMapa() {
               {destino.cita ? (
                 <Texto pequeno secundario>
                   Para llegar a las {formatearHora(new Date(destino.cita.llegada))}, con el tráfico previsto y 5 min de
-                  margen.
+                  margen. A esa hora te aviso y, al tocar el aviso, se abre {NOMBRE_NAVEGADOR[app]}.
                 </Texto>
               ) : null}
             </Tarjeta>
@@ -320,7 +379,6 @@ export function PantallaMapa() {
                   key={i}
                   numero={i + 1}
                   ruta={r}
-                  radares={radaresPorRuta[i]?.length ?? 0}
                   elegida={r === rutaElegida}
                   alPulsar={() => setElegida(i)}
                 />
@@ -328,24 +386,31 @@ export function PantallaMapa() {
             </View>
           ) : null}
 
-          <View style={estilos.lista}>
-            {sePuedeNavegar ? <Boton titulo="Empezar" onPress={empezar} /> : null}
-            {avisoNavegar ? <Texto style={estilos.tarde}>{avisoNavegar}</Texto> : null}
-            {modo ? (
-              <Boton
-                variante={sePuedeNavegar ? 'secundario' : 'principal'}
-                titulo="Abrir en Waze"
-                onPress={() => Linking.openURL(enlaceWaze(punto))}
-              />
+          <View style={estilos.botones}>
+            <Boton titulo={`Ir con ${NOMBRE_NAVEGADOR[app]}`} onPress={() => abrirEnNavegador(punto)} />
+            {conCoche && !pedidos ? (
+              <Boton variante="secundario" titulo="Parkings cercanos" onPress={() => setVerParkings(clavePunto)} />
             ) : null}
-            <Boton
-              variante={modo ? 'secundario' : 'principal'}
-              titulo="Abrir en Google Maps"
-              onPress={() => Linking.openURL(enlaceGoogleMaps(punto, perfil?.transporte))}
-            />
           </View>
+
+          {pedidos ? <SeccionParkings estado={parkings} ordenados={ordenados} alElegir={irAlParking} /> : null}
         </>
       ) : null}
+
+      <Tarjeta>
+        <Selector
+          etiqueta="Abrir siempre con"
+          opciones={OPCIONES_NAVEGADOR}
+          valor={navegador}
+          alCambiar={(nuevo) => guardarNavegador(nuevo)}
+        />
+        {navegador !== app ? (
+          <Texto pequeno secundario>
+            Waze solo sirve en coche o en moto: como vas {perfil?.transporte === 'a-pie' ? 'a pie' : 'en transporte público'},
+            se abre Google Maps.
+          </Texto>
+        ) : null}
+      </Tarjeta>
 
       {horasPunta ? (
         <Tarjeta>
@@ -357,10 +422,39 @@ export function PantallaMapa() {
       ) : null}
 
       <Texto pequeno secundario>
-        Tráfico y rutas: TomTom. Radares fijos: DGT (datos abiertos; de momento sin País Vasco ni Cataluña).
-        Límites de velocidad: © colaboradores de OpenStreetMap, con licencia ODbL.
+        Tráfico, rutas y parkings: TomTom.
       </Texto>
     </Pantalla>
+  );
+}
+
+function SeccionParkings({
+  estado,
+  ordenados,
+  alElegir,
+}: {
+  estado: EstadoParkings;
+  ordenados: ReturnType<typeof ordenarParkings>;
+  alElegir: (parking: Parking) => void;
+}) {
+  if (!estado) return null;
+  if (estado.estado === 'cargando') return <Texto secundario>Buscando parkings cerca…</Texto>;
+  if (estado.estado === 'sin-servidor') {
+    return <Texto secundario>Los parkings todavía no están activados en esta versión.</Texto>;
+  }
+  if (estado.estado === 'error') return <Texto style={estilos.tarde}>{estado.mensaje}</Texto>;
+  if (ordenados.length === 0) return <Texto secundario>No encuentro parkings a menos de 1 km de ahí.</Texto>;
+  return (
+    <View style={estilos.lista}>
+      <Titulo nivel={3}>Parkings cercanos</Titulo>
+      {ordenados.slice(0, PARKINGS_A_LA_VISTA).map((p) => (
+        <FilaParking key={p.id} parking={p} alPulsar={() => alElegir(p)} />
+      ))}
+      <Texto pequeno secundario>
+        Toca uno y te llevo. Si al llegar está lleno, abre Organizy y pulsa «Está lleno, llévame a otro»: te mando al
+        siguiente y me apunto la hora, para proponerte otro la próxima vez.
+      </Texto>
+    </View>
   );
 }
 
@@ -380,8 +474,8 @@ function EstadoDeRutas({ rutas, modo, origen }: { rutas: EstadoRutas; modo: stri
   if (rutas.estado === 'sin-servidor') {
     return (
       <Texto secundario>
-        Las rutas con tráfico todavía no están activadas en esta versión. Mientras, puedes abrir el destino en Waze o
-        Google Maps.
+        Las rutas con tráfico todavía no están activadas en esta versión. Mientras, puedes abrir el destino en tu app de
+        mapas.
       </Texto>
     );
   }
@@ -394,26 +488,13 @@ const estilos = StyleSheet.create({
   buscador: { flexDirection: 'row', gap: espacio.s, alignItems: 'flex-start' },
   campo: { flex: 1 },
   lista: { gap: espacio.s },
+  botones: { gap: espacio.s },
   destino: { flexDirection: 'row', alignItems: 'center', gap: espacio.s },
   destinoTextos: { flex: 1 },
   quitar: { minHeight: 44, minWidth: 44, justifyContent: 'center', alignItems: 'flex-end' },
+  enlaceFila: { minHeight: 44, justifyContent: 'center', alignSelf: 'flex-start' },
   enlace: { color: colores.principal, fontFamily: fuentes.textoFuerte },
   pulsado: { opacity: 0.85, transform: [{ scale: 0.97 }] },
   mapa: { height: 340, borderRadius: radio.grande },
-  // Botón "En grande", encima del mapa, arriba a la derecha.
-  agrandar: {
-    position: 'absolute',
-    top: espacio.s,
-    right: espacio.s,
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: espacio.xs,
-    minHeight: 44,
-    paddingHorizontal: espacio.m,
-    backgroundColor: colores.tarjeta,
-    borderRadius: radio.chip,
-    boxShadow: '0 1px 4px rgba(0,0,0,0.25)',
-    zIndex: 1000,
-  },
   tarde: { color: colores.aviso },
 });

@@ -155,7 +155,8 @@ sesión que fuera**:
 - 25/09/2026 — Fase 6: el tráfico sale de **TomTom** (gratis y sin tarjeta; si se pasa del
   uso gratuito deja de funcionar ese día, nunca cobra), no de Google Maps Platform (pedía
   tarjeta). El servidor es el mismo proyecto de Supabase de la fase 5. Ver "Fase 6".
-- 26/09/2026 — Fase 6: el mapa se puede **ver en grande** y **guía por voz** giro a giro,
+- 26/09/2026 (**anulada el 26/10/2026**: sin radares ni guía, ver esa fecha) — Fase 6: el
+  mapa se puede **ver en grande** y **guía por voz** giro a giro,
   con avisos de radares. Con el móvil bloqueado solo podrá la app propia (en la web y en
   Expo Go se mantiene la pantalla encendida; para ir con el móvil bloqueado ya, "Abrir en
   Waze"). Los radares se revisan al actualizarlos y **en el futuro se añadirán los del
@@ -325,9 +326,6 @@ sesión que fuera**:
     Sus colores (`coloresMarca`) son otra excepción a "cada color significa una sola cosa",
     solo en esos botones y en el logo de cada cuenta vinculada. **No uses el logo de
     Apple** en la app (Apple no deja: la fila de iCloud lleva una nube).
-  - **Los datos de radares tienen licencia ODbL** (llevan límites de OpenStreetMap):
-    `src/data/radares/LICENCIA.md`, campo `licencia` del JSON y "con licencia ODbL" en el
-    Mapa. Si el repositorio deja de ser público, hay que seguir ofreciendo ese archivo.
   - **Pendiente del usuario, antes de subir a las tiendas**: **cambiar el nombre** (ya
     existe "Organizy: AI Planner" en la App Store, de Organizy Ltd., y Apple no admite dos
     apps con el mismo nombre; comprobar en TMview que el nuevo está libre) y **hacer un
@@ -364,6 +362,17 @@ sesión que fuera**:
   `runtime-version=exposdk%3A58.0.0` (QR nuevo en su carpeta "QR y enlaces"). Cuando salga
   otro SDK y Expo Go se actualice, habrá que repetirlo: `npx expo install expo@^NN`,
   `npx expo install --fix`, `RUNTIME_EXPO_GO` en `expo-go.yml`, la dirección aquí y el QR.
+- 26/10/2026 (sustituye a la del 26/09 sobre el mapa en grande y la voz) — **El Mapa ya no
+  guía: te manda a tu app de navegación.** Se quitan los **radares** (datos, script y
+  marcas), la **guía por voz** y el **mapa en grande**, para que la app pese y gaste menos.
+  Se queda el mapa con la ruta, el tráfico y cuánto tardas. "**Abrir siempre con**" Waze
+  (por defecto), Google Maps o Mapas de Apple. El aviso **"Sal ya"** (a la hora exacta de
+  salir, con el tráfico previsto) y el botón de Hoy **abren directamente esa app** con el
+  sitio puesto. Nuevo: **"Parkings cercanos"** al destino; lo lleno que suele estar cada
+  uno **lo aprende la app de ti** (no hay datos gratis de ocupación para toda España;
+  TomTom los cobra) y, si al llegar está lleno, **"Está lleno, llévame a otro"** abre el
+  siguiente con un toque. Aparca sobre todo en **Alicante** (no se ha comprobado si su
+  ayuntamiento publica plazas libres; mirarlo si pide datos reales). Ver "Fase 6".
 
 ## Cómo prueba el usuario en el iPhone
 
@@ -487,7 +496,8 @@ src/
                        avisos.ts (qué avisos están activados), eventos/ (eventos),
                        epocas/ (épocas doradas y bloques marcados),
                        supabase.ts (conexión con el servidor propio),
-                       salidas.ts y horasPunta.ts (tráfico calculado), radares/ (DGT),
+                       salidas.ts y horasPunta.ts (tráfico calculado), navegador.ts
+                       (app de navegación elegida), parkings.ts (parkings llenos),
                        alarmas.ts (alarmas, ajustes y adelantos de la inteligente),
                        planes.ts (planes con votación y sus votos),
                        recordatorios.ts (recordatorios a clientes: ajustes y envíos),
@@ -507,9 +517,9 @@ src/
                        epoca/ (plan, progreso y cuenta atrás de la época; con pruebas),
                        captura/ (captura rápida con IA y validación; con pruebas),
                        dictado/ (voz a texto para el micro de la captura; con pruebas),
-                       rutas/ (rutas con tráfico, radares, hora de salida y horas
-                       punta, navegación por voz; con pruebas), ubicacion.ts (dónde
-                       estás, sin preguntar), voz.ts (hablar en voz alta),
+                       rutas/ (rutas con tráfico, hora de salida, horas punta,
+                       abrir Waze/Google Maps/Mapas y parkings; con pruebas),
+                       ubicacion.ts (dónde estás, sin preguntar),
                        alarmas/ (cuándo suena cada alarma, inteligente, alarmas de verdad
                        y Atajo de la web; con pruebas),
                        planes/ (horas sugeridas, recuento, mensajes de WhatsApp,
@@ -1046,7 +1056,7 @@ borran solos a los 7 días.
   salida, a 1 $ y 5 $ por millón): unas 500 frases por dólar. Gasto en console.anthropic.com > Usage / Cost; conviene poner
   también un límite de gasto mensual en la consola.
 
-## Fase 6: mapa, tráfico, radares y rutas (decisiones)
+## Fase 6: mapa, tráfico y rutas (decisiones)
 
 - **Tráfico con TomTom, no con Google** (lo eligió el usuario): gratis y sin tarjeta,
   2.500 peticiones al día para todos los usuarios juntos y 50.000 trozos de mapa al día;
@@ -1065,39 +1075,29 @@ borran solos a los 7 días.
   Mismas props (`screens/mapa/tipos.ts`). Para la app propia en **Android** hará falta una
   clave de Google Maps SDK en el plugin de `react-native-maps` (en iPhone no).
 - **Colores del tráfico** (`coloresMapa` en theme): rojo atasco, amarillo denso, ruta en
-  azul, alternativas en gris y radares como círculo negro con borde blanco. Solo dentro
+  azul, alternativas en gris y parkings como "P" blanca en un cuadrado azul. Solo dentro
   del mapa (la excepción del 25/09); fuera, el "+6 min" va en granate (`aviso`).
 - **Servidor** (`supabase/functions/rutas`): acción `rutas` (1 a 3 rutas con
   `maxAlternatives`, `arriveAt` para llegar a una hora o `departAt`; devuelve duración,
   sin tráfico, retraso, distancia, puntos aligerados y tramos `denso`/`atasco` según
-  `magnitudeOfDelay` de las secciones de tráfico) y acción `muestras` (horas punta: una
-  sola llamada por lotes, `batch/sync`, 56 peticiones). Límites: `rutas` 150 por usuario y
-  2.000 en total al día; `rutas-horas-punta` 2 por usuario y 8 en total (secretos
-  opcionales `RUTAS_LIMITE_*` y `HORAS_PUNTA_LIMITE_*`). Hay que desplegarla como
+  `magnitudeOfDelay` de las secciones de tráfico), acción `muestras` (horas punta: una
+  sola llamada por lotes, `batch/sync`, 56 peticiones) y acción `parkings` (Search API,
+  `nearbySearch` con las categorías 7313 parking cubierto y 7369 al aire libre, a menos de
+  1 km del destino, hasta 15). Límites: `rutas` 150 por usuario y 2.000 en total al día;
+  `rutas-horas-punta` 2 por usuario y 8 en total; `parkings` 30 por usuario y 300 en
+  total (secretos opcionales `RUTAS_LIMITE_*`, `HORAS_PUNTA_LIMITE_*` y
+  `PARKINGS_LIMITE_*`). Hay que desplegarla como
   `captura` (`npx supabase functions deploy rutas ...`).
 - **En la app** (`src/services/rutas/`, con pruebas): `calcularRutas` (guarda 5 min en
-  memoria, redondeando a ~11 m y 5 min), `radaresEnRuta` (a menos de 60 m de la línea; los
-  datos no dicen el sentido), textos y enlaces (`enlaceWaze`, `enlaceGoogleMaps`,
-  `enlaceWhatsapp`), `horaDeSalida` (llegada − trayecto − 5 min), `proximasCitas` y
+  memoria, redondeando a ~11 m y 5 min), `buscarParkings` (guarda un día), textos y
+  `enlaceWhatsapp`, enlaces de navegación en `navegador.ts` (`enlaceWaze`,
+  `enlaceGoogleMaps`, `enlaceAppleMaps`, `enlaceNavegador`, `navegadorPara`), `horaDeSalida` (llegada − trayecto − 5 min), `proximasCitas` y
   `hayQueRecalcular`, `horasDeAtasco` y `fraseHorasPunta`. `ubicacionActual()`
   (`services/ubicacion.ts`) nunca pide permiso: solo lo usa si ya lo hay.
-- **Radares**: solo fijos oficiales de la DGT (NAP, DATEX II), dentro de la app en
-  `src/data/radares/radares-dgt.json` (cabinas y tramos de velocidad media; sin País
-  Vasco ni Cataluña, que tienen su propio servicio). Se actualizan con `npm run radares`
-  (`scripts/actualizar-radares.mjs`) + commit y push. El script **revisa** los datos con
-  OpenStreetMap (Overpass): quita las cabinas repetidas (las del principio y el final de
-  cada tramo vienen también como cabina), descarta las que no están a menos de 120 m de
-  una carretera (26/09: 7, en la N-330 de Huesca, A-42, GR-30 y CV-10; quedan en
-  `descartados` del JSON) y toma el **límite de velocidad** del radar de OpenStreetMap que
-  esté a menos de 60 m (591 de 689). Los tramos vienen uno por sentido: en una ruta solo
-  cuentan si pasa por su principio y después por su final (`radaresSobreRuta`). En el
-  mapa: círculo negro con el límite dentro; los tramos, uno al principio y otro al final.
-- **Más zonas** (pendiente, lo pidió el usuario el 26/09): añadir radares oficiales del
-  resto de España hasta completarla, cada fuente en su archivo en `src/data/radares/`
-  (se juntan en `index.ts`). Cataluña: Servei Català de Trànsit, "Radars fixos de
-  Catalunya" (analisi.transparenciacatalunya.cat, id `re3y-fftf`; no es una tabla, hay que
-  bajar su archivo). País Vasco: Trafikoa ("Cabinas de radar fijo" y la API de tráfico de
-  opendata.euskadi.eus). Después, los municipales que publiquen los ayuntamientos.
+- **Sin radares** (quitados el 26/10/2026 a petición del usuario, para ganar eficiencia):
+  ya no están `src/data/radares/`, `scripts/actualizar-radares.mjs` ni `npm run radares`.
+  Si algún día se vuelven a pedir, están en el historial de git (commit `fefa9bf` y
+  anteriores: datos de la DGT revisados con OpenStreetMap, licencia ODbL).
 - **Hora de salida** (`services/rutas/actualizar.ts`, `iniciarTrafico()` en `_layout`):
   para las citas con lugar y coordenadas de las próximas 24 h (máx. 5; no bloques de foco
   ni tareas), con el tráfico previsto para llegar a su hora (`arriveAt`) desde donde
@@ -1112,20 +1112,39 @@ borran solos a los 7 días.
   se programa con el tráfico previsto para esa hora y se corrige cada vez que se abre la
   app. Con la app propia se podría añadir `expo-background-task` como extra.
 - **Hoy**: en la tarjeta "Lo siguiente", `SalidaSiguiente` ("Sal a las 10:05 · 18 min en
-  coche" y botón "Cómo llegar" → `/mapa?evento=<id>&dia=<AAAA-MM-DD>`). Si ya pasó:
-  "Vas justo: tenías que salir a las...".
+  coche" y botón "Ir con Waze", o la app elegida, que la abre con el sitio del evento con
+  `irACita`; si el evento ya no tiene lugar, `/mapa?evento=<id>&dia=<AAAA-MM-DD>`). Si ya
+  pasó: "Vas justo: tenías que salir a las...".
 - **Aviso "Sal ya"** (tipo `salida`, interruptor `salida` en Perfil > Avisos, botón de
   prueba): a la hora de salir, "Sal ya: Reunión" / "18 min en coche hasta Oficina para
-  llegar a las 10:30.". Al tocarlo abre el Mapa con la ruta (destino `mapa`). Botón
+  llegar a las 10:30. Toca para ir con Waze." (`ContextoAvisos.navegador`). Al tocarlo se
+  abre la app y esta **abre directamente Waze** (o la elegida) con el sitio del evento
+  (`irACita` en `services/rutas/abrir.ts`, desde `_layout`; iOS no deja saltar a otra app
+  sin abrir antes la nuestra). Lo mismo con "Cómo llegar" de la alarma de salida. Botón
   "Avisar de retraso": abre la app y esta abre WhatsApp (`wa.me/?text=`) con "Voy con unos
   10 min de retraso, lo siento"; nunca se envía solo.
 - **Pestaña Mapa** (`screens/PantallaMapa.tsx` y `screens/mapa/`): buscador "¿A dónde
   vas?" que propone Casa, los sitios habituales y los próximos eventos con lugar (7 días)
   y acepta cualquier dirección (`buscarCoordenadas`); mapa con tu posición, la ruta
-  elegida y sus tramos, las alternativas (se pueden tocar) y los radares de la ruta (sin
-  ruta, los de 25 km alrededor); tarjetas de ruta (duración, "+6 min", km y radares);
-  "Sal a las..." si el destino es un evento; botones "Abrir en Waze" y "Abrir en Google
-  Maps"; leyenda Atasco, Denso y Radar; frase de horas punta.
+  elegida y sus tramos, las alternativas (se pueden tocar) y los parkings ("P" azul);
+  tarjetas de ruta (duración, "+6 min" y km); "Sal a las..." si el destino es un evento;
+  botón "**Ir con Waze**" (la app de "Abrir siempre con") y "**Parkings cercanos**" (solo en
+  coche o moto); leyenda Atasco, Denso (y Parking); "**Abrir siempre con**" (`Selector`:
+  Waze, Google Maps y, salvo en Android, Mapas; se guarda en `organizy:navegador`,
+  `data/navegador.ts`; Waze a pie o en transporte público pasa a Google Maps); frase de
+  horas punta. Organizy **no guía**: abre la app elegida (`abrirEnNavegador`).
+- **Parkings cercanos** (26/10/2026): se piden al tocar el botón (1 petición a TomTom por
+  destino y día). Se ordenan (`ordenarParkings`, puro) por distancia al destino más 400 m
+  por cada vez que lo encontraste lleno **el mismo tipo de día** (laborable, sábado o
+  domingo) **a esa hora ±1 h** (la de llegada: la del evento o ahora más el trayecto).
+  Con 1 vez: "A veces se llena a esta hora"; con 2 o más: "Suele estar lleno a esta hora".
+  Se ven 5. Al tocar uno, `empezarAparcar` guarda en `organizy:aparcando` la lista entera
+  y abre la app de navegación. Arriba del Mapa sale "Vas al parking X" con "**Está lleno,
+  llévame a otro**" (`parkingLleno`: apunta la marca en `organizy:parkingsLlenos`, máx.
+  300 y 4 meses, y abre el siguiente no probado), "Volver a abrir Waze" y "Ya he aparcado".
+  "aparcando" caduca a las 3 h y no viaja en la copia; las marcas sí. Datos en
+  `data/parkings.ts`. **No hay ocupación real**: TomTom la cobra (Parking Availability,
+  solo por ventas) y casi ninguna ciudad la publica en abierto.
 - **Horas punta**: una vez por semana (o al cambiar casa, trabajo o transporte), de casa
   al trabajo y vuelta saliendo de 7:00 a 20:30 cada media hora en el próximo laborable.
   Atasco = 25 % más que la hora más despejada y pico local; como mucho 3 horas, separadas
@@ -1135,30 +1154,14 @@ borran solos a los 7 días.
   varias veces, unas 5 búsquedas en el Mapa y 8 de media de horas punta); en el peor caso
   unas 60. Con 2.500 gratis al día llega para unas 80-150 personas al día, a 0 €. En la
   web, cada vista del mapa gasta unos 30-60 trozos de mapa de los 50.000 diarios.
-  Supabase gratis: 500.000 llamadas a funciones al mes. Navegar no gasta más al empezar
-  (las indicaciones vienen con las rutas del Mapa); cada recálculo por salirte, 1 petición.
-- **Mapa en grande** (`screens/mapa/MapaGrande.tsx`, un `Modal` a pantalla completa):
-  botón "En grande" encima del mapa; abajo, la ruta y "Empezar".
-- **Navegación por voz** (26/09, a petición del usuario): botón "Empezar" en el Mapa y en
-  el mapa grande. El Mapa pide las rutas con `instrucciones: true` (TomTom
-  `instructionsType=text`; el servidor manda maniobra, calle y número de salida y la app
-  monta el texto en tuteo: `textoInstruccion`). `services/rutas/navegacion.ts` (puro, con
-  pruebas): `calcularGuia` (por dónde vas, siguiente maniobra, lo que queda, próximo
-  radar, fuera de ruta a más de 50 m) y `queDecir` (avisos a 1 km, 300 m y encima; a pie
-  100 y 20 m; radar a 500 m con su límite; "Has llegado"). `motorNavegacion.ts`: escucha
-  el GPS (`watchPositionAsync`), habla (`services/voz.ts`: expo-speech en es-ES, suena
-  aunque el iPhone esté en silencio gracias a expo-audio `playsInSilentMode`, bajando la
-  música) y recalcula tras 3 posiciones fuera de la ruta. Mientras navegas la pantalla no
-  se apaga (expo-keep-awake). La primera frase sale del propio toque (la web y el iPhone
-  no dejan hablar sin un toque).
-- **Con el móvil bloqueado**: en la web y en Expo Go **no se puede** (el sistema congela la
-  app y Expo Go no permite ubicación en segundo plano); se avisa en pantalla y se
-  mantiene la pantalla encendida. **Preparado para la app propia**: `navegacionFondo.ts`
-  (tarea de expo-task-manager con `startLocationUpdatesAsync`, `AutomotiveNavigation`,
-  aviso azul en iOS y servicio en primer plano en Android) y en `app.json`
-  `isIosBackgroundLocationEnabled`, `isAndroidForegroundServiceEnabled` y audio en segundo
-  plano (expo-audio `enableBackgroundPlayback`; sin permiso de micrófono). Solo se activa
-  fuera de Expo Go; si no hay permiso, sigue en primer plano.
+  Supabase gratis: 500.000 llamadas a funciones al mes. "Parkings cercanos": 1 petición por
+  destino y día; "Está lleno, llévame a otro" no gasta (usa la lista ya traída).
+- **Sin guía por voz ni mapa en grande** (quitados el 26/10/2026): ya no están
+  `navegacion.ts`, `motorNavegacion.ts`, `navegacionFondo.ts`, `services/voz.ts` ni
+  `MapaGrande.tsx`, ni las librerías expo-speech, expo-keep-awake y expo-task-manager; el
+  servidor ya no pide indicaciones (`instructionsType`). En `app.json` ya no se pide
+  ubicación en segundo plano y expo-audio no reproduce en segundo plano. Para navegar con
+  el móvil bloqueado, Waze o la app elegida.
 - **Para la fase 7 (alarma de salida)**: usar las mismas salidas (`leerSalidas`,
   `suscribirseSalidas`) y no duplicar con el "Sal ya" (por ejemplo, apagar el aviso de esa
   cita si ya tiene alarma). Hecho así en la fase 7.
@@ -1262,7 +1265,7 @@ borran solos a los 7 días.
     (`USE_FULL_SCREEN_INTENT`, la usa la alarma: categoría "reloj despertador"), el
     **servicio en primer plano** de uso especial (`FOREGROUND_SERVICE_SPECIAL_USE`, el
     que hace sonar la alarma con la app cerrada; hay que explicar para qué y a veces un
-    vídeo corto) y el de ubicación de la navegación (fase 6). Las alarmas exactas usan
+    vídeo corto). Las alarmas exactas usan
     `SCHEDULE_EXACT_ALARM` (el usuario da el permiso en Ajustes; la pestaña lo pide con
     "Dar permiso"), no `USE_EXACT_ALARM`, que Google solo acepta en apps de despertador o
     calendario puros y podría rechazar.
@@ -1374,7 +1377,7 @@ borran solos a los 7 días.
     `empezarDictado({ alOir, alTerminar, alFallar })` (devuelve la función para terminar) y
     `cancelarDictado()`. Español de España, una frase (`continuous: false`). El móvil usa
     `requireOptionalNativeModule('ExpoSpeechRecognition')` (null en Expo Go, como las
-    alarmas). No confundir con `services/voz.ts`, que es hablar en voz alta.
+    alarmas).
   - `screens/captura/useDictado.ts` y `BotonMicrofono.tsx` (botón y `AvisoMicrofono`),
     dentro de `CapturaRapida`: lo que dices sale en el campo y al terminar se envía con el
     mismo `enviar` que lo escrito (misma IA, misma tarjeta de confirmación o la ficha si no
@@ -1843,7 +1846,7 @@ borran solos a los 7 días.
 - [x] 4. Avisos (notificaciones).
 - [x] 4b. Época dorada: modo para exámenes o épocas de trabajo intenso (prompt en C:\Users\usuario\OneDrive\PERSONAL\Organizy\Prompts\Organizy-04b-epoca-dorada.md)
 - [x] 5. Captura rápida con IA. Supabase montado y funciones desplegadas (proyecto `hwemrpexabisyueyizjz`). Falta solo la clave de Anthropic: el usuario la pondrá cuando la app esté terminada (ver "Decisiones del usuario", 26/09/2026).
-- [x] 6. Mapa, tráfico, radares y rutas (funcionando con TomTom desde el 27/09/2026: ver "Fase 6").
+- [x] 6. Mapa, tráfico y rutas (funcionando con TomTom desde el 27/09/2026; desde el 26/10/2026 sin radares ni guía: abre Waze, Google Maps o Mapas, con parkings cercanos. Ver "Fase 6").
 - [x] 7. Alarmas (en Expo Go son avisos con sonido; las alarmas de verdad están programadas pero sin probar hasta que haya build de EAS: ver "Fase 7").
 - [x] 8. Planes con WhatsApp y votación (servidor y función `votar` ya desplegados: ver "Fase 8").
 - [ ] 9. Voz sin abrir la app y widget.

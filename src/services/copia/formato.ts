@@ -38,6 +38,8 @@ const NO_VIAJAN = new Set([
   'dictadoExplicado',
   'avisoPantallaInicioCerrado',
   'recargaPorVersion',
+  // A qué parking vas ahora mismo (26/10/2026): solo vale en este momento.
+  'aparcando',
   // Resúmenes de correo (fase 11): el enlace del ayudante de Gmail deja leer los
   // resúmenes a quien lo tenga, y los resúmenes son el contenido de los correos. No
   // van en un archivo: en el móvil nuevo se vuelve a pegar el enlace y se traen solos.

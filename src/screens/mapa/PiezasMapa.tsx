@@ -2,17 +2,28 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Texto } from '@/components';
-import { textoDistancia, textoDuracion, textoRadares, textoRetraso, type Ruta } from '@/services/rutas';
+import {
+  textoAndando,
+  textoDistancia,
+  textoDuracion,
+  textoOcupacion,
+  textoRetraso,
+  type ParkingOrdenado,
+  type Ruta,
+} from '@/services/rutas';
 import { alturaTactil, cifras, colores, coloresMapa, espacio, fuentes, radio, tamanos } from '@/theme';
 
 import type { Destino } from './destinos';
 
 // Piezas pequeñas de la pantalla Mapa.
 
-// Leyenda: Atasco, Denso y Radar.
-export function Leyenda() {
+// Leyenda: Atasco, Denso y, si se ven parkings, Parking.
+export function Leyenda({ conParkings = false }: { conParkings?: boolean }) {
   return (
-    <View style={estilos.leyenda} accessibilityRole="text" accessibilityLabel="Leyenda: rojo atasco, amarillo denso, círculo negro radar">
+    <View
+      style={estilos.leyenda}
+      accessibilityRole="text"
+      accessibilityLabel={`Leyenda: rojo atasco, amarillo denso${conParkings ? ', P azul parking' : ''}`}>
       <View style={estilos.elemento}>
         <View style={[estilos.linea, { backgroundColor: coloresMapa.atasco }]} />
         <Texto pequeno>Atasco</Texto>
@@ -21,10 +32,14 @@ export function Leyenda() {
         <View style={[estilos.linea, { backgroundColor: coloresMapa.denso }]} />
         <Texto pequeno>Denso</Texto>
       </View>
-      <View style={estilos.elemento}>
-        <View style={estilos.radar} />
-        <Texto pequeno>Radar</Texto>
-      </View>
+      {conParkings ? (
+        <View style={estilos.elemento}>
+          <View style={estilos.p}>
+            <Texto style={estilos.letraP}>P</Texto>
+          </View>
+          <Texto pequeno>Parking</Texto>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -53,17 +68,17 @@ export function FilaDestino({ destino, alPulsar }: { destino: Destino; alPulsar:
   );
 }
 
-type PropsTarjetaRuta = { ruta: Ruta; radares: number; elegida: boolean; numero: number; alPulsar: () => void };
+type PropsTarjetaRuta = { ruta: Ruta; elegida: boolean; numero: number; alPulsar: () => void };
 
-// Una de las rutas: duración, retraso por el tráfico, distancia y radares.
-export function TarjetaRuta({ ruta, radares, elegida, numero, alPulsar }: PropsTarjetaRuta) {
+// Una de las rutas: duración, retraso por el tráfico y distancia.
+export function TarjetaRuta({ ruta, elegida, numero, alPulsar }: PropsTarjetaRuta) {
   const retraso = textoRetraso(ruta.retrasoSeg);
-  const detalle = `${textoDistancia(ruta.distanciaM)} · ${textoRadares(radares)}`;
+  const distancia = textoDistancia(ruta.distanciaM);
   return (
     <Pressable
       accessibilityRole="radio"
       accessibilityState={{ selected: elegida }}
-      accessibilityLabel={`Ruta ${numero}: ${textoDuracion(ruta.duracionSeg)}${retraso ? `, ${retraso} por el tráfico` : ''}, ${detalle}`}
+      accessibilityLabel={`Ruta ${numero}: ${textoDuracion(ruta.duracionSeg)}${retraso ? `, ${retraso} por el tráfico` : ''}, ${distancia}`}
       onPress={alPulsar}
       style={({ pressed }) => [
         estilos.ruta,
@@ -75,8 +90,40 @@ export function TarjetaRuta({ ruta, radares, elegida, numero, alPulsar }: PropsT
         {retraso ? <Texto style={estilos.retraso}>{retraso}</Texto> : <Texto pequeno secundario>Sin retrasos</Texto>}
       </View>
       <Texto pequeno secundario>
-        {detalle}
+        {distancia}
       </Texto>
+    </Pressable>
+  );
+}
+
+// Un parking cerca del destino: nombre, lo que se tarda andando hasta el sitio y,
+// si lo has encontrado lleno otras veces a esta hora, el aviso. Al tocarlo, vas.
+export function FilaParking({ parking, alPulsar }: { parking: ParkingOrdenado; alPulsar: () => void }) {
+  const ocupacion = textoOcupacion(parking.vecesLleno);
+  const andando = textoAndando(parking.distanciaM);
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={`Ir al parking ${parking.nombre}. ${andando}.${ocupacion ? ` ${ocupacion}.` : ''}`}
+      onPress={alPulsar}
+      style={({ pressed }) => [estilos.fila, pressed && estilos.pulsado]}>
+      <View style={estilos.p}>
+        <Texto style={estilos.letraP}>P</Texto>
+      </View>
+      <View style={estilos.filaTextos}>
+        <Texto fuerte numberOfLines={1}>
+          {parking.nombre}
+        </Texto>
+        <Texto pequeno secundario numberOfLines={1}>
+          {andando}
+        </Texto>
+        {ocupacion ? (
+          <Texto pequeno style={estilos.lleno}>
+            {ocupacion}
+          </Texto>
+        ) : null}
+      </View>
+      <Ionicons name="navigate-outline" size={20} color={colores.principal} />
     </Pressable>
   );
 }
@@ -85,14 +132,15 @@ const estilos = StyleSheet.create({
   leyenda: { flexDirection: 'row', gap: espacio.m, alignItems: 'center', flexWrap: 'wrap' },
   elemento: { flexDirection: 'row', gap: espacio.xs, alignItems: 'center' },
   linea: { width: 18, height: 5, borderRadius: radio.chip },
-  radar: {
-    width: 14,
-    height: 14,
-    borderRadius: 7,
-    backgroundColor: coloresMapa.radar,
-    borderWidth: 2,
-    borderColor: coloresMapa.bordeRadar,
+  p: {
+    width: 22,
+    height: 22,
+    borderRadius: 5,
+    backgroundColor: coloresMapa.parking,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
+  letraP: { color: coloresMapa.bordeParking, fontFamily: fuentes.textoFuerte, fontSize: 13, lineHeight: 16 },
   fila: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -117,4 +165,5 @@ const estilos = StyleSheet.create({
   rutaArriba: { flexDirection: 'row', alignItems: 'baseline', gap: espacio.s },
   duracion: { ...cifras, fontFamily: fuentes.horaFuerte, fontSize: tamanos.grande, lineHeight: 24 },
   retraso: { ...cifras, fontFamily: fuentes.hora, fontSize: tamanos.normal, color: colores.aviso },
+  lleno: { color: colores.aviso },
 });

@@ -23,9 +23,9 @@ import { completarCoordenadasPendientes } from '@/services/lugares';
 import { iniciarCorreo } from '@/services/correo';
 import { iniciarEmpresa } from '@/services/empresa';
 import { iniciarPlanes } from '@/services/planes';
+import { irACita } from '@/services/rutas/abrir';
 import { iniciarTrafico } from '@/services/rutas/actualizar';
 // Registra la tarea de navegación con el móvil bloqueado (solo en la app propia).
-import '@/services/rutas/navegacionFondo';
 import { colores } from '@/theme';
 
 // Mantiene la pantalla de carga hasta que las letras estén listas.
@@ -113,7 +113,10 @@ export default function LayoutRaiz() {
           router.navigate({ pathname: '/trabajo', params: { ver: destino.seccion } });
         } else router.navigate('/trabajo');
       } else if (destino.pantalla === 'mapa') {
-        router.navigate({ pathname: '/mapa', params: { evento: destino.id, dia: destino.dia } });
+        // "Sal ya" y "Cómo llegar": directo a Waze (o la app elegida) con el sitio puesto.
+        if (!(await irACita(destino.id, destino.dia))) {
+          router.navigate({ pathname: '/mapa', params: { evento: destino.id, dia: destino.dia } });
+        }
       } else if (destino.pantalla === 'alarmas') {
         router.navigate({ pathname: '/alarmas', params: destino.pospuesta ? { pospuesta: destino.pospuesta } : {} });
       } else {
@@ -132,7 +135,9 @@ export default function LayoutRaiz() {
     const atender = async () => {
       const resultado = await atenderAlarmasNativas();
       if (resultado?.que === 'como-llegar') {
-        router.navigate({ pathname: '/mapa', params: { evento: resultado.eventoId, dia: resultado.dia } });
+        if (!(await irACita(resultado.eventoId, resultado.dia))) {
+          router.navigate({ pathname: '/mapa', params: { evento: resultado.eventoId, dia: resultado.dia } });
+        }
       } else if (resultado?.que === 'pospuesta') {
         router.navigate({ pathname: '/alarmas', params: { pospuesta: formatearHora(resultado.hasta) } });
       }

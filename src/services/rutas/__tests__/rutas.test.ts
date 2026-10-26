@@ -4,17 +4,27 @@ import type { Evento } from '@/data/eventos/tipos';
 import type { Perfil } from '@/data/perfil';
 import { hayQueRecalcular, proximasCitas } from '@/services/rutas/citas';
 import { fraseHorasPunta, horasDeAtasco, MINUTOS_MUESTRA, type Muestra } from '@/services/rutas/horasPunta';
-import { distanciaARutaM, distanciaM, radaresEnRuta, radaresSobreRuta, type Radar } from '@/services/rutas/radares';
+import { distanciaM } from '@/services/rutas/distancia';
 import {
+  enlaceAppleMaps,
   enlaceGoogleMaps,
+  enlaceNavegador,
   enlaceWaze,
-  enlaceWhatsapp,
-  horaDeSalida,
-  textoDistancia,
-  textoRadares,
-  textoRetraso,
-  textoSalida,
-} from '@/services/rutas/textos';
+  navegadorPara,
+} from '@/services/rutas/navegador';
+import {
+  anadirLleno,
+  DIAS_RECUERDO,
+  ordenarParkings,
+  prepararParkings,
+  siguienteParking,
+  textoAndando,
+  textoOcupacion,
+  vecesLleno,
+  type MarcaLleno,
+  type Parking,
+} from '@/services/rutas/parkings';
+import { enlaceWhatsapp, horaDeSalida, textoDistancia, textoRetraso, textoSalida } from '@/services/rutas/textos';
 import { modoDeViaje, type Punto } from '@/services/rutas/tipos';
 
 // Solo las funciones puras: sin servidor ni AsyncStorage.
@@ -94,12 +104,6 @@ describe('textos de las rutas', () => {
     expect(textoDistancia(4560)).toBe('4,6 km');
   });
 
-  it('radares', () => {
-    expect(textoRadares(0)).toBe('Sin radares');
-    expect(textoRadares(1)).toBe('1 radar');
-    expect(textoRadares(3)).toBe('3 radares');
-  });
-
   it('transporte público: no se calcula tráfico', () => {
     expect(modoDeViaje('transporte-publico')).toBeNull();
     expect(modoDeViaje('moto')).toBe('moto');
@@ -121,6 +125,26 @@ describe('enlaces', () => {
     expect(enlaceGoogleMaps(destino)).toContain('travelmode=driving');
   });
 
+  it('Mapas de Apple con el medio de transporte', () => {
+    expect(enlaceAppleMaps(destino)).toBe('https://maps.apple.com/?daddr=41.648800,-0.889100&dirflg=d');
+    expect(enlaceAppleMaps(destino, 'a-pie')).toContain('dirflg=w');
+  });
+
+  it('abrir siempre con la app elegida', () => {
+    expect(enlaceNavegador('waze', destino)).toBe(enlaceWaze(destino));
+    expect(enlaceNavegador('apple', destino, 'moto')).toBe(enlaceAppleMaps(destino, 'moto'));
+    expect(enlaceNavegador('google', destino)).toBe(enlaceGoogleMaps(destino));
+  });
+
+  it('Waze solo en coche o en moto: si no, Google Maps', () => {
+    expect(navegadorPara('waze', 'coche')).toBe('waze');
+    expect(navegadorPara('waze', 'moto')).toBe('waze');
+    expect(navegadorPara('waze', 'a-pie')).toBe('google');
+    expect(navegadorPara('waze', 'transporte-publico')).toBe('google');
+    expect(navegadorPara('apple', 'a-pie')).toBe('apple');
+    expect(enlaceNavegador('waze', destino, 'transporte-publico')).toContain('travelmode=transit');
+  });
+
   it('WhatsApp con el mensaje escrito', () => {
     expect(enlaceWhatsapp()).toBe(
       `https://wa.me/?text=${encodeURIComponent('Voy con unos 10 min de retraso, lo siento')}`,
@@ -128,51 +152,77 @@ describe('enlaces', () => {
   });
 });
 
-describe('radares', () => {
-  // Una recta de oeste a este, de unos 8 km.
-  const ruta: Punto[] = [
-    [41.65, -0.95],
-    [41.65, -0.9],
-    [41.65, -0.85],
-  ];
-  const radar = (id: string, lat: number, lon: number, fin?: Punto): Radar => ({
-    id,
-    tipo: fin ? 'tramo' : 'fijo',
-    lat,
-    lon,
-    fin,
-    carretera: 'A-2',
-    provincia: 'ZARAGOZA',
-  });
-
-  it('distancias', () => {
+describe('distancia', () => {
+  it('en metros, en línea recta', () => {
     // 0,001 grados de latitud son unos 111 m.
     expect(distanciaM([41.65, -0.9], [41.651, -0.9])).toBeCloseTo(111, 0);
-    expect(distanciaARutaM([41.6503, -0.92], ruta)).toBeCloseTo(33, 0);
   });
+});
 
-  it('cuenta solo los que están sobre la ruta', () => {
-    const radares = [
-      radar('sobre', 41.6502, -0.92), // a unos 22 m
-      radar('lejos', 41.66, -0.92), // a más de 1 km
-      radar('fuera', 41.65, -0.7), // pasado el final
-      radar('tramo', 41.6501, -0.93, [41.6501, -0.88]), // tramo en el sentido de la ruta
-      radar('otro-sentido', 41.6501, -0.88, [41.6501, -0.93]), // el mismo tramo, al revés
-      radar('medio-fuera', 41.7, -1.1, [41.6501, -0.88]), // empieza lejos de la ruta
+describe('parkings', () => {
+  const destino: Punto = [41.65, -0.88];
+  // Jueves 24 de septiembre de 2026, 10:00
+  const jueves10 = new Date(2026, 8, 24, 10, 0);
+  const parking = (id: string, metros: number): Parking => ({
+    id,
+    nombre: `Parking ${id}`,
+    direccion: '',
+    // 0,001 grados de latitud son unos 111 m.
+    punto: [destino[0] + metros / 111000, destino[1]],
+    tipo: 'garaje',
+    distanciaM: metros,
+  });
+  const lleno = (id: string, fecha: Date): MarcaLleno => ({ id, cuando: fecha.toISOString() });
+
+  it('cuenta las veces que estaba lleno ese tipo de día y a esa hora (±1 h)', () => {
+    const llenos = [
+      lleno('a', new Date(2026, 8, 22, 10, 30)), // martes 10:30: sí
+      lleno('a', new Date(2026, 8, 17, 9, 15)), // jueves 9:15: sí
+      lleno('a', new Date(2026, 8, 22, 12, 0)), // martes 12:00: no (2 h después)
+      lleno('a', new Date(2026, 8, 19, 10, 0)), // sábado: no
+      lleno('b', new Date(2026, 8, 22, 10, 0)), // otro parking: no
     ];
-    // En el orden en que se encuentran por la ruta.
-    expect(radaresEnRuta(ruta, radares).map((r) => r.id)).toEqual(['tramo', 'sobre']);
+    expect(vecesLleno('a', llenos, jueves10)).toBe(2);
+    expect(vecesLleno('a', llenos, new Date(2026, 8, 26, 10, 0))).toBe(1); // sábado
   });
 
-  it('con la distancia desde la salida, en orden', () => {
-    const sobre = radaresSobreRuta(ruta, [radar('b', 41.65, -0.86), radar('a', 41.65, -0.94)]);
-    expect(sobre.map((r) => r.radar.id)).toEqual(['a', 'b']);
-    // 0,01 grados de longitud a esta latitud son unos 832 m.
-    expect(sobre[0].recorridoM).toBeCloseTo(832, -1);
+  it('ordena por cercanía, pero el que suele estar lleno baja', () => {
+    const lista = [parking('cerca', 100), parking('medio', 300), parking('lejos', 900)];
+    expect(ordenarParkings(lista, [], jueves10).map((p) => p.id)).toEqual(['cerca', 'medio', 'lejos']);
+    const llenos = [lleno('cerca', new Date(2026, 8, 22, 10, 0))];
+    // Una vez lleno pesa 400 m: 100 + 400 > 300.
+    expect(ordenarParkings(lista, llenos, jueves10).map((p) => p.id)).toEqual(['medio', 'cerca', 'lejos']);
+    // A otra hora no cuenta.
+    expect(ordenarParkings(lista, llenos, new Date(2026, 8, 24, 18, 0))[0].id).toBe('cerca');
   });
 
-  it('sin ruta, ninguno', () => {
-    expect(radaresEnRuta([], [radar('a', 41.65, -0.9)])).toEqual([]);
+  it('textos', () => {
+    expect(textoOcupacion(0)).toBeNull();
+    expect(textoOcupacion(1)).toBe('A veces se llena a esta hora');
+    expect(textoOcupacion(3)).toBe('Suele estar lleno a esta hora');
+    expect(textoAndando(250)).toBe('3 min andando hasta el sitio');
+    expect(textoAndando(10)).toBe('1 min andando hasta el sitio');
+  });
+
+  it('el siguiente que no has probado', () => {
+    const lista = [parking('a', 100), parking('b', 200), parking('c', 300)];
+    expect(siguienteParking(lista, ['a'])?.id).toBe('b');
+    expect(siguienteParking(lista, ['a', 'b'])?.id).toBe('c');
+    expect(siguienteParking(lista, ['a', 'b', 'c'])).toBeNull();
+  });
+
+  it('apuntar que estaba lleno olvida lo muy viejo', () => {
+    const viejo = new Date(jueves10.getTime() - (DIAS_RECUERDO + 1) * 24 * 3600 * 1000);
+    const llenos = anadirLleno([lleno('a', viejo), lleno('b', new Date(2026, 8, 20))], 'c', jueves10);
+    expect(llenos.map((m) => m.id)).toEqual(['b', 'c']);
+  });
+
+  it('pone la distancia al destino y quita repetidos', () => {
+    const sinDistancia = ({ distanciaM: _, ...resto }: Parking) => resto;
+    const a = sinDistancia(parking('a', 222));
+    const lista = prepararParkings([a, { ...a, id: 'a-otra-vez' }, sinDistancia(parking('b', 555))], destino);
+    expect(lista.map((p) => p.id)).toEqual(['a', 'b']);
+    expect(lista[0].distanciaM).toBeCloseTo(222, -1);
   });
 });
 

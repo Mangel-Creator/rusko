@@ -81,8 +81,8 @@ export const coloresMapa = {
   denso: '#F2B01E', // amarillo: tráfico denso
   ruta: '#3D6BFF', // la ruta elegida: azul, para no confundirla con el naranja y rojo del tráfico
   rutaAlternativa: '#8A8374', // las otras rutas, en gris
-  radar: '#1A1C24', // círculo negro con borde blanco
-  bordeRadar: '#FFFFFF',
+  parking: '#3D6BFF', // "P" de los parkings cerca del destino, en azul como las señales
+  bordeParking: '#FFFFFF',
 } as const;
 
 // Botones para entrar con Google o Microsoft (BotonEntrarCon): los colores que exigen

@@ -9,6 +9,8 @@
 //   - "rutas": de 1 a 3 rutas (alternativas), saliendo ahora o para llegar a una hora.
 //   - "muestras": cuánto se tarda en uno o dos trayectos saliendo a varias horas
 //     (horas punta de la semana). Va en una sola llamada por lotes a TomTom.
+//   - "parkings": parkings (cubiertos y al aire libre) a menos de 1 km del destino,
+//     con la Search API de TomTom (26/10/2026).
 //
 // Gasto: TomTom da gratis 2.500 peticiones al día (sin tarjeta, así que nunca cobra).
 // Aquí se limita por persona y en total para no pasar de ahí (tabla usos_diarios).
@@ -75,18 +77,6 @@ type RutaTomTom = {
   };
   legs?: { points?: PuntoTomTom[] }[];
   sections?: SeccionTomTom[];
-  guidance?: { instructions?: InstruccionTomTom[] };
-};
-
-type InstruccionTomTom = {
-  routeOffsetInMeters: number;
-  pointIndex: number;
-  maneuver?: string;
-  street?: string;
-  roadNumbers?: string[];
-  exitNumber?: string;
-  roundaboutExitNumber?: number | string;
-  message?: string;
 };
 
 type Tramo = { desde: number; hasta: number; nivel: 'denso' | 'atasco'; velocidadKmh: number | null };
@@ -99,13 +89,9 @@ function nivelDe(s: SeccionTomTom): 'denso' | 'atasco' {
 }
 
 // Se quitan puntos muy juntos (menos de ~15 m) para que la respuesta pese poco,
-// pero se conservan los que marcan el principio y el fin de cada tramo y las maniobras.
-function aligerar(
-  puntos: PuntoTomTom[],
-  tramos: Tramo[],
-  maniobras: number[] = [],
-): { puntos: Punto[]; tramos: Tramo[]; indice: (i: number) => number } {
-  const obligatorios = new Set<number>([0, puntos.length - 1, ...maniobras]);
+// pero se conservan los que marcan el principio y el fin de cada tramo.
+function aligerar(puntos: PuntoTomTom[], tramos: Tramo[]): { puntos: Punto[]; tramos: Tramo[] } {
+  const obligatorios = new Set<number>([0, puntos.length - 1]);
   for (const t of tramos) {
     obligatorios.add(t.desde);
     obligatorios.add(t.hasta);
@@ -125,7 +111,6 @@ function aligerar(
   return {
     puntos: salida,
     tramos: tramos.map((t) => ({ ...t, desde: nuevoIndice.get(t.desde) ?? 0, hasta: nuevoIndice.get(t.hasta) ?? 0 })),
-    indice: (i) => nuevoIndice.get(i) ?? 0,
   };
 }
 
@@ -139,12 +124,7 @@ function resumirRuta(r: RutaTomTom) {
       nivel: nivelDe(s),
       velocidadKmh: typeof s.effectiveSpeedInKmh === 'number' ? s.effectiveSpeedInKmh : null,
     }));
-  const maniobras = r.guidance?.instructions ?? [];
-  const ligera = aligerar(
-    puntos,
-    tramos,
-    maniobras.map((m) => m.pointIndex),
-  );
+  const ligera = aligerar(puntos, tramos);
   const duracionSeg = r.summary.travelTimeInSeconds;
   const sinTraficoSeg = r.summary.noTrafficTravelTimeInSeconds ?? duracionSeg;
   return {
@@ -156,19 +136,6 @@ function resumirRuta(r: RutaTomTom) {
     llegada: r.summary.arrivalTime,
     puntos: ligera.puntos,
     tramos: ligera.tramos,
-    // Indicaciones giro a giro (solo si se pidieron). El texto lo monta la app.
-    ...(r.guidance
-      ? {
-          instrucciones: maniobras.map((m) => ({
-            indice: ligera.indice(m.pointIndex),
-            distanciaM: m.routeOffsetInMeters,
-            maniobra: m.maneuver ?? '',
-            calle: m.street ?? m.roadNumbers?.[0] ?? null,
-            salida: Number(m.roundaboutExitNumber ?? m.exitNumber) || null,
-            mensaje: m.message ?? '',
-          })),
-        }
-      : {}),
   };
 }
 
@@ -191,8 +158,6 @@ async function calcularRutas(cuerpo: Record<string, unknown>, clave: string): Pr
   p.set('maxAlternatives', String(alternativas));
   p.set('routeRepresentation', 'polyline');
   p.set('sectionType', 'traffic');
-  // Para navegar: indicaciones en texto y en español.
-  if (cuerpo.instrucciones === true) p.set('instructionsType', 'text');
   if (esFecha(llegada)) p.set('arriveAt', fechaTomTom(llegada));
   else if (esFecha(salida) && Date.parse(salida) > Date.now()) p.set('departAt', fechaTomTom(salida));
   p.set('key', clave);
@@ -243,6 +208,45 @@ async function calcularMuestras(cuerpo: Record<string, unknown>, clave: string):
   };
 }
 
+// Parkings cubiertos (7313, "Parking Garage") y al aire libre (7369, "Open Parking Area").
+const CATEGORIAS_PARKING = '7313,7369';
+const RADIO_PARKINGS_M = 1000;
+
+type ResultadoBusqueda = {
+  id: string;
+  poi?: { name?: string; categorySet?: { id: number }[] };
+  address?: { freeformAddress?: string; streetName?: string };
+  position?: { lat: number; lon: number };
+};
+
+async function buscarParkings(cuerpo: Record<string, unknown>, clave: string): Promise<unknown> {
+  const { destino } = cuerpo;
+  if (!esPunto(destino)) throw new ErrorPeticion('Falta el destino.');
+  const p = new URLSearchParams({
+    lat: String(destino[0]),
+    lon: String(destino[1]),
+    radius: String(RADIO_PARKINGS_M),
+    limit: '15',
+    categorySet: CATEGORIAS_PARKING,
+    language: 'es-ES',
+    key: clave,
+  });
+  const respuesta = await fetch(`https://api.tomtom.com/search/2/nearbySearch/.json?${p}`);
+  if (!respuesta.ok) throw new Error(`TomTom respondió ${respuesta.status}`);
+  const datos = (await respuesta.json()) as { results?: ResultadoBusqueda[] };
+  return {
+    parkings: (datos.results ?? [])
+      .filter((r) => r.position && r.id)
+      .map((r) => ({
+        id: r.id,
+        nombre: r.poi?.name || 'Parking',
+        direccion: r.address?.freeformAddress ?? r.address?.streetName ?? '',
+        punto: [r.position!.lat, r.position!.lon],
+        tipo: r.poi?.categorySet?.some((c) => c.id === 7369) ? 'aire-libre' : 'garaje',
+      })),
+  };
+}
+
 class ErrorPeticion extends Error {}
 
 const MENSAJE_LIMITE_USUARIO = 'Hoy ya has calculado muchas rutas. Mañana vuelve a funcionar.';
@@ -265,7 +269,7 @@ Deno.serve(async (req) => {
   } catch {
     return respuestaJson(req, { error: 'Petición no válida.' }, 400);
   }
-  const accion = cuerpo.accion === 'muestras' ? 'muestras' : 'rutas';
+  const accion = cuerpo.accion === 'muestras' || cuerpo.accion === 'parkings' ? cuerpo.accion : 'rutas';
 
   try {
     // Límites de cada día (se pueden cambiar con secretos sin tocar el código).
@@ -278,23 +282,38 @@ Deno.serve(async (req) => {
             numeroDeEntorno('RUTAS_LIMITE_USUARIO', 150),
             numeroDeEntorno('RUTAS_LIMITE_GLOBAL', 2000),
           )
-        : await sumarUso(
-            usuario,
-            'rutas-horas-punta',
-            numeroDeEntorno('HORAS_PUNTA_LIMITE_USUARIO', 2),
-            numeroDeEntorno('HORAS_PUNTA_LIMITE_GLOBAL', 8),
-          );
+        : accion === 'parkings'
+          ? await sumarUso(
+              usuario,
+              'parkings',
+              numeroDeEntorno('PARKINGS_LIMITE_USUARIO', 30),
+              numeroDeEntorno('PARKINGS_LIMITE_GLOBAL', 300),
+            )
+          : await sumarUso(
+              usuario,
+              'rutas-horas-punta',
+              numeroDeEntorno('HORAS_PUNTA_LIMITE_USUARIO', 2),
+              numeroDeEntorno('HORAS_PUNTA_LIMITE_GLOBAL', 8),
+            );
     if (!uso.permitido) {
       const mensaje = uso.motivo === 'limite-usuario' ? MENSAJE_LIMITE_USUARIO : MENSAJE_LIMITE_GLOBAL;
       return respuestaJson(req, { error: mensaje }, 429);
     }
-    const datos = accion === 'rutas' ? await calcularRutas(cuerpo, clave) : await calcularMuestras(cuerpo, clave);
+    const datos =
+      accion === 'rutas'
+        ? await calcularRutas(cuerpo, clave)
+        : accion === 'parkings'
+          ? await buscarParkings(cuerpo, clave)
+          : await calcularMuestras(cuerpo, clave);
     return new Response(JSON.stringify(datos), {
       headers: { ...cabecerasCors(req), 'Content-Type': 'application/json' },
     });
   } catch (error) {
     if (error instanceof ErrorPeticion) return respuestaJson(req, { error: error.message }, 400);
     console.error(error);
-    return respuestaJson(req, { error: 'No se ha podido calcular la ruta. Prueba otra vez en un momento.' }, 502);
+    const que = accion === 'parkings' ? 'buscar parkings' : 'calcular la ruta';
+    // "detalle" (por ejemplo, "TomTom respondió 403") ayuda a saber qué ha fallado; la app no lo enseña.
+    const detalle = error instanceof Error ? error.message : String(error);
+    return respuestaJson(req, { error: `No se ha podido ${que}. Prueba otra vez en un momento.`, detalle }, 502);
   }
 });
