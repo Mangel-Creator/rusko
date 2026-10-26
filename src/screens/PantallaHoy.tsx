@@ -1,10 +1,10 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState, type ComponentProps } from 'react';
+import { useEffect, useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, LayoutAnimationConfig, LinearTransition } from 'react-native-reanimated';
 
-import { AvisoPantallaInicio, Boton, BotonInicial, Casilla, Pantalla, Tarjeta, Texto, Titulo } from '@/components';
+import { AccionesRapidas, AvisoPantallaInicio, Boton, BotonInicial, Casilla, Pantalla, Tarjeta, Texto, Titulo } from '@/components';
 import { useDensidad } from '@/data/densidad';
 import { useEnergia } from '@/data/energia';
 import { marcarHecha, moverTareas, useEventos, type Evento } from '@/data/eventos';
@@ -52,14 +52,13 @@ const RECOLOCAR = LinearTransition.duration(220);
 const APARECER = FadeIn.duration(180);
 const DESAPARECER = FadeOut.duration(120);
 
-type NombreIcono = ComponentProps<typeof Ionicons>['name'];
-
 type FilaTareaLista = { tarea: Evento; detalle: string; apagada?: boolean };
 
 // Hoy (26/10/2026, lo pidió el usuario: "quita todo y que solo aparezcan las cosas que
 // tienes ese día"): la fecha, la captura rápida siempre a mano y, debajo, lo de hoy por
 // orden de hora. Lo siguiente sale en su sitio como la tarjeta naranja. Luego las tareas
-// del día y, si hay época dorada, su estudio. Planes y Alarmas, en los dos círculos de arriba.
+// del día y, si hay época dorada, su estudio. Arriba, la fecha, el saludo y las acciones
+// rápidas (Apuntar, Dictar, Planes y Alarmas), como antes (lo pidió el usuario el 27/10).
 export function PantallaHoy() {
   const ahora = useAhora();
   const hoy = claveDia(ahora);
@@ -76,6 +75,8 @@ export function PantallaHoy() {
   const { voz } = useLocalSearchParams<{ voz?: string }>();
   const [escucharAlAbrir, setEscucharAlAbrir] = useState<number | undefined>(undefined);
   const [vozAtendida, setVozAtendida] = useState(false);
+  // "Apuntar" pone el cursor en la captura rápida (cambia el número cada vez).
+  const [enfocar, setEnfocar] = useState<number | undefined>(undefined);
   if ((voz === '1') !== vozAtendida) {
     setVozAtendida(voz === '1');
     if (voz === '1') setEscucharAlAbrir((n) => (n ?? 0) + 1);
@@ -128,20 +129,45 @@ export function PantallaHoy() {
   return (
     <View style={estilos.contenedor}>
       <Pantalla contentContainerStyle={estilos.contenido}>
-        {/* Cabecera: la fecha en grande, Planes y Alarmas a un toque y el Perfil. */}
+        {/* Cabecera: la fecha y el Perfil, y el saludo gigante. */}
         <View style={estilos.cabecera}>
-          <View style={estilos.cabeceraTextos}>
-            <Texto secundario style={estilos.saludo}>
-              {saludoSegunHora(ahora, nombre)}
+          <View style={estilos.cabeceraFila}>
+            <Texto secundario style={estilos.fecha}>
+              {formatearDiaCorto(ahora)}
             </Texto>
-            <Titulo style={estilos.fecha}>{formatearDiaCorto(ahora)}</Titulo>
+            <BotonInicial nombre={nombre} onPress={() => router.push('/perfil')} />
           </View>
-          <BotonRedondo icono="people-outline" etiqueta="Planes" onPress={() => router.push('/planes')} />
-          <BotonRedondo icono="alarm-outline" etiqueta="Alarmas" onPress={() => router.push('/alarmas')} />
-          <BotonInicial nombre={nombre} onPress={() => router.push('/perfil')} />
+          <Titulo style={estilos.saludo}>{saludoSegunHora(ahora, nombre)}</Titulo>
         </View>
 
-        <CapturaRapida hoy={hoy} escucharAlAbrir={escucharAlAbrir} alRellenarAMano={() => nuevoEvento(hoy)} />
+        {/* Acciones rápidas, como en una app de banco: lo que más se hace, a un toque. */}
+        <AccionesRapidas
+          acciones={[
+            {
+              clave: 'apuntar',
+              icono: 'add',
+              texto: 'Apuntar',
+              etiqueta: 'Apuntar algo',
+              alPulsar: () => setEnfocar((n) => (n ?? 0) + 1),
+            },
+            {
+              clave: 'dictar',
+              icono: 'mic-outline',
+              texto: 'Dictar',
+              etiqueta: 'Apuntar algo con la voz',
+              alPulsar: () => setEscucharAlAbrir((n) => (n ?? 0) + 1),
+            },
+            { clave: 'planes', icono: 'people-outline', texto: 'Planes', etiqueta: 'Abrir los planes', alPulsar: () => router.push('/planes') },
+            { clave: 'alarmas', icono: 'alarm-outline', texto: 'Alarmas', etiqueta: 'Abrir las alarmas', alPulsar: () => router.push('/alarmas') },
+          ]}
+        />
+
+        <CapturaRapida
+          hoy={hoy}
+          escucharAlAbrir={escucharAlAbrir}
+          enfocar={enfocar}
+          alRellenarAMano={() => nuevoEvento(hoy)}
+        />
         <ResumenFinEpoca epocas={epocas} registro={registro} hoy={hoy} />
 
         {!cargado ? (
@@ -223,20 +249,6 @@ export function PantallaHoy() {
         <AvisoPantallaInicio />
       </Pantalla>
     </View>
-  );
-}
-
-// Círculo con icono de la cabecera (Planes, Alarmas).
-function BotonRedondo({ icono, etiqueta, onPress }: { icono: NombreIcono; etiqueta: string; onPress: () => void }) {
-  return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={etiqueta}
-      onPress={onPress}
-      hitSlop={4}
-      style={({ pressed }) => [estilos.redondo, pressed && estilos.redondoPulsado]}>
-      <Ionicons name={icono} size={22} color={colores.texto} />
-    </Pressable>
   );
 }
 
@@ -338,28 +350,11 @@ function FilaTarea({ tarea, detalle, apagada }: FilaTareaLista) {
 const estilos = StyleSheet.create({
   contenedor: { flex: 1, backgroundColor: colores.fondo },
   contenido: { paddingBottom: espacio.xxl, gap: espacio.l - 4 },
-  cabecera: { flexDirection: 'row', alignItems: 'center', gap: espacio.s },
-  cabeceraTextos: { flex: 1, gap: 2 },
-  saludo: { fontFamily: fuentes.textoMedio },
-  // La fecha, grande y apretada, como el titular de la página.
-  fecha: {
-    fontSize: 32,
-    lineHeight: 36,
-    letterSpacing: -1.2,
-    textTransform: 'capitalize',
-  },
-  redondo: {
-    width: 44,
-    height: 44,
-    borderRadius: radio.chip,
-    backgroundColor: colores.elevado,
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  redondoPulsado: {
-    backgroundColor: colores.borde,
-    transform: [{ scale: 0.96 }],
-  },
+  cabecera: { gap: espacio.m, paddingBottom: espacio.s },
+  cabeceraFila: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espacio.m },
+  fecha: { fontFamily: fuentes.textoMedio, textTransform: 'capitalize' },
+  // Saludo gigante y apretado, como el titular de una página.
+  saludo: { fontSize: 40, lineHeight: 44, letterSpacing: -1.6 },
   seccion: { gap: espacio.m, marginTop: espacio.s },
   vacio: { alignItems: 'center', gap: espacio.s, paddingVertical: espacio.xl },
   centrado: { textAlign: 'center' },

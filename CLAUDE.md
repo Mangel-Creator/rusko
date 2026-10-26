@@ -390,11 +390,17 @@ sesión que fuera**:
 - 26/10/2026 — **Hoy, solo lo del día** (sustituye al panel de casillas del 26/09 y a las
   acciones rápidas). Lo pidió el usuario: "en hoy quita todo y que solo aparezcan las
   cosas que tienes ese día, con la captura rápida para añadir cosas como «mañana pádel
-  por la tarde»". Arriba la fecha, dos círculos (Planes y Alarmas) y el Perfil; la captura
+  por la tarde»". Arriba, la cabecera de antes (ver abajo); la captura
   rápida **siempre abierta**; debajo, lo de hoy por orden de hora (lo siguiente, como la
   tarjeta naranja, en su sitio), las tareas del día y, si hay época, "Estudio de hoy". Sin
   casillas, sin matriz y sin selector de energía. La captura **lee la frase en el móvil
   sin IA** (`services/captura/local.ts`), ver "Fase 5".
+- 27/10/2026 — **Hoy recupera su cabecera y las acciones rápidas.** Al usuario la
+  cabecera con dos círculos le pareció "muy pobre": vuelve "Martes 27 oct" pequeño con el
+  Perfil, el saludo gigante y debajo los cuatro iconos redondos (`AccionesRapidas`, estilo
+  Revolut): **Apuntar** pone el cursor en la captura (`enfocar`), **Dictar** empieza a
+  escuchar, **Planes** y **Alarmas**. La captura sigue abierta debajo, sin `autoFocus`
+  (si no, sacaría el teclado cada vez que se abre Hoy).
 - 26/10/2026 (sustituye a "elige qué correos resume" del 29/09) — **Correo sin resúmenes.**
   El usuario prefirió que la IA no resuma: de cada correo solo **de qué va y el día que
   importa** (un plazo, una cita o un cargo), y que **avise solo de lo que importa**:
@@ -660,9 +666,10 @@ con el naranja y el rojo del tráfico.
   izquierda, título y lugar en el centro, hora de inicio grande y en negrita a la derecha
   (y la de fin debajo). Cada fila es una tarjeta redondeada (radio 20); las pasadas,
   sin fondo y en gris.
-- **Hoy** (26/10/2026): arriba el saludo pequeño y la fecha grande (32 px), con dos
-  círculos de 44 px (Planes y Alarmas) y el botón de Perfil. Debajo, la captura rápida
-  abierta y la lista del día. Lo siguiente es la tarjeta con degradado naranja → ámbar:
+- **Hoy** (27/10/2026): arriba la fecha pequeña ("Martes 27 oct") y el botón de Perfil;
+  debajo, el saludo gigante (40 px) y las **acciones rápidas** (`AccionesRapidas`): cuatro
+  botones redondos con una palabra debajo, Apuntar (naranja), Dictar, Planes y Alarmas.
+  Luego la captura rápida abierta y la lista del día. Lo siguiente es la tarjeta con degradado naranja → ámbar:
   "LO SIGUIENTE", la hora en grande, título y lugar en `textoOscuro` y "Cómo llegar" en
   píldora oscura. Sin `BotonFlotante`. El aviso de "añádela a la pantalla de inicio" va
   al final de Hoy, no arriba.
@@ -681,7 +688,7 @@ con el naranja y el rojo del tráfico.
   y usa `textoSecundario`, como las filas de eventos pasados.
 - Barra de pestañas sobre `fondo` con una raya `borde` arriba; la activa, en naranja.
 - (**Anulado el 26/10/2026**: Hoy ya solo enseña lo del día, ver "Decisiones del usuario".
-  `PanelHoy`, `MatrizTareas` y `AccionesRapidas` quedan sin usar en Hoy.)
+  `PanelHoy` y `MatrizTareas` quedan sin usar en Hoy.)
   **Hoy era un panel de casillas** (`screens/hoy/PanelHoy.tsx`, 26/09/2026): cabecera
   (fecha, saludo, "Lo siguiente") y seis casillas grandes de dos en dos, con icono en
   un círculo de color suave (`colorBaldosa`) y número grande:

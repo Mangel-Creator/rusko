@@ -35,6 +35,7 @@ import { useDictado } from './useDictado';
 // módulo): queda el micro del teclado. "escucharAlAbrir" (un número que cambia cada
 // vez) empieza a escuchar sin tocar nada: lo usan /?voz=1, los accesos directos y el
 // widget. En la web no, porque el navegador solo deja usar el micro tras un toque.
+// "enfocar" (otro número que cambia) pone el cursor en el campo.
 //
 // Preguntas por la agenda, sin IA (26/10/2026): «¿qué tengo el miércoles?», «¿tengo algo
 // mañana?», «¿qué hay el 5 de noviembre?»... no van a la IA: se contestan aquí con
@@ -46,6 +47,7 @@ type Props = {
   plegada?: boolean;
   alRellenarAMano?: () => void;
   escucharAlAbrir?: number;
+  enfocar?: number;
 };
 
 // Para mandar una frase desde fuera (por ejemplo, la voz de la fase 9): la pone
@@ -69,7 +71,7 @@ function textoGuardado(evento: Evento): string {
   return `Apuntado: «${evento.titulo}», ${cuando}.`;
 }
 
-export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano, escucharAlAbrir }: Props) {
+export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano, escucharAlAbrir, enfocar }: Props) {
   const { perfil } = usePerfil();
   const { eventos } = useEventos();
   const [frase, setFrase] = useState('');
@@ -150,6 +152,14 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
     if (dictado.disponible && Platform.OS !== 'web' && !escuchando) dictado.pulsar();
   });
 
+  // Cada número nuevo en "enfocar" pone el cursor en el campo (el "Apuntar" de Hoy).
+  const ultimoEnfoque = useRef<number | undefined>(undefined);
+  useEffect(() => {
+    if (!enfocar || enfocar === ultimoEnfoque.current) return;
+    ultimoEnfoque.current = enfocar;
+    campo.current?.focus();
+  });
+
   const terminar = (mensaje: string | null) => {
     setPropuesta(null);
     setFrase('');
@@ -186,7 +196,6 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
           returnKeyType="send"
           submitBehavior="blurAndSubmit"
           autoCapitalize="none"
-          autoFocus={!plegada && !escucharAlAbrir}
           style={estilos.campo}
         />
         {accesorio}
