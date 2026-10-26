@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { type ScrollViewInstance, StyleSheet, View } from 'react-native';
 
 import {
   Boton,
@@ -229,7 +229,7 @@ function Formulario({ evento, rellenar, fechaInicial, perfil, eventos }: Props) 
   const [ocupado, setOcupado] = useState(false);
   const [focoPisado, setFocoPisado] = useState<{ bloque: Evento; nuevo: Evento } | null>(null);
   const [confirmarBorrado, setConfirmarBorrado] = useState(false);
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
 
   const cambiar = (cambios: Partial<Borrador>) => {
     setBorrador((actual) => ({ ...actual, ...cambios }));

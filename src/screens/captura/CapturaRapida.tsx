@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState, type ReactNode } from 'react';
-import { ActivityIndicator, Platform, Pressable, StyleSheet, TextInput, View } from 'react-native';
+import { ActivityIndicator, Platform, Pressable, StyleSheet, TextInput, View, type TextInputInstance } from 'react-native';
 
 import { Texto, Titulo } from '@/components';
 import type { Evento } from '@/data/eventos';
@@ -69,7 +69,7 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
   const [pensando, setPensando] = useState(false);
   const [propuesta, setPropuesta] = useState<Propuesta | null>(null);
   const [hecho, setHecho] = useState<string | null>(null);
-  const campo = useRef<TextInput>(null);
+  const campo = useRef<TextInputInstance>(null);
 
   const enviar = async (texto: string) => {
     const limpia = texto.trim();

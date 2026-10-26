@@ -13,7 +13,7 @@ export async function guardarArchivo(nombre: string, texto: string): Promise<Res
   if (!(await Sharing.isAvailableAsync())) return 'no-disponible';
   const archivo = new File(Paths.cache, nombre);
   archivo.create({ overwrite: true });
-  archivo.write(texto);
+  await archivo.write(texto);
   await Sharing.shareAsync(archivo.uri, {
     mimeType: 'application/json',
     UTI: 'public.json',

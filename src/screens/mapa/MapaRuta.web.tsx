@@ -2,7 +2,7 @@ import 'leaflet/dist/leaflet.css';
 
 import type * as L from 'leaflet';
 import { useEffect, useRef, useState } from 'react';
-import { StyleSheet, View } from 'react-native';
+import { StyleSheet, View, type HostInstance } from 'react-native';
 
 import { colores, coloresMapa, fuentes } from '@/theme';
 
@@ -35,7 +35,7 @@ export function MapaRuta({
   seguir,
   style,
 }: PropsMapa) {
-  const contenedor = useRef<View>(null);
+  const contenedor = useRef<HostInstance>(null);
   const [leaflet, setLeaflet] = useState<typeof L | null>(null);
   const mapa = useRef<L.Map | null>(null);
   const capas = useRef<Capas | null>(null);

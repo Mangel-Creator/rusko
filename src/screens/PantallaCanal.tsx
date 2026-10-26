@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, TextInput, View } from 'react-native';
+import { Pressable, type ScrollViewInstance, StyleSheet, TextInput, View } from 'react-native';
 
 import { Pantalla, Texto, Titulo } from '@/components';
 import type { DatosEmpresa, MensajeChat } from '@/data/empresa';
@@ -42,7 +42,7 @@ function Conversacion({ datos, canalId }: { datos: DatosEmpresa; canalId: string
   const [enviando, setEnviando] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [borrar, setBorrar] = useState<MensajeChat | null>(null);
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   const hoy = claveDia(new Date());
 
   const cargar = useCallback(async () => {

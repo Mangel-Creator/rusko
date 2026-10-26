@@ -1,7 +1,7 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { Pressable, type ScrollViewInstance, StyleSheet, View } from 'react-native';
 
 import {
   Boton,
@@ -93,7 +93,7 @@ function eleccionInicial(sugerencias: Sugerencia[], propuesta: Sugerencia | null
 }
 
 function Formulario({ perfil, eventos, propuesta }: Props) {
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
   const [tipo, setTipo] = useState<TipoPlan>('amigos');
   const [titulo, setTitulo] = useState('');
   const [duracion, setDuracion] = useState(DURACION_POR_DEFECTO.amigos);

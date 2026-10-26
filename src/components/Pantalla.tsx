@@ -1,5 +1,5 @@
 import type { Ref } from 'react';
-import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, type ScrollViewProps } from 'react-native';
+import { KeyboardAvoidingView, Platform, ScrollView, StyleSheet, type ScrollViewInstance, type ScrollViewProps } from 'react-native';
 import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colores, espacio } from '@/theme';
@@ -12,7 +12,7 @@ export function Pantalla({
   colorArriba,
   ref,
   ...resto
-}: ScrollViewProps & { ref?: Ref<ScrollView>; colorArriba?: string }) {
+}: ScrollViewProps & { ref?: Ref<ScrollViewInstance>; colorArriba?: string }) {
   return (
     <SafeAreaView
       style={[estilos.seguro, colorArriba ? { backgroundColor: colorArriba } : null]}

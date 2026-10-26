@@ -1,5 +1,5 @@
 import { useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { type ScrollViewInstance, StyleSheet, View } from 'react-native';
 
 import { BarraProgreso, Boton, Pantalla, Texto, Titulo } from '@/components';
 import { completarBienvenida, usePerfil } from '@/data/perfil';
@@ -29,7 +29,7 @@ export function PantallaBienvenida() {
   const [errores, setErrores] = useState<Errores>({});
   const [paso, setPaso] = useState<Paso>(1);
   const [ocupado, setOcupado] = useState(false);
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
 
   const cambiar = (cambios: Partial<Borrador>) => {
     setBorrador((actual) => ({ ...actual, ...cambios }));

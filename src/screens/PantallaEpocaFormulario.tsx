@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
-import { ScrollView, StyleSheet, View } from 'react-native';
+import { type ScrollViewInstance, StyleSheet, View } from 'react-native';
 
 import {
   BarraProgreso,
@@ -112,7 +112,7 @@ function Formulario({ epoca, epocas, perfil, pasoInicial }: Props) {
   const [paso, setPaso] = useState<Paso>(pasoInicial);
   const [ocupado, setOcupado] = useState(false);
   const [solapes, setSolapes] = useState<Epoca[]>([]);
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
 
   const cambiar = (cambios: Partial<BorradorEpoca>) => {
     setBorrador((actual) => ({ ...actual, ...cambios }));

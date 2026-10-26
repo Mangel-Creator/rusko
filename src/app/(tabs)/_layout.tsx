@@ -11,7 +11,7 @@ type NombreIcono = ComponentProps<typeof Ionicons>['name'];
 
 function icono(nombre: NombreIcono, nombreActivo: NombreIcono) {
   function IconoPestana({ color, size, focused }: { color: ColorValue; size: number; focused: boolean }) {
-    return <Ionicons name={focused ? nombreActivo : nombre} size={size} color={color} />;
+    return <Ionicons name={focused ? nombreActivo : nombre} size={size} color={typeof color === 'string' ? color : undefined} />;
   }
   return IconoPestana;
 }

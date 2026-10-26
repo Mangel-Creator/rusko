@@ -176,8 +176,8 @@ sesión que fuera**:
   pregunta, los pasos están en su guía "Fase 05 - Captura con IA.md".
 - 26/09/2026 — **Expo Go SIN el ordenador: funciona y el usuario lo ha comprobado.** Expo
   Go sí carga publicaciones de EAS Update de proyectos propios si su `runtimeVersion` es
-  `exposdk:57.0.0` (la de Expo Go). Dirección fija, siempre la última versión:
-  `exp://u.expo.dev/bf4c1bdd-dea3-4040-b236-458205d44d0e?runtime-version=exposdk%3A57.0.0&channel-name=expo-go`
+  `exposdk:58.0.0` (la de Expo Go). Dirección fija, siempre la última versión:
+  `exp://u.expo.dev/bf4c1bdd-dea3-4040-b236-458205d44d0e?runtime-version=exposdk%3A58.0.0&channel-name=expo-go`
   (canal y rama `expo-go`). La publica sola `.github/workflows/expo-go.yml` en cada
   subida a `main`, poniendo esa `runtimeVersion` solo durante la publicación; necesita
   el secreto `EXPO_TOKEN` de GitHub, que crea y guarda el propio usuario. Ver "Cómo
@@ -358,6 +358,12 @@ sesión que fuera**:
   "movimientos" (icono redondo, título y lugar, hora a la derecha). Transiciones de
   150-250 ms sin rebotes. **Solo modo oscuro.** Como el naranja pasa a ser el color de
   pulsar, **Clientes cambia a violeta**. Detalle en "Diseño".
+- 26/10/2026 — **Organizy sube a Expo SDK 58** (React Native 0.88): el iPhone del usuario
+  actualizó Expo Go a la 58 y la app salía "incompatible" (Expo Go de la App Store solo
+  abre la última versión del SDK). La dirección de Expo Go sin ordenador cambia a
+  `runtime-version=exposdk%3A58.0.0` (QR nuevo en su carpeta "QR y enlaces"). Cuando salga
+  otro SDK y Expo Go se actualice, habrá que repetirlo: `npx expo install expo@^NN`,
+  `npx expo install --fix`, `RUNTIME_EXPO_GO` en `expo-go.yml`, la dirección aquí y el QR.
 
 ## Cómo prueba el usuario en el iPhone
 
@@ -380,7 +386,7 @@ sesión que fuera**:
 - **A diario, la web** en la pantalla de inicio: funciona con cualquier wifi o datos,
   sin el ordenador, y se actualiza sola en cuanto una sesión sube a `main`.
 - **La app en Expo Go SIN el ordenador** (desde el 26/09/2026): 
-  `exp://u.expo.dev/bf4c1bdd-dea3-4040-b236-458205d44d0e?runtime-version=exposdk%3A57.0.0&channel-name=expo-go`.
+  `exp://u.expo.dev/bf4c1bdd-dea3-4040-b236-458205d44d0e?runtime-version=exposdk%3A58.0.0&channel-name=expo-go`.
   Se publica sola al subir a `main` (`.github/workflows/expo-go.yml`, trabajo "Publicar
   en Expo Go"; compruébalo con `gh run list`). Reglas: **no pongas `runtimeVersion` en
   `app.json`** (lo pone el workflow solo al publicar); **no instales `expo-updates`**
@@ -407,7 +413,7 @@ sesión que fuera**:
   con su canal. **No instales todavía `expo-updates`** ni pongas `runtimeVersion` o
   `updates.url` en `app.json`: dejaría de funcionar el túnel (la sesión 02 concluyó el
   24/09 que Expo Go no carga EAS Update; era un error: sí la carga con `runtimeVersion`
-  `exposdk:57.0.0`, ver arriba). Plan para cuando tenga la
+  `exposdk:58.0.0`, ver arriba). Plan para cuando tenga la
   cuenta, en este orden:
   1. `npx expo install expo-updates` y `npx eas-cli@latest update:configure`.
   2. `npx eas-cli@latest build --profile preview --platform ios` (el usuario registra
@@ -421,7 +427,7 @@ sesión que fuera**:
 
 ## Tecnología
 
-- Expo SDK 57 (React Native 0.86) con TypeScript.
+- Expo SDK 58 (React Native 0.88) con TypeScript.
 - Expo Router (rutas en `src/app/`), pestañas con `Tabs` de `expo-router`.
 - Iconos: `@expo/vector-icons` (Ionicons).
 - Letras: `@expo-google-fonts/ibm-plex-sans` e `@expo-google-fonts/ibm-plex-mono`.

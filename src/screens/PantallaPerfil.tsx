@@ -1,6 +1,6 @@
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { AppState, ScrollView, StyleSheet, View } from 'react-native';
+import { AppState, type ScrollViewInstance, StyleSheet, View } from 'react-native';
 
 import { Boton, BotonAtras, Pantalla, Plegable, Selector, Texto, Titulo } from '@/components';
 import { guardarDensidad, OPCIONES_DENSIDAD, useDensidad } from '@/data/densidad';
@@ -60,7 +60,7 @@ export function PantallaPerfil() {
     ubicacion: undefined,
     notificaciones: undefined,
   });
-  const scroll = useRef<ScrollView>(null);
+  const scroll = useRef<ScrollViewInstance>(null);
 
   const leerPermisos = useCallback(async () => {
     const [ubicacion, notificaciones] = await Promise.all([

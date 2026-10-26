@@ -45,6 +45,8 @@ export function prepararAvisos(): Promise<void> {
       if (Platform.OS === 'android') {
         await Notifications.setNotificationChannelAsync(CANAL, {
           name: 'Avisos',
+          // Existe (expo-notifications 58), pero la regla no sigue el "export *" de su build nuevo.
+          // eslint-disable-next-line import/namespace
           importance: Notifications.AndroidImportance.HIGH,
         });
       }

@@ -1,6 +1,6 @@
 # Publica la app en los servidores de Expo (EAS Update) cada vez que se sube algo a
 # main, para abrirla en Expo Go SIN el ordenador encendido:
-# exp://u.expo.dev/bf4c1bdd-dea3-4040-b236-458205d44d0e?runtime-version=exposdk%3A57.0.0&channel-name=expo-go
+# exp://u.expo.dev/bf4c1bdd-dea3-4040-b236-458205d44d0e?runtime-version=exposdk%3A58.0.0&channel-name=expo-go
 #
 # Expo Go solo carga publicaciones con runtimeVersion "exposdk:<SDK>". Ese valor se pone
 # AQUÍ, solo durante la publicación: no lo pongas en app.json (rompe Expo Go en local).
@@ -20,7 +20,7 @@ concurrency:
   cancel-in-progress: true
 
 env:
-  RUNTIME_EXPO_GO: exposdk:57.0.0
+  RUNTIME_EXPO_GO: exposdk:58.0.0
 
 jobs:
   publicar:
