@@ -303,8 +303,9 @@ sesión que fuera**:
   para lo demás. Plan: el correo **no gasta** del límite de 5 h ni del semanal; tiene su propio
   cupo de correos al día con IA (propuesta: 20 en el Completo) y en Resúmenes se elige cuáles:
   todos los de Principal, solo los de remitentes o dominios marcados, o solo los que parezcan
-  tener fecha límite. Los demás se resumen con las reglas, sin límite ni coste. **Pendiente de
-  programar** (servidor: `_shared/limiteIA.ts` y las funciones `correo` y `correo-cuentas`).
+  tener fecha límite. Los demás se resumen con las reglas, sin límite ni coste. **Hecho el
+  26/10/2026 de otra forma** (ver esa fecha): sin resúmenes ni elegir qué correos; tope de 100
+  correos al día con IA por persona.
 - 29/09/2026 — **Precios: propuesta, sin decidir.** Está en el Word del usuario
   `OneDrive\PERSONAL\Organizy yo\PLAN DE PRECIOS TEMPORAL.docx` (sesión "Monetización y
   planes"): Base gratis, Pro, Completo, De por vida Pro y Completo (con mejora pagando la
@@ -391,6 +392,22 @@ sesión que fuera**:
   tarjeta naranja, en su sitio), las tareas del día y, si hay época, "Estudio de hoy". Sin
   casillas, sin matriz y sin selector de energía. La captura **lee la frase en el móvil
   sin IA** (`services/captura/local.ts`), ver "Fase 5".
+- 26/10/2026 (sustituye a "elige qué correos resume" del 29/09) — **Correo sin resúmenes.**
+  El usuario prefirió que la IA no resuma: de cada correo solo **de qué va y el día que
+  importa** (un plazo, una cita o un cargo), y que **avise solo de lo que importa**:
+  1. **Con fecha**: tarea en el calendario ese día y aviso ("Mañana: Pagar el IBI").
+  2. **Importante sin fecha** (lo decide la IA; ante la duda, no): aviso de una línea con
+     quién y de qué va.
+  3. **Lo demás**: sin aviso; en la pestaña Correo, solo el asunto y quién lo manda.
+  4. **"Avisarme siempre de…"**: los remitentes que marque avisan siempre.
+  **El correo no cuenta para los límites de IA de 5 horas y semana**: tiene su propio tope de
+  **100 correos al día** por persona. Sin la clave de Anthropic, solo avisan los correos con
+  fecha (reglas) y los de "Avisarme siempre". Ver "Fase 11" > "Correo sin resúmenes".
+- 26/10/2026 — **Toda la IA pasa a Claude Haiku 5.5** (`claude-haiku-5-5`, 0,10 $ y 0,50 $
+  por millón de tokens de entrada y de salida) **pensando poco** (`effort: 'low'`): captura,
+  correo y Época dorada. Coste esperado con su uso: unos 0,30 $ al mes; en el peor caso, 3-4 $.
+  Conviene un límite de gasto mensual de 5 $ en la consola de Anthropic (es el tope de verdad).
+  La IA va por la API de Anthropic, aparte de su plan de Claude: no puede usar el plan.
 
 ## Cómo prueba el usuario en el iPhone
 
@@ -970,7 +987,7 @@ animaciones infinitas.
 - Rutas nuevas: si `tsc` se queja de `/epoca` en otra carpeta, es que `.expo/types` está
   anticuado; se regenera al arrancar `expo start`.
 - **La IA ayuda a planificar** (28/09/2026, lo pidió el usuario; eligió las tres formas).
-  Función `epoca` de Supabase (desplegada; Claude Haiku 4.5, `EPOCA_MODELO` para cambiarlo sin
+  Función `epoca` de Supabase (desplegada; Claude Haiku 5.5 pensando poco, `EPOCA_MODELO` para cambiarlo sin
   tocar la app; límites `EPOCA_LIMITE_USUARIO` 30 y `EPOCA_LIMITE_GLOBAL` 1000 al día). Sin
   `ANTHROPIC_API_KEY` contesta 503 `sin-clave` sin gastar y la app dice "aún no está
   encendida"; se enciende sola al poner la clave. No guarda nada. Cliente en
@@ -1057,7 +1074,7 @@ borran solos a los 7 días.
 - `services/captura/index.ts`: `interpretarFrase(frase, perfil, eventos)` envía la frase, el día y la
   hora, la zona horaria y los sitios (Casa con id `casa` y los habituales, solo id y
   nombre, sin direcciones) a la Edge Function `captura`. Nunca guarda nada.
-- La función (`supabase/functions/captura`) usa **Claude Haiku 4.5** (`claude-haiku-4-5`) con
+- La función (`supabase/functions/captura`) usa **Claude Haiku 5.5** (`claude-haiku-5-5`, `effort: 'low'`, 1024 tokens como mucho) con
   salida estructurada (JSON con esquema). Le da un calendario de 15 días para que acierte
   "el jueves". Devuelve título, fecha, inicio, fin (1 h por defecto), tipo, `sitioId`,
   flexible, duración y confianza (alta, media, baja). Límite: 50 usos por usuario y día y
@@ -1080,7 +1097,8 @@ borran solos a los 7 días.
   nada del móvil: `respuestaDelDia` contesta en una tarjeta ("El miércoles 28 tienes 2 cosas:
   a las 10:00, Reunión en Oficina y…"; de hoy, solo lo que queda) y la lee en voz alta
   (`hablar`, con "Escuchar"/"Callar" y "Cerrar"). Lo que no es pregunta sigue a la captura.
-- Coste aproximado: 0,2 céntimos de dólar por frase (unos 1.300 tokens de entrada y 120 de
+- Coste aproximado con Haiku 5.5 (desde el 26/10/2026): unas 0,02 céntimos de dólar por frase,
+  unas 5.000 frases por dólar. Antes, con Haiku 4.5: 0,2 céntimos (unos 1.300 tokens de entrada y 120 de
   salida, a 1 $ y 5 $ por millón): unas 500 frases por dólar. Gasto en console.anthropic.com > Usage / Cost; conviene poner
   también un límite de gasto mensual en la consola.
 
@@ -1542,16 +1560,17 @@ borran solos a los 7 días.
   reenvío, lo reenviado. Título = asunto sin "RE:", "RV:", "[EXTERNO]".
 - **Avisos** del ayudante por el servicio de Expo (`exp.host`, sin clave), a los tokens que
   manda la app al pedir los correos; data `{ tipo: 'correo', destino: { pantalla:
-  'resumenes' } }`. Plazo: "Vence el lun 5 oct: …" / "Te lo he apuntado en las tareas.";
-  normal: título y "Remitente · resumen"; más de 3 normales en una vuelta, un solo aviso
-  "N correos nuevos". En la web no hay avisos.
-- **IA** (`supabase/functions/correo`, desplegada; Claude Haiku 4.5, salida con esquema:
-  título, resumen, `fechaLimite`, `tarea` con verbo): la app manda al ayudante la URL y la
+  'resumenes' } }`. Desde el 26/10/2026 solo avisa de lo que tiene fecha ("El lun 5 oct:
+  Mandar facturas" / "Te lo he apuntado en las tareas. Correo de X.") y de lo importante
+  ("Gestoría: IVA" y la línea del aviso); más de 3 importantes en una vuelta, un solo aviso
+  "N correos importantes". Del resto, nada. En la web no hay avisos.
+- **IA** (`supabase/functions/correo`, desplegada; Claude Haiku 5.5 pensando poco, salida con
+  esquema: ver "Correo sin resúmenes" abajo): la app manda al ayudante la URL y la
   clave **pública** de Supabase; el ayudante se da de alta como usuario anónimo
   (`/auth/v1/signup`, sesión en sus propiedades) y llama a la función. Sin
   `ANTHROPIC_API_KEY` contesta 503 `sin-clave` sin gastar nada y el ayudante no vuelve a
   probar en 6 h (otros fallos, 30 min): se enciende sola al poner la clave. Límites
-  `CORREO_LIMITE_USUARIO` (150) y `CORREO_LIMITE_GLOBAL` (3000). No guarda el correo.
+  `CORREO_LIMITE_USUARIO` (100) y `CORREO_LIMITE_GLOBAL` (3000). No guarda el correo.
 - **En la app**: `data/correos.ts` (`organizy:correo` = enlace y estado;
   `organizy:correos` = resúmenes, 30 días; las dos en `NO_VIAJAN` de la copia) y
   `services/correo/` (`conectarCorreo`, `actualizarCorreos` —al abrir, al volver y al
@@ -1559,13 +1578,24 @@ borran solos a los 7 días.
   `marcarCorreosVistos`). La petición es un POST `text/plain` (sin pregunta previa de
   CORS; Google redirige y `fetch` lo sigue). Cada plazo nuevo de hoy en adelante se apunta
   una vez como **tarea flexible de 30 min, tipo Yo, el día que vence** (con el correo y el
-  enlace en las notas); si se borra, no se vuelve a crear. "No es un plazo" borra la tarea
-  si no está hecha.
+  enlace en las notas); si se borra, no se vuelve a crear. "Quitar de las tareas" borra la
+  tarea si no está hecha.
 - **Pantallas**: casilla "Resúmenes" en Hoy (la séptima, a lo ancho; número = correos sin
   ver) y `/resumenes` (`PantallaResumenes`): sin conectar, cómo hacerlo y el campo del
-  enlace; conectado, "Con fecha límite" (barra de "Yo") y el resto por días (Hoy, Ayer, lun
-  5 oct), con "Nuevo" hasta salir de la pantalla; al tocar uno, "Abrir en Gmail", "Ver la
-  tarea" y "No es un plazo"; "Más ajustes": otras cuentas y desconectar.
+  enlace; conectado, "Con fecha" (barra de "Yo", "Para mañana") y el resto por días (Hoy,
+  Ayer, lun 5 oct), con "Nuevo" hasta salir de la pantalla e "Importante" en granate; al
+  tocar uno, "Abrir en Gmail", "Ver la tarea", "Quitar de las tareas" y "Avisarme siempre
+  de X"; "Más ajustes": otras cuentas y desconectar.
+- **Correo sin resúmenes** (26/10/2026, ver "Decisiones del usuario"): la IA (`_shared/iaCorreo.ts`,
+  esquema `titulo`, `fecha`, `tarea`, `importante`, `aviso` de una línea) ya no resume; el
+  campo `resumen` guarda solo la línea del aviso de un correo importante (o vacío).
+  `resultadoDeIA` (en `reglasCorreo.js`, lo usan servidor y ayudante) comprueba lo que
+  contesta. Sin IA, `analizarCorreo` solo saca el título y la fecha. "Avisarme siempre de…":
+  la app guarda la lista (`organizy:correoSiempre`, como mucho 30) y la manda con cada
+  petición (`siempre`); el servidor la guarda en `correo_cuentas.siempre_avisar` y el
+  ayudante en sus propiedades; `siempreAvisar` vale por nombre, dirección o dominio
+  ("@gl.es"). Columna `correo_resumenes.importante` (migración
+  `20261026000000_correo_importante.sql`, ya aplicada).
 - **QR del ayudante** (28/09): al abrir su URL `/exec` en el navegador (`doGet`), el ayudante
   enseña un QR (qrcodejs de cdnjs) a `https://mangel-creator.github.io/organizy/resumenes#ayudante=<url>`;
   Resúmenes lo lee (también `?ayudante=`), se conecta solo y limpia la dirección. Abre la
@@ -1617,7 +1647,7 @@ borran solos a los 7 días.
     como tarea, "Abrir en Outlook", quitar). **Falta**: el paso A del usuario y probarlo con
     su Gmail y su Outlook de verdad.
 - **Aviso de la víspera** (`services/avisos/correos.ts`, tipo `plazo-correo`, interruptor
-  `plazosCorreo` en Perfil > Avisos): "Mañana vence: …" a la hora de levantarse, si la
+  `plazosCorreo` en Perfil > Avisos): "Mañana: …" a la hora de levantarse, si la
   tarea sigue sin hacer.
 - Probado el 27/09 en la web a tamaño móvil con un ayudante simulado: enlace erróneo, conectar,
   tarea creada, "Nuevo", "No es un plazo" y la casilla. La función `correo`, el alta anónima
@@ -1711,9 +1741,10 @@ borran solos a los 7 días.
   modelo, respuesta.usage)` justo después, también si la respuesta no vale). **Toda llamada
   nueva a Claude tiene que pasar por las dos.** Sin permiso: 429 `{ error: 'limite-ia', motivo:
   'ventana'|'semana', libre, horas }`. Función `ia` (acción `estado`, solo lee) para la app.
-- **Correo**: cuenta para el límite; sin permiso, `correo-cuentas` usa las reglas y la función
-  `correo` contesta 429 (el ayudante de Gmail usa sus reglas 30 min). Ojo: el ayudante de Gmail
-  tiene su propio usuario anónimo, así que su gasto no se suma al de la app.
+- **Correo**: desde el 26/10/2026 **no cuenta** para estos límites (no llama a `permitirIA` ni a
+  `apuntarIA`); solo su tope de 100 correos al día por persona (`sumarUso`). Al pasarlo,
+  `correo-cuentas` usa las reglas y la función `correo` contesta 429 (el ayudante de Gmail usa
+  sus reglas 30 min).
 - **App**: `services/ia/` (`limites.ts` puro con pruebas: porcentajes, "Se libera a las 18:40",
   mensajes; `consultarEstadoIA`, `limiteDelError`). La captura y la Época dorada, al recibir el
   429, dicen "Has gastado la IA de estas 5 horas. Vuelve a tenerla a las 18:40." y dejan
@@ -1726,9 +1757,7 @@ borran solos a los 7 días.
   devuelva `compra: true` (la tarjeta de "Conseguir más IA" tendrá entonces los paquetes).
   Propuesta de paquetes en el Word "RESUMEN IA" del usuario. Para regalar saldo a mano:
   `select public.ia_recargar('<usuario>', 500000, 'regalo', '<referencia única>')`.
-- **Correo aparte** (decisión del 29/09, pendiente de programar): el correo dejará de contar
-  para el límite general y tendrá su propio cupo diario, con la persona eligiendo qué correos
-  resume la IA (ver "Decisiones del usuario", 29/09).
+- **Correo aparte**: hecho el 26/10/2026 (ver "Decisiones del usuario", esa fecha).
 - **Planes de pago** (pendiente): cada plan tendrá sus números; hoy son los mismos para todos.
   Propuesta por plan en el Word "PLAN DE PRECIOS TEMPORAL" del usuario (sin decidir).
   Con usuarios anónimos, borrar los datos del navegador da un usuario nuevo con los límites a
