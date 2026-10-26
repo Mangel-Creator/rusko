@@ -8,6 +8,7 @@ import {
   suscribirseAdelantos,
   suscribirseAlarmas,
 } from '@/data/alarmas';
+import { leerAlarmasReloj, suscribirseAlarmasReloj } from '@/data/alarmasReloj';
 import { leerEventos, suscribirseEventos } from '@/data/eventos';
 import { cargarPerfil, suscribirsePerfil } from '@/data/perfil';
 import { leerSalidas, suscribirseSalidas } from '@/data/salidas';
@@ -16,13 +17,16 @@ import { eventosConAlarmaVigentes, unaVezPasadas } from './calculo';
 import { definicionesNativas } from './definiciones';
 import { actualizarAdelantos } from './inteligente';
 import { nivelEfectivo, quitarTodasLasNativas, sincronizarNativas } from './nativo';
+import { alarmasParaReloj } from './reloj';
+import { subirAlarmasReloj } from './relojServidor';
 
 // Servicio de alarmas (fase 7). Una misma interfaz para los tres niveles (nivel.ts):
 //   - La pestaña guarda las alarmas (data/alarmas.ts) sin saber cómo van a sonar.
 //   - "nativo": aquí se programan las alarmas de verdad (nativo.ts).
 //   - "avisos": las programa services/avisos como avisos con sonido (lee el nivel
 //     con nivelEfectivo()).
-//   - "web": no se programa nada.
+//   - "web": no suena nada, pero si se ha creado el enlace del Atajo (26/10/2026), las
+//     alarmas se suben al servidor y el Atajo las pasa cada noche al Reloj del iPhone.
 //
 // iniciarAlarmas() va en _layout: al arrancar, al volver a la app, al cambiar alarmas,
 // eventos, perfil o salidas, y cada 10 min con la app abierta, recalcula el adelanto
@@ -77,6 +81,18 @@ export function sincronizarAlarmas(): Promise<void> {
     } else if (nivel === 'avisos') {
       // Sin permiso: las que hubiera de antes se quitan y pasan a ser avisos.
       await quitarTodasLasNativas();
+    } else if ((await leerAlarmasReloj()).enlace) {
+      // Web con el Atajo del Reloj (26/10/2026): las de los próximos 14 días al servidor.
+      const estado = await leerAlarmas();
+      await subirAlarmasReloj(
+        alarmasParaReloj({
+          ahora,
+          alarmas: estado.alarmas,
+          adelantos,
+          salidas: Object.values(salidas),
+          eventosConAlarma: estado.ajustes.salidas,
+        }),
+      ).catch(() => {});
     }
   });
   cola = tarea.catch(() => {});
@@ -89,6 +105,10 @@ export async function actualizarAlarmas(): Promise<void> {
   if (!perfil || !bienvenidaCompletada) return;
   await actualizarAdelantos().catch(() => {});
   await sincronizarAlarmas();
+}
+
+async function actualizarWeb(): Promise<void> {
+  await ((await leerAlarmasReloj()).enlace ? actualizarAlarmas() : sincronizarAlarmas());
 }
 
 const esperas = new Map<() => Promise<void>, ReturnType<typeof setTimeout>>();
@@ -110,9 +130,9 @@ const CADA_MS = 10 * 60 * 1000;
 
 // Se llama una vez al arrancar la app. Devuelve la función para pararlo.
 export function iniciarAlarmas(): () => void {
-  // En la web no suena nada: no se gasta tráfico en calcular adelantos (solo se
-  // apagan las de una vez que ya pasaron).
-  const todo = () => enUnMomento(Platform.OS === 'web' ? sincronizarAlarmas : actualizarAlarmas);
+  // En la web solo suenan si pasan al Reloj con el Atajo: sin él, no se gasta tráfico
+  // en calcular adelantos (solo se apagan las de una vez que ya pasaron).
+  const todo = () => enUnMomento(Platform.OS === 'web' ? actualizarWeb : actualizarAlarmas);
   const solo = () => enUnMomento(sincronizarAlarmas);
   todo();
   const quitar = [
@@ -121,6 +141,7 @@ export function iniciarAlarmas(): () => void {
     suscribirsePerfil(todo),
     suscribirseSalidas(solo), // la hora de salida cambió con el tráfico (fase 6)
     suscribirseAdelantos(solo),
+    suscribirseAlarmasReloj(solo), // se acaba de crear el enlace del Atajo
   ];
   const app = AppState.addEventListener('change', (estado) => {
     if (estado === 'active') todo();

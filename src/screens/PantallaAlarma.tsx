@@ -1,6 +1,6 @@
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Linking, StyleSheet, View } from 'react-native';
+import { StyleSheet, View } from 'react-native';
 
 import {
   Boton,
@@ -30,7 +30,6 @@ import {
 } from '@/data/alarmas';
 import type { DiaSemana } from '@/data/perfil';
 import { diaDeUnaVez, permisoAlarmas, textoDias } from '@/services/alarmas';
-import { enlaceAtajo, esWebDeIphone } from '@/services/alarmas/atajo';
 import { colores, espacio } from '@/theme';
 
 // Nueva alarma (/alarma) o editar una (/alarma?id=...). Corta: tipo, hora y días a la
@@ -156,13 +155,6 @@ function Formulario({ inicial }: { inicial: Alarma | null }) {
       ) : (
         <View style={estilos.botones}>
           <Boton titulo={ocupado ? 'Guardando…' : 'Guardar'} disabled={ocupado} onPress={guardar} />
-          {esWebDeIphone() ? (
-            <Boton
-              variante="secundario"
-              titulo="Crear en el Reloj del iPhone"
-              onPress={() => Linking.openURL(enlaceAtajo(hora, etiqueta)).catch(() => {})}
-            />
-          ) : null}
           {inicial ? (
             <Boton variante="secundario" titulo="Borrar alarma" onPress={() => setConfirmarBorrar(true)} />
           ) : null}

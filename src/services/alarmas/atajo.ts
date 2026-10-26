@@ -1,22 +1,18 @@
 import { Platform } from 'react-native';
 
-// En la web no hay alarmas: cada una se puede crear en el Reloj del iPhone con un
-// Atajo (app Atajos) que la persona crea una vez. La web lo lanza con el enlace
-// oficial de Apple "shortcuts://run-shortcut?name=...&input=text&text=...", pasándole
-// "07:30|Despertador". El Atajo parte el texto por "|" y crea la alarma.
-// Los días de repetición no se pueden pasar: se ponen luego en el Reloj.
+// Alarmas al Reloj del iPhone (26/10/2026; sustituye al Atajo manual "Organizy alarma").
+// En la web no puede sonar nada con la web cerrada, pero la app Atajos sí crea alarmas
+// en el Reloj. La persona crea una vez el Atajo "Organizy alarmas" y una automatización
+// que lo ejecuta cada noche: lee su enlace personal (función alarmas-reloj), borra las
+// alarmas de Organizy que haya en el Reloj y crea las de las próximas 24 horas.
+// Las del Reloj suenan aunque el móvil esté en silencio.
 
-export const NOMBRE_ATAJO = 'Organizy alarma';
+export const NOMBRE_ATAJO = 'Organizy alarmas';
+export const HORA_AUTOMATIZACION = '22:00';
 
-export function textoParaAtajo(hora: string, etiqueta: string): string {
-  // "|" separa hora y etiqueta: si la etiqueta lo lleva, se cambia por un guion.
-  return `${hora}|${(etiqueta.trim() || 'Alarma').replace(/\|/g, '-')}`;
-}
-
-export function enlaceAtajo(hora: string, etiqueta: string): string {
-  return `shortcuts://run-shortcut?name=${encodeURIComponent(NOMBRE_ATAJO)}&input=text&text=${encodeURIComponent(
-    textoParaAtajo(hora, etiqueta),
-  )}`;
+// Ejecuta el Atajo ahora (enlace oficial de Apple), por si cambias algo después de las 22:00.
+export function enlaceEjecutarAtajo(): string {
+  return `shortcuts://run-shortcut?name=${encodeURIComponent(NOMBRE_ATAJO)}`;
 }
 
 // La web abierta en un iPhone o iPad (donde existe la app Atajos).
@@ -25,13 +21,16 @@ export function esWebDeIphone(): boolean {
   return /iPhone|iPad|iPod/.test(navigator.userAgent);
 }
 
-// Cómo crear el Atajo, una sola vez.
+// Cómo crear el Atajo, una sola vez (la guía del usuario lo cuenta con más detalle).
 export const PASOS_ATAJO = [
-  'Abre la app Atajos y toca el "+" de arriba a la derecha.',
-  `Toca el nombre de arriba y llámalo exactamente: ${NOMBRE_ATAJO}`,
-  'Busca la acción "Dividir texto". Donde pone texto, elige "Entrada del atajo"; en separador, "Personalizado" y escribe |',
-  'Añade "Obtener elemento de la lista" con "Primer elemento" (es la hora).',
-  'Añade otra vez "Obtener elemento de la lista", ahora con "Último elemento" y la lista de "Dividir texto" (es el nombre).',
-  'Añade "Crear alarma". En la hora elige el primer elemento y en la etiqueta, el último.',
-  'Toca "OK". Ya está: desde aquí, "Crear en el Reloj" te abre Atajos y crea la alarma.',
+  `Abre la app Atajos, toca el "+" de arriba a la derecha y llámalo exactamente: ${NOMBRE_ATAJO}`,
+  'Añade "Obtener contenido de URL" y pega tu enlace (el de "Copiar mi enlace").',
+  'Añade "Si". Elige "Contenido de URL", la condición "empieza por" y escribe: Organizy',
+  'Dentro del "Si", añade "Buscar alarmas", toca "Añadir filtro" y pon: Etiqueta, empieza por, Organizy.',
+  'Debajo, "Eliminar alarmas" (borra las que puso Organizy la noche anterior).',
+  'Añade "Dividir texto": el texto es "Contenido de URL" y el separador, "Saltos de línea".',
+  'Añade "Repetir con cada" con el "Texto dividido".',
+  'Dentro, otro "Si": "Elemento de repetición", "contiene", y escribe la barra |',
+  'Dentro de ese "Si": "Dividir texto" (el "Elemento de repetición", separador personalizado |), "Obtener elemento de la lista" con "Primer elemento", otro con "Último elemento" del mismo "Texto dividido" y "Crear alarma": la hora es el primer elemento y la etiqueta, el último.',
+  'Toca "OK". Luego, en la pestaña Automatización: "+", "Hora del día", 22:00, "Diariamente", "Ejecutar inmediatamente" y elige este Atajo.',
 ] as const;

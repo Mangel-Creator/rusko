@@ -454,3 +454,13 @@ verify_jwt = false
 # la sesión anónima por dentro, como las demás.
 [functions.ia]
 verify_jwt = false
+
+# Avisos con sonido en la web instalada (Web Push, 26/10/2026). La app llama con su
+# sesión anónima (se comprueba por dentro) y pg_cron, cada minuto, con su contraseña.
+[functions.avisos-web]
+verify_jwt = false
+
+# Alarmas al Reloj del iPhone (26/10/2026). El Atajo del usuario la lee sin sesión: lo
+# que deja entrar es su llave personal (solo lectura). La app sube las alarmas con su sesión.
+[functions.alarmas-reloj]
+verify_jwt = false

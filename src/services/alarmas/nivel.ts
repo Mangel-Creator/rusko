@@ -8,8 +8,8 @@ import type { AlarmScheduler } from 'react-native-alarm-scheduler';
 //     móvil bloqueado y en silencio.
 //   - "avisos": Expo Go, un iPhone con iOS anterior al 26 o sin permiso de alarmas.
 //     Son avisos con sonido (services/avisos): con el móvil en silencio no suenan.
-//   - "web": ni alarmas ni avisos (nivel.web.ts). Se ofrece crearlas en el Reloj del
-//     iPhone con un Atajo.
+//   - "web": ni alarmas ni avisos (nivel.web.ts). Un Atajo las pasa cada noche al Reloj del
+//     iPhone (services/alarmas/atajo.ts y reloj.ts).
 
 export type NivelAlarmas = 'nativo' | 'avisos' | 'web';
 

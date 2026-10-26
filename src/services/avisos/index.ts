@@ -2,6 +2,7 @@ import { AppState, Linking } from 'react-native';
 
 import { leerAjuste } from '@/data/ajustes';
 import { leerAdelantos, leerAlarmas, suscribirseAdelantos, suscribirseAlarmas } from '@/data/alarmas';
+import { leerAlarmasReloj, suscribirseAlarmasReloj } from '@/data/alarmasReloj';
 import { leerAjustesAvisos, suscribirseAjustesAvisos } from '@/data/avisos';
 import { leerCorreos, suscribirseCorreos } from '@/data/correos';
 import { leerEpocas, suscribirseEpocas } from '@/data/epocas';
@@ -30,7 +31,8 @@ import {
 } from './programar';
 import type { RespuestaAviso } from './programar';
 
-// Avisos (notificaciones locales, fase 4). Sin servidor: todo se programa en el móvil.
+// Avisos (notificaciones locales, fase 4). En el móvil todo se programa en el propio
+// móvil; en la web (26/10/2026) se suben a Supabase, que los manda con Web Push.
 //
 //   - iniciarAvisos(): en el arranque. Programa los avisos de los próximos días y
 //     los vuelve a programar al abrir la app y al cambiar eventos, perfil o ajustes.
@@ -65,7 +67,7 @@ export function reprogramarAvisos(): Promise<void> {
     if (!perfil || !bienvenidaCompletada) return;
     const ahora = new Date();
     const hoy = claveDia(ahora);
-    const [eventos, ajustes, { epocas, registro }, energia, salidas, alarmas, adelantos, nivel, planes, correo] =
+    const [eventos, ajustes, { epocas, registro }, energia, salidas, alarmas, adelantos, nivel, planes, correo, reloj] =
       await Promise.all([
         leerEventos(),
         leerAjustesAvisos(),
@@ -77,7 +79,12 @@ export function reprogramarAvisos(): Promise<void> {
         nivelEfectivo(),
         leerPlanes(),
         leerCorreos(),
+        leerAlarmasReloj(),
       ]);
+    // En la web, una cita con alarma de salida solo suena si el Atajo la pasa al Reloj;
+    // si no, se manda el "Sal ya" como siempre (26/10/2026).
+    const ajustesAlarmas =
+      nivel === 'web' && !reloj.enlace ? { ...alarmas.ajustes, salidas: [] } : alarmas.ajustes;
     // Época dorada activa (o que empieza estos días) con su plan, para sus avisos.
     const epoca = epocaProxima(epocas, hoy, DIAS_A_PROGRAMAR);
     const datosEpoca = epoca
@@ -93,7 +100,7 @@ export function reprogramarAvisos(): Promise<void> {
         salidas: Object.values(salidas),
         navegador: NOMBRE_NAVEGADOR[navegadorPara(await leerNavegador(), perfil.transporte)],
         // Alarmas (fase 7): como avisos solo si no hay alarmas de verdad (Expo Go).
-        alarmas: { lista: alarmas.alarmas, ajustes: alarmas.ajustes, adelantos, comoAvisos: nivel === 'avisos' },
+        alarmas: { lista: alarmas.alarmas, ajustes: ajustesAlarmas, adelantos, comoAvisos: nivel === 'avisos' },
         // Planes (fase 8): "Recordar a todos 3 h antes".
         planes,
         // Plazos que llegaron por correo (fase 11): la víspera.
@@ -134,6 +141,7 @@ export function iniciarAvisos(): () => void {
     suscribirsePermisoAlarmas(reprogramarEnUnMomento),
     suscribirsePlanes(reprogramarEnUnMomento), // "Recordar a todos 3 h antes" (fase 8)
     suscribirseCorreos(reprogramarEnUnMomento), // plazos que llegaron por correo (fase 11)
+    suscribirseAlarmasReloj(reprogramarEnUnMomento), // web: alarmas de salida en el Reloj o no
   ];
   // Cada vez que se vuelve a abrir la app: así siempre hay avisos para los próximos días.
   const app = AppState.addEventListener('change', (estado) => {

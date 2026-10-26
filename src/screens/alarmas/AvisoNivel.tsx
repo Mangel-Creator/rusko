@@ -2,16 +2,18 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ComponentProps, ReactNode } from 'react';
 import { StyleSheet, View } from 'react-native';
 
-import { Boton, Plegable, Texto } from '@/components';
+import { Boton, Texto } from '@/components';
 import { abrirAjustesAlarmas, permisoAlarmas, useNivelAlarmas, usePermisoAlarmas } from '@/services/alarmas';
-import { esWebDeIphone, PASOS_ATAJO } from '@/services/alarmas/atajo';
 import { moduloAlarmas, nivelPosible } from '@/services/alarmas/nivel';
 import { colores, espacio } from '@/theme';
+
+import { SeccionReloj } from './SeccionReloj';
 
 type NombreIcono = ComponentProps<typeof Ionicons>['name'];
 
 // Una línea arriba de la pestaña que dice cómo van a sonar las alarmas aquí (fase 7):
-// de verdad (app propia), como avisos (Expo Go o sin permiso) o nada (web).
+// de verdad (app propia), como avisos (Expo Go o sin permiso) o, en la web, en el Reloj
+// del iPhone con un Atajo (SeccionReloj).
 export function AvisoNivel() {
   const nivel = useNivelAlarmas();
   const permiso = usePermisoAlarmas();
@@ -25,25 +27,8 @@ export function AvisoNivel() {
     );
   }
 
-  if (nivel === 'web') {
-    return (
-      <View style={estilos.bloque}>
-        <Linea icono="globe-outline" texto="En la web no suenan: aquí solo las apuntas." />
-        {esWebDeIphone() ? (
-          <Plegable titulo="Crearlas en el Reloj del iPhone" resumen="Con un Atajo que creas una sola vez">
-            {PASOS_ATAJO.map((paso, i) => (
-              <Texto key={i} pequeno>
-                {i + 1}. {paso}
-              </Texto>
-            ))}
-            <Texto pequeno secundario>
-              Los días que se repite los pones luego en el Reloj.
-            </Texto>
-          </Plegable>
-        ) : null}
-      </View>
-    );
-  }
+  // Web (26/10/2026): un Atajo las pasa cada noche al Reloj del iPhone.
+  if (nivel === 'web') return <SeccionReloj />;
 
   // Avisos: el módulo existe (app propia) pero falta el permiso o el iPhone es antiguo.
   if (moduloAlarmas()) {

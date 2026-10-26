@@ -1,0 +1,11 @@
+{
+  "name": "Organizy",
+  "short_name": "Organizy",
+  "lang": "es",
+  "start_url": "/organizy/",
+  "scope": "/organizy/",
+  "display": "standalone",
+  "background_color": "#0F0D0C",
+  "theme_color": "#0F0D0C",
+  "icons": [{ "src": "/organizy/icono-app.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" }]
+}

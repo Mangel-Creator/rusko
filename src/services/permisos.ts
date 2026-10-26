@@ -25,8 +25,9 @@ function traducir(respuesta: Respuesta): EstadoPermiso {
 
 export const esWeb = Platform.OS === 'web';
 
-// En la web no hay notificaciones: los avisos programados de la fase 4 son solo
-// para el móvil (en la web harían falta push con un servidor).
+// En la web, las notificaciones van con Web Push (26/10/2026) y se activan solo desde
+// Perfil > Avisos, con su propio botón (services/avisos/push.web.ts): no salen en la
+// bienvenida ni en Permisos.
 const notificacionesDisponibles = !esWeb;
 
 // Permisos que tiene sentido pedir o mostrar en este dispositivo.
@@ -34,12 +35,21 @@ export const PERMISOS_DISPONIBLES: Permiso[] = notificacionesDisponibles
   ? ['ubicacion', 'notificaciones']
   : ['ubicacion'];
 
+// El permiso de avisos del navegador, si este navegador puede recibirlos.
+function permisoNavegador(): EstadoPermiso {
+  if (typeof window === 'undefined' || !('Notification' in window) || !('PushManager' in window)) {
+    return 'no-disponible';
+  }
+  const permiso = window.Notification.permission;
+  return permiso === 'granted' ? 'concedido' : permiso === 'denied' ? 'bloqueado' : 'sin-preguntar';
+}
+
 export async function consultarPermiso(permiso: Permiso): Promise<EstadoPermiso> {
   try {
     if (permiso === 'ubicacion') {
       return traducir(await Location.getForegroundPermissionsAsync());
     }
-    if (!notificacionesDisponibles) return 'no-disponible';
+    if (!notificacionesDisponibles) return permisoNavegador();
     return traducir(await Notifications.getPermissionsAsync());
   } catch {
     return 'no-disponible';
