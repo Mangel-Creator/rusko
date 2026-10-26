@@ -13,8 +13,8 @@ import { leerPlanes, suscribirsePlanes } from '@/data/planes';
 import { leerSalidas, suscribirseSalidas } from '@/data/salidas';
 import { tareasPendientes, type Energia } from '@/services/agenda';
 import { nivelEfectivo, suscribirsePermisoAlarmas } from '@/services/alarmas/nativo';
-import { epocaProxima, planificarEpoca } from '@/services/epoca';
-import { claveDia, formatearHora, sumarDias } from '@/services/fechas';
+import { epocaProxima, planDeHoy } from '@/services/epoca';
+import { claveDia, formatearHora, minutosDelDia, sumarDias } from '@/services/fechas';
 import { consultarPermiso } from '@/services/permisos';
 import { navegadorPara, NOMBRE_NAVEGADOR } from '@/services/rutas/navegador';
 import { enlaceWhatsapp } from '@/services/rutas/textos';
@@ -67,7 +67,7 @@ export function reprogramarAvisos(): Promise<void> {
     if (!perfil || !bienvenidaCompletada) return;
     const ahora = new Date();
     const hoy = claveDia(ahora);
-    const [eventos, ajustes, { epocas, registro }, energia, salidas, alarmas, adelantos, nivel, planes, correo, reloj] =
+    const [eventos, ajustes, { epocas, registro, planesDelDia }, energia, salidas, alarmas, adelantos, nivel, planes, correo, reloj] =
       await Promise.all([
         leerEventos(),
         leerAjustesAvisos(),
@@ -85,10 +85,22 @@ export function reprogramarAvisos(): Promise<void> {
     // si no, se manda el "Sal ya" como siempre (26/10/2026).
     const ajustesAlarmas =
       nivel === 'web' && !reloj.enlace ? { ...alarmas.ajustes, salidas: [] } : alarmas.ajustes;
-    // Época dorada activa (o que empieza estos días) con su plan, para sus avisos.
+    // Época dorada activa (o que empieza estos días) con su plan, para sus avisos. Hoy
+    // con lo que el plan tenía previsto (igual que la pestaña Época).
     const epoca = epocaProxima(epocas, hoy, DIAS_A_PROGRAMAR);
     const datosEpoca = epoca
-      ? { epoca, plan: planificarEpoca({ epoca, eventos, registro, hoy, energias: { [hoy]: energia } }) }
+      ? {
+          epoca,
+          plan: planDeHoy({
+            epoca,
+            eventos,
+            registro,
+            planesDelDia,
+            hoy,
+            energias: { [hoy]: energia },
+            ahora: minutosDelDia(ahora),
+          }),
+        }
       : null;
     await programarAvisos(
       planificarAvisos({

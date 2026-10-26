@@ -91,6 +91,9 @@ export type Epoca = {
   ritmo: RitmoEpoca;
   hitos: Hito[];
   avisos: AvisosEpoca;
+  // true = Época dorada: mientras dura, Hoy, Semana y los avisos usan su ritmo.
+  // false = solo plan de estudio: los bloques van en tu día normal (26/10/2026).
+  dorada: boolean;
   ejemplo: boolean;
   resumenVisto: boolean; // ya se enseñó el resumen final en Hoy
 };
@@ -107,7 +110,23 @@ export type RegistroBloque = {
   inicio: number; // minutos desde medianoche
   fin: number;
   estado: EstadoBloque;
+  // Por qué no se hizo ("Me fui a Valencia"), si lo quiso apuntar. Solo en saltados.
+  motivo?: string | null;
 };
+
+// Lo que el plan de un día tenía previsto (bloques pendientes), guardado en el
+// dispositivo. Sirve para dos cosas: que los bloques de hoy que ya empezaron no
+// cambien de hora aunque se apunte algo nuevo, y saber después qué se quedó sin
+// marcar. Clave: "<época>:<día>". No viaja en la copia de seguridad.
+export type BloqueGuardado = {
+  id: string;
+  hitoId: string;
+  inicio: number;
+  fin: number;
+  descansoFin: number;
+};
+
+export type PlanesDelDia = Record<string, BloqueGuardado[]>;
 
 // Guardado: SQLite en el móvil (repositorio.ts) y el navegador en la web
 // (repositorio.web.ts). Los dos cumplen este tipo.

@@ -3,66 +3,90 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { Boton, BotonAtras, Interruptor, Pantalla, Tarjeta, Texto, Titulo } from '@/components';
+import { Boton, BotonAtras, Interruptor, Pantalla, Plegable, Tarjeta, Texto, Titulo } from '@/components';
 import { useEnergia } from '@/data/energia';
 import {
   borrarEpoca,
   guardarEpoca,
   terminarEpoca,
-  useEpocas,
   type AvisosEpoca,
   type Epoca,
+  type PlanesDelDia,
   type RegistroBloque,
 } from '@/data/epocas';
-import { useEventos } from '@/data/eventos';
+import { useEventos, type Evento } from '@/data/eventos';
 import { usePerfil, type Perfil } from '@/data/perfil';
-import { resolverLugar } from '@/services/agenda';
+import { resolverLugar, type Energia } from '@/services/agenda';
 import { avisosDisponibles } from '@/services/avisos';
 import {
   cuentaAtras,
-  epocaActiva,
   esDiaLibre,
+  esDorada,
   estadoEpoca,
+  inicioRecomendado,
   lugarDelDia,
-  planificarEpoca,
+  nombreModo,
+  planDeHoy,
   progresoHitos,
-  progresoSemana,
   resumenEpoca,
   temaActual,
   textoHoras,
   textoQuedan,
   type PlanEpoca,
 } from '@/services/epoca';
-import { claveDia, DIAS_SEMANA_LETRA, fechaDesdeClave, formatearDiaCorto, sumarDias } from '@/services/fechas';
+import { claveDia, DIAS_SEMANA_LETRA, fechaDesdeClave, formatearDiaCorto, minutosDelDia, sumarDias } from '@/services/fechas';
 import { alturaTactil, colores, espacio, radio } from '@/theme';
 
+import { useAhora } from './calendario/useAhora';
 import { BarraHoras } from './epoca/BarraHoras';
+import { PlanDeHoy } from './epoca/PlanDeHoy';
 import { RepasoIA } from './epoca/RepasoIA';
+import { SinMarcar } from './epoca/SinMarcar';
+import { useEpocaActiva } from './epoca/useEpoca';
 import { DESCANSO_TEXTO, formatoHoras, NOMBRE_TIPO, NOMBRES_DIAS } from './epoca/textos';
 
-// Pestaña Época dorada (/epoca o /epoca?id=...). Sin id enseña la activa;
-// si no hay ninguna, explica el modo y deja crear una. Con id, "Volver" quita el id.
+// Pestaña Época (/epoca o /epoca?id=...). Sin id enseña la activa (Época dorada o
+// solo plan de estudio); si no hay ninguna, explica el modo y deja crear una. Con id,
+// "Volver" quita el id. Con la activa: plan de hoy, lo que se quedó sin marcar y el
+// resto de la época.
 
 const dia = (clave: string) => formatearDiaCorto(fechaDesdeClave(clave));
 
 export function PantallaEpoca() {
   const { id } = useLocalSearchParams<{ id?: string }>();
-  const hoy = claveDia(new Date());
-  const { cargado, epocas, registro } = useEpocas();
+  const ahora = useAhora();
+  const hoy = claveDia(ahora);
   const { eventos } = useEventos();
   const { perfil } = usePerfil();
   const [energia] = useEnergia(hoy);
+  // La activa (y su plan de hoy, que se guarda para poder replanificar).
+  const activa = useEpocaActiva(hoy, eventos, energia, ahora);
+  const { cargado, epocas, registro, planesDelDia } = activa;
 
-  const epoca = id ? (epocas.find((e) => e.id === id) ?? null) : epocaActiva(epocas, hoy);
-  const plan = epoca ? planificarEpoca({ epoca, eventos, registro, hoy, energias: { [hoy]: energia } }) : null;
+  const epoca = id ? (epocas.find((e) => e.id === id) ?? null) : activa.epoca;
+  const plan =
+    epoca && epoca.id === activa.epoca?.id
+      ? activa.plan
+      : epoca
+        ? planDeHoy({ epoca, eventos, registro, planesDelDia, hoy, energias: { [hoy]: energia }, ahora: minutosDelDia(ahora) })
+        : null;
 
   return (
     <Pantalla>
-      {id ? <BotonAtras texto="Época dorada" etiqueta="Volver" onPress={() => router.setParams({ id: undefined })} /> : null}
+      {id ? <BotonAtras texto="Época" etiqueta="Volver" onPress={() => router.setParams({ id: undefined })} /> : null}
       {!cargado ? (
         <Texto secundario>Cargando…</Texto>
       ) : epoca && plan ? (
-        <DetalleEpoca epoca={epoca} plan={plan} registro={registro} perfil={perfil} hoy={hoy} />
+        <DetalleEpoca
+          epoca={epoca}
+          plan={plan}
+          registro={registro}
+          planesDelDia={planesDelDia}
+          eventos={eventos}
+          perfil={perfil}
+          ahora={ahora}
+          energia={energia}
+        />
       ) : id ? (
         <Texto>Esta época ya no existe.</Texto>
       ) : (
@@ -79,14 +103,17 @@ function SinEpoca({ epocas, hoy }: { epocas: Epoca[]; hoy: string }) {
     .sort((a, b) => a.inicio.localeCompare(b.inicio));
   return (
     <>
-      <Etiqueta />
-      <Titulo>Época dorada</Titulo>
+      <Etiqueta texto="Época dorada" />
+      <Titulo>Plan de estudio</Titulo>
       <Texto>
-        Para épocas de exámenes o de mucho trabajo. Me cuentas cómo va a ser (horario, dónde vas, qué exámenes o
-        entregas tienes) y te preparo un plan de estudio día a día, con descansos, que respeta lo que ya tienes en
-        el calendario. Cuando termina, vuelves a tu ritmo de siempre.
+        Para épocas de exámenes o de mucho trabajo. Me cuentas qué exámenes o entregas tienes y te preparo un plan
+        día a día, con descansos, que respeta lo que ya tienes en el calendario. Te digo cuándo conviene empezar.
       </Texto>
-      <Boton titulo="Crear una época dorada" onPress={() => router.push('/epoca-editar')} />
+      <Texto secundario>
+        Si quieres, ese día pasas a Época dorada: tu horario, tu sitio y la hora de dormir cambian mientras dure. Si
+        no, el plan va dentro de tu día normal.
+      </Texto>
+      <Boton titulo="Crear un plan" onPress={() => router.push('/epoca-editar')} />
       {programadas.length > 0 ? (
         <>
           <Titulo nivel={2} style={estilos.seccion}>
@@ -101,7 +128,7 @@ function SinEpoca({ epocas, hoy }: { epocas: Epoca[]; hoy: string }) {
               <View style={estilos.textos}>
                 <Texto fuerte>{e.nombre}</Texto>
                 <Texto pequeno secundario>
-                  Empieza el {dia(e.inicio)} · termina el {dia(e.fin)}
+                  {nombreModo(e)} · empieza el {dia(e.inicio)} · termina el {dia(e.fin)}
                 </Texto>
               </View>
               <Ionicons name="chevron-forward" size={20} color={colores.textoSecundario} />
@@ -117,16 +144,19 @@ type PropsDetalle = {
   epoca: Epoca;
   plan: PlanEpoca;
   registro: RegistroBloque[];
+  planesDelDia: PlanesDelDia;
+  eventos: Evento[];
   perfil: Perfil | null;
-  hoy: string;
+  ahora: Date;
+  energia: Energia;
 };
 
-function DetalleEpoca({ epoca, plan, registro, perfil, hoy }: PropsDetalle) {
+function DetalleEpoca({ epoca, plan, registro, planesDelDia, eventos, perfil, ahora, energia }: PropsDetalle) {
+  const hoy = claveDia(ahora);
   const [confirmar, setConfirmar] = useState<'terminar' | 'borrar' | null>(null);
   const estado = estadoEpoca(epoca, hoy);
   const siguiente = estado !== 'pasada' ? cuentaAtras(epoca, new Date()) : null;
   const hitos = progresoHitos(epoca, registro, plan);
-  const semana = progresoSemana(epoca, registro, plan, hoy);
   const { ritmo } = epoca;
   const lugar = resolverLugar(ritmo.lugar, perfil);
   const nombreHito = (id: string) => epoca.hitos.find((h) => h.id === id)?.nombre ?? 'Estudio';
@@ -145,18 +175,52 @@ function DetalleEpoca({ epoca, plan, registro, perfil, hoy }: PropsDetalle) {
   const cambiarAvisos = (cambios: Partial<AvisosEpoca>) =>
     guardarEpoca({ ...epoca, avisos: { ...epoca.avisos, ...cambios } });
 
+  // Programada y sin tiempo de sobra: mejor empezar antes (el día que lo deja todo con margen).
+  const antes = estado === 'programada' ? inicioRecomendado({ epoca, eventos, registro, hoy }) : null;
+  const empezarAntes = antes && antes.dia < epoca.inicio ? antes.dia : null;
+
+  // Lo que no hizo y por qué, de lo más reciente a lo más antiguo.
+  const noHechos = registro
+    .filter((r) => r.epocaId === epoca.id && r.estado === 'saltado' && r.dia < hoy)
+    .sort((a, b) => b.dia.localeCompare(a.dia) || a.inicio - b.inicio);
+
   return (
     <>
-      <Etiqueta />
+      <Etiqueta texto={nombreModo(epoca)} />
       <Titulo>{epoca.nombre}</Titulo>
       <Texto secundario>
         {NOMBRE_TIPO[epoca.tipo]} · del {dia(epoca.inicio)} al {dia(epoca.fin)}
       </Texto>
       <Texto fuerte>{cuando}</Texto>
 
+      {empezarAntes ? (
+        <Tarjeta style={estilos.progreso}>
+          <Titulo nivel={3}>Mejor empieza antes</Titulo>
+          <Texto>
+            Empezando el {dia(epoca.inicio)} vas justo. Si empiezas el {dia(empezarAntes)}, te cabe todo con margen
+            por si surge algo.
+          </Texto>
+          <Boton
+            titulo={empezarAntes === hoy ? 'Empezar hoy' : `Empezar el ${dia(empezarAntes)}`}
+            onPress={() => guardarEpoca({ ...epoca, inicio: empezarAntes })}
+          />
+        </Tarjeta>
+      ) : null}
+
       {estado === 'pasada' ? <Resumen epoca={epoca} registro={registro} hoy={hoy} /> : null}
 
-      {siguiente ? (
+      {estado !== 'programada' ? (
+        <SinMarcar epoca={epoca} planesDelDia={planesDelDia} registro={registro} hoy={hoy} />
+      ) : null}
+
+      {estado === 'activa' ? (
+        <>
+          <Titulo nivel={2} style={estilos.seccion}>
+            Hoy
+          </Titulo>
+          <PlanDeHoy epoca={epoca} plan={plan} registro={registro} perfil={perfil} ahora={ahora} energia={energia} />
+        </>
+      ) : siguiente ? (
         <View style={estilos.cuenta}>
           <Ionicons name="hourglass-outline" size={20} color={colores.texto} />
           <Titulo nivel={3}>{siguiente.texto}</Titulo>
@@ -165,12 +229,6 @@ function DetalleEpoca({ epoca, plan, registro, perfil, hoy }: PropsDetalle) {
 
       {estado !== 'pasada' ? (
         <>
-          <Titulo nivel={2} style={estilos.seccion}>
-            Progreso
-          </Titulo>
-          <Tarjeta style={estilos.progreso}>
-            <BarraHoras etiqueta="Esta semana" hechoMin={semana.hechoMin} totalMin={semana.planeadoMin} />
-          </Tarjeta>
 
           <Titulo nivel={2} style={estilos.seccion}>
             Próximos días
@@ -255,12 +313,28 @@ function DetalleEpoca({ epoca, plan, registro, perfil, hoy }: PropsDetalle) {
         </>
       ) : null}
 
+      {noHechos.length > 0 ? (
+        <Plegable titulo="Lo que no hiciste" resumen={`${noHechos.length} ${noHechos.length === 1 ? 'bloque' : 'bloques'}`}>
+          {noHechos.map((r) => (
+            <View key={r.id} style={estilos.textos}>
+              <Texto fuerte>
+                {nombreHito(r.hitoId)} · {dia(r.dia)}
+              </Texto>
+              <Texto pequeno secundario>
+                {r.motivo?.trim() || 'Sin motivo'}
+              </Texto>
+            </View>
+          ))}
+        </Plegable>
+      ) : null}
+
       <Titulo nivel={2} style={estilos.seccion}>
         Tu ritmo
       </Titulo>
       <Tarjeta>
         <Texto>
-          {ritmo.levantarse} – {ritmo.acostarse} · {formatoHoras(ritmo.horasDia)} al día · {DESCANSO_TEXTO[ritmo.descanso]}
+          {esDorada(epoca) ? `${ritmo.levantarse} – ${ritmo.acostarse} · ` : 'Con tu horario de siempre · '}
+          {formatoHoras(ritmo.horasDia)} al día · {DESCANSO_TEXTO[ritmo.descanso]}
         </Texto>
         <Texto secundario>
           {lugar ? (lugar.nombre ?? lugar.direccion) : 'Casa'} los días{' '}
@@ -275,14 +349,14 @@ function DetalleEpoca({ epoca, plan, registro, perfil, hoy }: PropsDetalle) {
       </Tarjeta>
       <Boton
         variante="secundario"
-        titulo="Editar la época"
+        titulo={esDorada(epoca) ? 'Editar la época' : 'Editar el plan'}
         onPress={() => router.push({ pathname: '/epoca-editar', params: { id: epoca.id } })}
       />
 
       {estado !== 'pasada' ? (
         <>
           <Titulo nivel={2} style={estilos.seccion}>
-            Avisos de la época
+            {esDorada(epoca) ? 'Avisos de la época' : 'Avisos del plan'}
           </Titulo>
           {avisosDisponibles ? (
             <>
@@ -302,12 +376,14 @@ function DetalleEpoca({ epoca, plan, registro, perfil, hoy }: PropsDetalle) {
                 valor={epoca.avisos.finDescanso}
                 alCambiar={(finDescanso) => cambiarAvisos({ finDescanso })}
               />
-              <Interruptor
-                etiqueta="Hora de ir a dormir"
-                ayuda={`A las ${ritmo.acostarse}, tu hora de acostarte en esta época.`}
-                valor={epoca.avisos.dormir}
-                alCambiar={(dormir) => cambiarAvisos({ dormir })}
-              />
+              {esDorada(epoca) ? (
+                <Interruptor
+                  etiqueta="Hora de ir a dormir"
+                  ayuda={`A las ${ritmo.acostarse}, tu hora de acostarte en esta época.`}
+                  valor={epoca.avisos.dormir}
+                  alCambiar={(dormir) => cambiarAvisos({ dormir })}
+                />
+              ) : null}
             </>
           ) : (
             <Texto secundario>
@@ -324,7 +400,7 @@ function DetalleEpoca({ epoca, plan, registro, perfil, hoy }: PropsDetalle) {
       {confirmar ? (
         <Tarjeta style={estilos.confirmar}>
           <Titulo nivel={3}>
-            {confirmar === 'terminar' ? '¿Terminar la época hoy?' : `¿Borrar «${epoca.nombre}»?`}
+            {confirmar === 'terminar' ? (esDorada(epoca) ? '¿Terminar la época hoy?' : '¿Terminar el plan hoy?') : `¿Borrar «${epoca.nombre}»?`}
           </Titulo>
           <Texto secundario>
             {confirmar === 'terminar'
@@ -348,9 +424,9 @@ function DetalleEpoca({ epoca, plan, registro, perfil, hoy }: PropsDetalle) {
       ) : (
         <>
           {estado === 'activa' ? (
-            <Boton variante="secundario" titulo="Terminar la época hoy" onPress={() => setConfirmar('terminar')} />
+            <Boton variante="secundario" titulo={esDorada(epoca) ? 'Terminar la época hoy' : 'Terminar el plan hoy'} onPress={() => setConfirmar('terminar')} />
           ) : null}
-          <Boton variante="secundario" titulo="Borrar la época" onPress={() => setConfirmar('borrar')} />
+          <Boton variante="secundario" titulo={esDorada(epoca) ? 'Borrar la época' : 'Borrar el plan'} onPress={() => setConfirmar('borrar')} />
         </>
       )}
     </>
@@ -373,12 +449,12 @@ function Resumen({ epoca, registro, hoy }: { epoca: Epoca; registro: RegistroBlo
   );
 }
 
-function Etiqueta() {
+function Etiqueta({ texto }: { texto: string }) {
   return (
     <View style={estilos.etiqueta}>
       <Ionicons name="star" size={14} color={colores.textoOscuro} />
       <Texto pequeno fuerte style={estilos.textoEtiqueta}>
-        Época dorada
+        {texto}
       </Texto>
     </View>
   );

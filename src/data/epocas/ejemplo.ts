@@ -62,6 +62,7 @@ export function crearEpocaEjemplo(hoy: ClaveDia): { epoca: Epoca; registro: Regi
     ],
     avisos: { salir: true, inicioBloque: true, finDescanso: true, dormir: true },
     ejemplo: true,
+    dorada: true,
     resumenVisto: false,
   };
   // Dos bloques hechos cada uno de los días anteriores (8:00 y 9:00).

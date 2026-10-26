@@ -28,7 +28,7 @@ import {
   suenaElDia,
 } from '@/services/alarmas/calculo';
 import { tituloAlarma } from '@/services/alarmas/definiciones';
-import { estadoEpoca } from '@/services/epoca';
+import { esDorada, estadoEpoca } from '@/services/epoca';
 import {
   claveDia,
   fechaDesdeClave,
@@ -308,7 +308,7 @@ function avisosDeAlarmaSalida(ctx: ContextoAvisos, dia: ClaveDia): AvisoPlanific
 // su "Hora de ir a dormir" con su propio horario.
 function avisoDormir({ alarmas, perfil, epoca }: ContextoAvisos, dia: ClaveDia): AvisoPlanificado[] {
   if (!alarmas?.ajustes.dormir) return [];
-  if (epoca && estadoEpoca(epoca.epoca, dia) === 'activa') return [];
+  if (epoca && esDorada(epoca.epoca) && estadoEpoca(epoca.epoca, dia) === 'activa') return [];
   const antes = alarmas.ajustes.dormirAntesMin;
   return [
     {

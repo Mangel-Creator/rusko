@@ -2,7 +2,7 @@ import { StyleSheet } from 'react-native';
 
 import { Boton, Tarjeta, Texto, Titulo } from '@/components';
 import { marcarResumenVisto, type Epoca, type RegistroBloque } from '@/data/epocas';
-import { estadoEpoca, resumenEpoca, textoHoras } from '@/services/epoca';
+import { esDorada, estadoEpoca, resumenEpoca, textoHoras } from '@/services/epoca';
 import type { ClaveDia } from '@/services/fechas';
 import { colores, espacio } from '@/theme';
 
@@ -25,7 +25,9 @@ export function ResumenFinEpoca({
 
   return (
     <Tarjeta style={estilos.tarjeta}>
-      <Titulo nivel={3}>Época dorada terminada: {terminada.nombre}</Titulo>
+      <Titulo nivel={3}>
+        {esDorada(terminada) ? 'Época dorada terminada' : 'Plan de estudio terminado'}: {terminada.nombre}
+      </Titulo>
       <Texto>
         {textoHoras(r.minutosHechos)} de trabajo, {r.bloquesHechos}{' '}
         {r.bloquesHechos === 1 ? 'bloque completado' : 'bloques completados'} y {r.hitosSuperados} de{' '}

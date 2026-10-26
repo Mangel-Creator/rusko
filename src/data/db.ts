@@ -117,6 +117,14 @@ const MIGRACIONES: Migracion[] = [
       );
     `);
   },
+  // 10. Época dorada o solo plan de estudio (1 = dorada, como las que ya había) y por
+  //     qué no se hizo un bloque saltado.
+  async (bd) => {
+    await bd.execAsync(`
+      ALTER TABLE epocas ADD COLUMN dorada INTEGER NOT NULL DEFAULT 1;
+      ALTER TABLE bloques_epoca ADD COLUMN motivo TEXT;
+    `);
+  },
 ];
 
 let bdPromesa: Promise<SQLite.SQLiteDatabase> | null = null;

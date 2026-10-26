@@ -96,19 +96,19 @@ export function SeccionEpocas() {
   return (
     <>
       <Texto secundario>
-        Un modo para épocas de exámenes o de trabajo intenso. Mientras dura, la app usa el ritmo
-        de la época y te prepara un plan cada día. Al terminar, la app vuelve sola a tu ritmo de siempre.
+        Para épocas de exámenes o de trabajo intenso: un plan de estudio día a día. Si es Época dorada,
+        mientras dura la app usa el ritmo de la época y al terminar vuelve sola a tu ritmo de siempre.
       </Texto>
 
       {cargado && epocas.length === 0 ? (
-        <Texto secundario>Todavía no tienes ninguna época dorada.</Texto>
+        <Texto secundario>Todavía no tienes ningún plan de estudio.</Texto>
       ) : null}
 
       {grupo('Activa', activas)}
       {grupo('Programadas', programadas)}
       {grupo('Pasadas', pasadas)}
 
-      <Boton titulo="Nueva época dorada" onPress={() => router.push('/epoca-editar')} />
+      <Boton titulo="Nuevo plan de estudio" onPress={() => router.push('/epoca-editar')} />
 
       <Texto secundario style={estilos.separado}>
         Una época de ejemplo con tres exámenes, para probar el modo sin rellenar nada.

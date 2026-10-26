@@ -21,11 +21,12 @@ import {
   Titulo,
   type Opcion,
 } from '@/components';
-import { guardarEpoca, useEpocas, type Epoca } from '@/data/epocas';
+import { guardarEpoca, useEpocas, type Epoca, type RegistroBloque } from '@/data/epocas';
+import { useEventos } from '@/data/eventos';
 import type { DiaSemana, Perfil } from '@/data/perfil';
 import { usePerfil } from '@/data/perfil';
 import { NOMBRE_CASA } from '@/services/agenda';
-import { epocasSolapadas } from '@/services/epoca';
+import { epocasSolapadas, inicioRecomendado } from '@/services/epoca';
 import { claveDia, fechaDesdeClave, formatearDiaCorto } from '@/services/fechas';
 import { colores, espacio } from '@/theme';
 
@@ -36,13 +37,16 @@ import {
   comprobarPaso2,
   comprobarPaso3,
   epocaDesdeBorrador,
+  epocaProvisional,
   hayErrores,
+  inicioElegido,
   nombrePorDefecto,
   type BorradorEpoca,
   type EleccionLugar,
   type Errores,
   type Trayecto,
 } from './epoca/borrador';
+import { CuandoEmpezar } from './epoca/CuandoEmpezar';
 import { CuentameloIA } from './epoca/CuentameloIA';
 import { EditorHitos } from './epoca/EditorHitos';
 import { EditorImprescindibles } from './epoca/EditorImprescindibles';
@@ -73,7 +77,7 @@ function volver() {
 
 export function PantallaEpocaFormulario() {
   const { id, paso } = useLocalSearchParams<{ id?: string; paso?: string }>();
-  const { cargado, epocas } = useEpocas();
+  const { cargado, epocas, registro } = useEpocas();
   const { perfil } = usePerfil();
 
   if (id && !cargado) {
@@ -97,22 +101,35 @@ export function PantallaEpocaFormulario() {
       key={id ?? 'nueva'}
       epoca={epoca}
       epocas={epocas}
+      registro={registro}
       perfil={perfil}
       pasoInicial={paso === '3' ? 3 : paso === '2' ? 2 : 1}
     />
   );
 }
 
-type Props = { epoca: Epoca | null; epocas: Epoca[]; perfil: Perfil | null; pasoInicial: Paso };
+type Props = {
+  epoca: Epoca | null;
+  epocas: Epoca[];
+  registro: RegistroBloque[];
+  perfil: Perfil | null;
+  pasoInicial: Paso;
+};
 
-function Formulario({ epoca, epocas, perfil, pasoInicial }: Props) {
+function Formulario({ epoca, epocas, registro, perfil, pasoInicial }: Props) {
   const hoy = claveDia(new Date());
-  const [b, setBorrador] = useState<BorradorEpoca>(() => borradorDesdeEpoca(epoca, perfil, hoy));
+  const { eventos } = useEventos();
+  const [borrador, setBorrador] = useState<BorradorEpoca>(() => borradorDesdeEpoca(epoca, perfil, hoy));
   const [errores, setErrores] = useState<Errores>({});
   const [paso, setPaso] = useState<Paso>(pasoInicial);
   const [ocupado, setOcupado] = useState(false);
   const [solapes, setSolapes] = useState<Epoca[]>([]);
   const scroll = useRef<ScrollViewInstance>(null);
+  const b = borrador;
+  // El día recomendado para empezar solo hace falta en el paso 3 (donde se elige).
+  const recomendado =
+    paso === 3 ? inicioRecomendado({ epoca: epocaProvisional(b), eventos, registro, hoy }) : null;
+  const inicio = inicioElegido(b, recomendado?.dia ?? null, hoy);
 
   const cambiar = (cambios: Partial<BorradorEpoca>) => {
     setBorrador((actual) => ({ ...actual, ...cambios }));
@@ -143,6 +160,7 @@ function Formulario({ epoca, epocas, perfil, pasoInicial }: Props) {
   };
 
   const guardar = async (aunqueSeSolape: boolean) => {
+    const b = { ...borrador, inicio };
     const todos = { ...comprobarPaso1(b, hoy), ...comprobarPaso2(b), ...comprobarPaso3(b) };
     setErrores(todos);
     if (hayErrores(todos)) {
@@ -208,7 +226,7 @@ function Formulario({ epoca, epocas, perfil, pasoInicial }: Props) {
           </View>
           <Plegable
             titulo="Más ajustes"
-            resumen={`Empieza ${b.inicio === hoy ? 'hoy' : formatearDiaCorto(fechaDesdeClave(b.inicio)).toLocaleLowerCase('es-ES')} · «${b.nombre.trim() || nombrePorDefecto(b)}»`}
+            resumen={`«${b.nombre.trim() || nombrePorDefecto(b)}»`}
             abierto={!!errores.nombre}>
             <CampoTexto
               etiqueta="Nombre (si no, le pongo uno)"
@@ -218,7 +236,6 @@ function Formulario({ epoca, epocas, perfil, pasoInicial }: Props) {
               autoCapitalize="sentences"
               error={errores.nombre}
             />
-            <SelectorFecha etiqueta="Empieza" valor={b.inicio} alCambiar={(inicio) => cambiar({ inicio })} />
           </Plegable>
           <Boton titulo="Siguiente" onPress={() => siguiente(() => comprobarPaso1(b, hoy), 2)} />
         </>
@@ -341,6 +358,7 @@ function Formulario({ epoca, epocas, perfil, pasoInicial }: Props) {
             fin={b.fin}
           />
           <MensajeError texto={errores.hitos} />
+          <CuandoEmpezar borrador={b} cambiar={cambiar} recomendado={recomendado} inicio={inicio} hoy={hoy} />
 
           {solapes.length > 0 ? (
             <Tarjeta style={estilos.aviso} accessibilityLiveRegion="assertive">
@@ -361,7 +379,17 @@ function Formulario({ epoca, epocas, perfil, pasoInicial }: Props) {
 
           <View style={estilos.botones}>
             <Boton
-              titulo={ocupado ? 'Guardando…' : epoca ? 'Guardar cambios' : 'Empezar época dorada'}
+              titulo={
+                ocupado
+                  ? 'Guardando…'
+                  : epoca
+                    ? 'Guardar cambios'
+                    : inicio > hoy
+                      ? 'Guardar el plan'
+                      : b.dorada
+                        ? 'Empezar época dorada'
+                        : 'Empezar el plan'
+              }
               disabled={ocupado}
               onPress={() => guardar(false)}
             />

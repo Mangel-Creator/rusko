@@ -61,6 +61,7 @@ function epoca(parcial: Partial<Epoca> = {}): Epoca {
     hitos: [hito({})],
     avisos: { salir: true, inicioBloque: true, finDescanso: true, dormir: true },
     ejemplo: false,
+    dorada: true,
     resumenVisto: false,
     ...parcial,
   };

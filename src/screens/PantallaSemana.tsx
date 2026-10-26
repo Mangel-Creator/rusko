@@ -22,9 +22,10 @@ import {
 } from '@/services/agenda';
 import {
   epocaActiva,
+  esDorada,
   eventoDeBloque,
   imprescindiblesDelDia,
-  planificarEpoca,
+  planDeHoy,
   PREFIJO_EPOCA,
   ventanaEpoca,
   type PlanEpoca,
@@ -62,7 +63,7 @@ export function PantallaSemana() {
   const [elegido, setElegido] = useState<ClaveDia>(hoy);
   const { perfil } = usePerfil();
   const { eventos } = useEventos();
-  const { epocas, registro } = useEpocas();
+  const { epocas, registro, planesDelDia } = useEpocas();
   const [energiaHoy] = useEnergia(hoy);
 
   const lunes = claveDia(inicioDeSemana(fechaDesdeClave(elegido)));
@@ -71,12 +72,21 @@ export function PantallaSemana() {
 
   // Época dorada (fase 4b): los días de una época usan su horario para la carga y
   // la línea de horas, y enseñan sus bloques de estudio (de hoy en adelante, el
-  // plan; los días pasados, lo que se hizo) y lo que no quiere dejar de hacer.
+  // plan; los días pasados, lo que se hizo) y lo que no quiere dejar de hacer. Si es
+  // solo plan de estudio (sin Época dorada), los bloques van en el horario de siempre.
   const planes = new Map<string, PlanEpoca>();
   const planDe = (epoca: Epoca) => {
     const guardado = planes.get(epoca.id);
     if (guardado) return guardado;
-    const plan = planificarEpoca({ epoca, eventos, registro, hoy, energias: { [hoy]: energiaHoy } });
+    const plan = planDeHoy({
+      epoca,
+      eventos,
+      registro,
+      planesDelDia,
+      hoy,
+      energias: { [hoy]: energiaHoy },
+      ahora: minutosDelDia(ahora),
+    });
     planes.set(epoca.id, plan);
     return plan;
   };
@@ -93,6 +103,7 @@ export function PantallaSemana() {
       ...imprescindiblesDelDia(epoca, dia),
       ...bloques.map((b) => eventoDeBloque(epoca, b)),
     ].sort((a, b) => intervaloDe(a).inicio - intervaloDe(b).inicio);
+    if (!esDorada(epoca)) return { epoca, eventos: todos, ventana: ventanaDelDia(perfil), jornada };
     const ventana = ventanaEpoca(epoca);
     return { epoca, eventos: todos, ventana, jornada: ventana.fin - ventana.inicio };
   };

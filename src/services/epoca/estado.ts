@@ -23,6 +23,16 @@ export function estadoEpoca(epoca: Epoca, hoy: ClaveDia): EstadoEpoca {
   return 'activa';
 }
 
+// Época dorada (cambia el ritmo del día) o solo plan de estudio (26/10/2026).
+// Las guardadas antes no tienen el campo: eran todas doradas.
+export function esDorada(epoca: Pick<Epoca, 'dorada'>): boolean {
+  return epoca.dorada !== false;
+}
+
+export function nombreModo(epoca: Pick<Epoca, 'dorada'>): string {
+  return esDorada(epoca) ? 'Época dorada' : 'Plan de estudio';
+}
+
 // La época activa ese día. Solo puede haber una: si dos se solapan (se avisa al
 // guardar), manda la que empezó antes.
 export function epocaActiva(epocas: Epoca[], dia: ClaveDia): Epoca | null {

@@ -1,4 +1,5 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
+import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Casilla, Tarjeta, Texto, Titulo } from '@/components';
@@ -20,6 +21,7 @@ import { claveDia, horaDesdeMinutos, minutosDelDia } from '@/services/fechas';
 import { alturaTactil, cifras, colores, espacio, fuentes } from '@/theme';
 
 import { BarraHoras } from './BarraHoras';
+import { ElegirMotivo } from './Motivo';
 import { DESCANSO_TEXTO } from './textos';
 
 type Props = {
@@ -135,36 +137,63 @@ export function PlanDeHoy({ epoca, plan, registro, perfil, ahora, energia }: Pro
 type PropsFila = { bloque: BloquePlan; titulo: string; tema: string | null; pasado: boolean; primera: boolean };
 
 // Un bloque en una línea: casilla, "08:30 – 09:20" y el examen. "Saltar" a la derecha.
+// Al saltarlo se puede decir por qué (opcional); el motivo se queda debajo.
 function FilaBloque({ bloque, titulo, tema, pasado, primera }: PropsFila) {
+  const [preguntar, setPreguntar] = useState(false);
+  const [texto, setTexto] = useState('');
   const saltado = bloque.estado === 'saltado';
   const apagado = saltado || (pasado && bloque.estado === 'pendiente');
-  const marcar = (estado: 'hecho' | 'saltado' | null) => marcarBloque(bloque, estado);
+  const marcar = (estado: 'hecho' | 'saltado' | null, motivo?: string) => {
+    setPreguntar(estado === 'saltado' && motivo === undefined);
+    setTexto('');
+    return marcarBloque(bloque, estado, motivo);
+  };
+  const motivo = saltado ? (bloque.motivo ?? '') : '';
 
   return (
-    <View style={[estilos.bloque, !primera && estilos.separador]}>
-      <Casilla
-        marcada={bloque.estado === 'hecho'}
-        alCambiar={(hecho) => marcar(hecho ? 'hecho' : null)}
-        etiqueta={`Marcar como hecho: ${titulo}, ${horaDesdeMinutos(bloque.inicio)}`}
-      />
-      <View style={estilos.flex}>
-        <Texto pequeno secundario style={estilos.hora}>
-          {horaDesdeMinutos(bloque.inicio)} – {horaDesdeMinutos(bloque.fin)}
-          {saltado ? ' · saltado' : ''}
-        </Texto>
-        <Texto fuerte numberOfLines={1} style={[apagado && estilos.secundario, saltado && estilos.tachado]}>
-          {titulo}
-        </Texto>
-        {tema ? (
-          <Texto pequeno secundario numberOfLines={1}>
-            {tema}
+    <View style={!primera && estilos.separador}>
+      <View style={estilos.bloque}>
+        <Casilla
+          marcada={bloque.estado === 'hecho'}
+          alCambiar={(hecho) => marcar(hecho ? 'hecho' : null)}
+          etiqueta={`Marcar como hecho: ${titulo}, ${horaDesdeMinutos(bloque.inicio)}`}
+        />
+        <View style={estilos.flex}>
+          <Texto pequeno secundario style={estilos.hora}>
+            {horaDesdeMinutos(bloque.inicio)} – {horaDesdeMinutos(bloque.fin)}
+            {saltado ? ' · saltado' : ''}
           </Texto>
+          <Texto fuerte numberOfLines={1} style={[apagado && estilos.secundario, saltado && estilos.tachado]}>
+            {titulo}
+          </Texto>
+          {tema ? (
+            <Texto pequeno secundario numberOfLines={1}>
+              {tema}
+            </Texto>
+          ) : null}
+          {motivo.trim() && !preguntar ? (
+            <Texto pequeno secundario numberOfLines={2}>
+              {motivo.trim()}
+            </Texto>
+          ) : null}
+        </View>
+        {bloque.estado === 'pendiente' ? (
+          <BotonTexto texto="Saltar" etiqueta={`Saltar el bloque de ${titulo}`} alPulsar={() => marcar('saltado')} />
+        ) : saltado ? (
+          <BotonTexto texto="Deshacer" etiqueta={`Deshacer: no saltar ${titulo}`} alPulsar={() => marcar(null)} />
         ) : null}
       </View>
-      {bloque.estado === 'pendiente' ? (
-        <BotonTexto texto="Saltar" etiqueta={`Saltar el bloque de ${titulo}`} alPulsar={() => marcar('saltado')} />
-      ) : saltado ? (
-        <BotonTexto texto="Deshacer" etiqueta={`Deshacer: no saltar ${titulo}`} alPulsar={() => marcar(null)} />
+      {saltado && preguntar ? (
+        <View style={estilos.motivo}>
+          <ElegirMotivo
+            valor={texto}
+            alCambiar={(nuevo) => {
+              setTexto(nuevo);
+              void marcarBloque(bloque, 'saltado', nuevo);
+            }}
+          />
+          <BotonTexto texto="Listo" etiqueta="Cerrar la pregunta" alPulsar={() => setPreguntar(false)} />
+        </View>
       ) : null}
     </View>
   );
@@ -193,6 +222,7 @@ const estilos = StyleSheet.create({
   lista: { marginTop: espacio.xs },
   bloque: { flexDirection: 'row', alignItems: 'center', gap: espacio.xs, minHeight: alturaTactil + 8 },
   separador: { borderTopWidth: 1, borderTopColor: colores.borde },
+  motivo: { gap: espacio.xs, paddingBottom: espacio.s, alignItems: 'flex-start' },
   hora: { ...cifras, fontFamily: fuentes.hora },
   tachado: { textDecorationLine: 'line-through' },
   // Sin opacidad: texto secundario (ver CLAUDE.md > Diseño).

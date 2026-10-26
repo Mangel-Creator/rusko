@@ -4,14 +4,14 @@ import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Texto } from '@/components';
 import type { Epoca } from '@/data/epocas';
-import { textoQuedan } from '@/services/epoca';
+import { nombreModo, textoQuedan } from '@/services/epoca';
 import type { ClaveDia } from '@/services/fechas';
 import { alturaTactil, colores, espacio, radio } from '@/theme';
 
 // Franja dorada arriba del todo en Hoy mientras hay una época activa:
 // "Época dorada · Exámenes de enero · quedan 12 días". Al tocarla, abre la sección.
 export function FranjaEpoca({ epoca, hoy }: { epoca: Epoca; hoy: ClaveDia }) {
-  const texto = `Época dorada · ${epoca.nombre} · ${textoQuedan(epoca, hoy)}`;
+  const texto = `${nombreModo(epoca)} · ${epoca.nombre} · ${textoQuedan(epoca, hoy)}`;
   return (
     <Pressable
       accessibilityRole="button"

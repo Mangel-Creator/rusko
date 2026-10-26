@@ -38,6 +38,8 @@ const NO_VIAJAN = new Set([
   'dictadoExplicado',
   'avisoPantallaInicioCerrado',
   'recargaPorVersion',
+  // Lo que el plan de estudio tenía previsto cada día en este dispositivo (26/10/2026).
+  'planesDelDia',
   // A qué parking vas ahora mismo (26/10/2026): solo vale en este momento.
   'aparcando',
   // Resúmenes de correo (fase 11): el enlace del ayudante de Gmail deja leer los
@@ -62,7 +64,7 @@ const NO_VIAJAN = new Set([
 ]);
 
 // Cachés que se borran al recuperar una copia (se vuelven a calcular solas).
-export const SE_RECALCULAN = ['salidas', 'horasPunta', 'adelantos'];
+export const SE_RECALCULAN = ['salidas', 'horasPunta', 'adelantos', 'planesDelDia'];
 
 export function viajaEnLaCopia(clave: string): boolean {
   return !NO_VIAJAN.has(clave);
@@ -169,7 +171,8 @@ export function leerCopia(texto: string): LecturaCopia {
         cliente: e.cliente ?? null,
         cuadrante: normalizarCuadrante(e.cuadrante),
       })),
-      epocas,
+      // Las copias de antes del plan de estudio (26/10/2026) solo tienen épocas doradas.
+      epocas: epocas.map((e) => ({ ...e, dorada: e.dorada ?? true })),
       // Solo el registro de épocas que vienen en la copia.
       registroBloques: registroBloques.filter((r) => epocas.some((e) => e.id === r.epocaId)),
       ajustes: Object.fromEntries(Object.entries(ajustes).filter(([clave]) => viajaEnLaCopia(clave))),

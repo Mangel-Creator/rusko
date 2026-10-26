@@ -18,6 +18,7 @@ type FilaEpoca = {
   avisos: string;
   ejemplo: number;
   resumen_visto: number;
+  dorada: number; // migración 10
 };
 
 type FilaHito = {
@@ -40,13 +41,14 @@ type FilaBloque = {
   inicio: number;
   fin: number;
   estado: RegistroBloque['estado'];
+  motivo: string | null; // migración 10
 };
 
 // Escribe la época y sus hitos. Va siempre dentro de una transacción.
 async function insertarEpoca(bd: SQLiteDatabase, e: Epoca) {
   await bd.runAsync(
-    `INSERT OR REPLACE INTO epocas (id, nombre, tipo, inicio, fin, ritmo, avisos, ejemplo, resumen_visto)
-     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR REPLACE INTO epocas (id, nombre, tipo, inicio, fin, ritmo, avisos, ejemplo, resumen_visto, dorada)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)`,
     e.id,
     e.nombre,
     e.tipo,
@@ -56,6 +58,7 @@ async function insertarEpoca(bd: SQLiteDatabase, e: Epoca) {
     JSON.stringify(e.avisos),
     e.ejemplo ? 1 : 0,
     e.resumenVisto ? 1 : 0,
+    e.dorada ? 1 : 0,
   );
   // Los hitos se sustituyen todos: así se reflejan los añadidos, cambios y quitados.
   await bd.runAsync('DELETE FROM hitos WHERE epoca_id = ?', e.id);
@@ -78,8 +81,8 @@ async function insertarEpoca(bd: SQLiteDatabase, e: Epoca) {
 
 async function insertarRegistro(bd: SQLiteDatabase, r: RegistroBloque) {
   await bd.runAsync(
-    `INSERT OR REPLACE INTO bloques_epoca (id, epoca_id, hito_id, dia, inicio, fin, estado)
-     VALUES (?, ?, ?, ?, ?, ?, ?)`,
+    `INSERT OR REPLACE INTO bloques_epoca (id, epoca_id, hito_id, dia, inicio, fin, estado, motivo)
+     VALUES (?, ?, ?, ?, ?, ?, ?, ?)`,
     r.id,
     r.epocaId,
     r.hitoId,
@@ -87,6 +90,7 @@ async function insertarRegistro(bd: SQLiteDatabase, r: RegistroBloque) {
     r.inicio,
     r.fin,
     r.estado,
+    r.motivo ?? null,
   );
 }
 
@@ -107,6 +111,7 @@ export const repositorio: RepositorioEpocas = {
       avisos: JSON.parse(f.avisos),
       ejemplo: f.ejemplo === 1,
       resumenVisto: f.resumen_visto === 1,
+      dorada: f.dorada !== 0,
       hitos: hitos
         .filter((h) => h.epoca_id === f.id)
         .map((h) => ({
@@ -144,6 +149,7 @@ export const repositorio: RepositorioEpocas = {
       inicio: f.inicio,
       fin: f.fin,
       estado: f.estado,
+      motivo: f.motivo ?? null,
     }));
   },
 

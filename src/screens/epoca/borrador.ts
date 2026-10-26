@@ -26,12 +26,18 @@ export type EleccionLugar = string;
 
 export type Trayecto = '10' | '20' | '30' | '45' | '60';
 
+// Cuándo empieza: el día que recomienda la app (services/epoca/inicio.ts), hoy u
+// otro día elegido a mano (el de "inicio").
+export type CuandoEmpezar = 'recomendado' | 'hoy' | 'otro';
+
 export type BorradorEpoca = {
   id: string | null; // null = época nueva
   nombre: string;
   tipo: TipoEpoca | null;
   inicio: ClaveDia;
+  cuandoEmpezar: CuandoEmpezar;
   fin: ClaveDia;
+  dorada: boolean; // false = solo plan de estudio, sin cambiar el ritmo del día
   levantarse: string;
   acostarse: string;
   lugar: EleccionLugar;
@@ -71,7 +77,9 @@ export function borradorDesdeEpoca(epoca: Epoca | null, perfil: Perfil | null, h
       nombre: '',
       tipo: null,
       inicio: hoy,
+      cuandoEmpezar: 'recomendado',
       fin: sumarDias(hoy, 14),
+      dorada: true,
       levantarse: perfil?.horario.levantarse ?? '07:30',
       acostarse: perfil?.horario.acostarse ?? '23:30',
       lugar: 'casa',
@@ -103,7 +111,9 @@ export function borradorDesdeEpoca(epoca: Epoca | null, perfil: Perfil | null, h
     nombre: epoca.nombre,
     tipo: epoca.tipo,
     inicio: epoca.inicio,
+    cuandoEmpezar: 'otro',
     fin: epoca.fin,
+    dorada: epoca.dorada,
     levantarse: ritmo.levantarse,
     acostarse: ritmo.acostarse,
     lugar: eleccionDesdeLugar(ritmo.lugar),
@@ -138,7 +148,10 @@ export function borradorConPropuesta(b: BorradorEpoca, p: PropuestaEpoca): Borra
   const nuevo: BorradorEpoca = { ...b };
   if (p.nombre) nuevo.nombre = p.nombre;
   if (p.tipo) nuevo.tipo = p.tipo;
-  if (p.inicio) nuevo.inicio = p.inicio;
+  if (p.inicio) {
+    nuevo.inicio = p.inicio;
+    nuevo.cuandoEmpezar = 'otro';
+  }
   if (p.fin) nuevo.fin = p.fin;
   if (p.levantarse) nuevo.levantarse = p.levantarse;
   if (p.acostarse) nuevo.acostarse = p.acostarse;
@@ -164,6 +177,13 @@ export function borradorConPropuesta(b: BorradorEpoca, p: PropuestaEpoca): Borra
   const primero = nuevo.hitos.map((h) => h.fecha).sort()[0];
   if (primero && primero < nuevo.inicio) nuevo.inicio = primero;
   return nuevo;
+}
+
+// El día que empieza de verdad, según lo elegido en "¿Cuándo empiezas?".
+export function inicioElegido(b: BorradorEpoca, recomendado: ClaveDia | null, hoy: ClaveDia): ClaveDia {
+  if (b.cuandoEmpezar === 'hoy') return hoy;
+  if (b.cuandoEmpezar === 'recomendado') return recomendado ?? hoy;
+  return b.inicio;
 }
 
 export function comprobarPaso1(b: BorradorEpoca, hoy: ClaveDia): Errores {
@@ -231,6 +251,20 @@ export async function epocaDesdeBorrador(b: BorradorEpoca): Promise<Epoca | { er
     }
   }
 
+  return montarEpoca(b, principal, lugarPorDia);
+}
+
+// La época tal cual, sin buscar direcciones: sirve para calcular el plan (y el día
+// recomendado para empezar) mientras se rellena el formulario.
+export function epocaProvisional(b: BorradorEpoca): Epoca {
+  return montarEpoca({ ...b, id: b.id ?? 'borrador' }, { tipo: 'casa' }, {});
+}
+
+function montarEpoca(
+  b: BorradorEpoca,
+  principal: LugarEvento,
+  lugarPorDia: Partial<Record<DiaSemana, LugarEvento>>,
+): Epoca {
   return {
     id: b.id ?? nuevoIdEpoca(),
     nombre: b.nombre.trim() || nombrePorDefecto(b),
@@ -252,6 +286,7 @@ export async function epocaDesdeBorrador(b: BorradorEpoca): Promise<Epoca | { er
     },
     hitos: [...b.hitos].sort((x, y) => x.fecha.localeCompare(y.fecha) || x.hora.localeCompare(y.hora)),
     avisos: b.avisos,
+    dorada: b.dorada,
     ejemplo: b.ejemplo,
     resumenVisto: b.resumenVisto,
   };

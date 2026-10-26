@@ -426,6 +426,17 @@ sesión que fuera**:
     días (se borran al dejar de usar el Atajo). Nada más.
   - Expo Go y el código nativo de alarmas (AlarmKit, `react-native-alarm-scheduler`) se
     quedan para cuando haya app propia.
+- 26/10/2026 — **Plan de estudio con o sin Época dorada** (sesión "Organizy · 04b Época
+  dorada"; lo pidió el usuario). Ver "Fase 4b" > "Plan de estudio, cuándo empezar y lo no
+  hecho":
+  - Se puede hacer **solo un plan de estudio**: bloques dentro del día normal, sin cambiar
+    horario, sitio ni hora de dormir. La Época dorada pasa a ser una opción del plan.
+  - Al crearlo, la app **dice qué día conviene empezar** (con margen por si surge algo) y,
+    si se quiere, **ese día se pone sola en Época dorada**.
+  - Si se apunta algo encima de un bloque (calendario o captura rápida), **el plan se rehace
+    solo**: ese bloque va a otro hueco (hoy, a partir de ahora) y no se pierde nada.
+  - Lo que se quedó sin marcar sale en la pestaña Época para decir **"Lo hice"** o **"No lo
+    hice"** con el motivo ("me fui a…"); al saltar un bloque también se puede decir por qué.
 
 ## Cómo prueba el usuario en el iPhone
 
@@ -766,7 +777,9 @@ animaciones infinitas.
   `lugar_tipo` y `lugar_sitio_id`; 3: `aviso_min`; 4: tablas `epocas`, `hitos` y
   `bloques_epoca` (fase 4b); 5: columna `cliente` (fase 10); 6: columna `origen` (otros
   calendarios); 7: columna `cuadrante` (matriz de Eisenhower); 8: columna `temas` de `hitos`
-  (temario de la Época dorada); 9: tabla `empresa_copia` (copia del plan empresa, fase 15).
+  (temario de la Época dorada); 9: tabla `empresa_copia` (copia del plan empresa, fase 15);
+  10: columnas `dorada` de `epocas` (1 = Época dorada, 0 = solo plan de estudio) y `motivo`
+  de `bloques_epoca` (por qué no se hizo).
   Solo se usa en Android e iOS.
 - `src/data/perfil.ts`: tipo `Perfil` (nombre, vivienda con coordenadas, sitios
   habituales, transporte, uso, horario, días de trabajo, cuándo rinde más y
@@ -805,16 +818,19 @@ animaciones infinitas.
 - Para lógica sin pantallas: `leerEventos()` / `suscribirseEventos` y
   `cargarPerfil()` / `suscribirsePerfil`.
 - `src/data/epocas/`: tipos `Epoca`, `Hito`, `RitmoEpoca`, `Imprescindible`, `RegistroBloque`
-  en `tipos.ts`. En pantallas `useEpocas()` → { cargado, epocas, registro }; fuera,
-  `leerEpocas()` / `suscribirseEpocas`. Para cambiar: `guardarEpoca`, `borrarEpoca`,
-  `terminarEpoca`, `marcarResumenVisto`, `marcarBloque(bloque, 'hecho'|'saltado'|null)`,
+  en `tipos.ts`. En pantallas `useEpocas()` → { cargado, epocas, registro, planesDelDia };
+  fuera, `leerEpocas()` / `suscribirseEpocas`. Para cambiar: `guardarEpoca`, `borrarEpoca`,
+  `terminarEpoca`, `marcarResumenVisto`, `marcarBloque(bloque, 'hecho'|'saltado'|null, motivo?)`,
+  `marcarBloques` (varios de una vez), `guardarPlanDelDia`,
   `crearEpocaDeEjemplo`, `borrarEpocasDeEjemplo`. Guardado como los eventos:
   `repositorio.ts` (SQLite) y `repositorio.web.ts` (`organizy:epocas` y
   `organizy:bloquesEpoca`).
 - `src/services/epoca/` (puro, con pruebas): `epocaActiva(epocas, dia)` (úsala para saber
   si hay época: Hoy, Semana y avisos), `estadoEpoca`, `epocaProxima`, `epocasSolapadas`,
   `ventanaEpoca`, `lugarDelDia`, `imprescindiblesDelDia`, `cuentaAtras`, `textoQuedan`,
-  `planificarEpoca`, `eventoDeBloque`, `progresoHitos`, `progresoSemana`, `resumenEpoca`.
+  `planificarEpoca`, `planDeHoy` (úsala en pantallas y avisos: lleva lo guardado de hoy),
+  `eventoDeBloque`, `progresoHitos`, `progresoSemana`, `resumenEpoca`, `esDorada`,
+  `nombreModo`, `inicioRecomendado` y `sinMarcar`.
 
 ## Fase 2: bienvenida y perfil (decisiones)
 
@@ -1073,6 +1089,42 @@ animaciones infinitas.
   Probado el 28/09 en la web a tamaño móvil: la función real sin clave ("aún no está
   encendida") y, con respuestas simuladas, rellenar el formulario, repartir el temario,
   guardarlo, el tema en "Plan de hoy" y aplicar propuestas. **Falta** probarlo con la clave.
+- **Plan de estudio, cuándo empezar y lo no hecho** (26/10/2026, lo pidió el usuario):
+  - **`Epoca.dorada`** (migración 10; en la web y en las copias antiguas falta y vale true):
+    false = **solo plan de estudio**. Mismo plan y mismos bloques, pero Hoy, Semana y los
+    avisos siguen con el horario del perfil (`esDorada(epoca) ? ventanaEpoca(epoca) :
+    ventanaDelDia(perfil)`) y no hay aviso de "Hora de ir a dormir" ni se quita el de las
+    alarmas. Los textos dicen "Plan de estudio" o "Época dorada" con `nombreModo`.
+  - **"¿Cuándo empiezas?"** (`screens/epoca/CuandoEmpezar.tsx`, paso 3 del formulario, que
+    ya no pregunta el inicio en el paso 1): `inicioRecomendado` (`services/epoca/inicio.ts`)
+    busca el último día desde el que caben las horas de todos los hitos **un 20 % más**
+    (`MARGEN_INICIO`), contando el calendario; si ni hoy cabe, "Vas justo". Se elige "Ese
+    día", "Hoy" u "Otro día", y el interruptor "El <día>, ponerme en Época dorada". La época
+    se guarda con ese inicio: hasta entonces está programada y ese día empieza sola (con su
+    ritmo, si es dorada). Si una programada ya no llega con margen, la pestaña Época dice
+    "Mejor empieza antes" con un botón que adelanta el inicio.
+  - **Replanificar sin perder nada**: el plan se sigue calculando al vuelo, pero lo que el
+    plan de hoy tenía previsto se guarda (`organizy:planesDelDia`, "<época>:<día>" →
+    bloques pendientes, 10 días; no viaja en la copia). Lo guarda `useEpocaActiva`
+    (`screens/epoca/useEpoca.ts`, en Hoy y en la pestaña Época) y lo usan `planDeHoy`,
+    Semana y los avisos: hoy, cada bloque previsto se queda a su hora mientras no lo pise
+    nada nuevo, y lo pisado (o lo que falte) se coloca **a partir de ahora**, nunca en una
+    hora pasada. La primera vez que se mira un día se planifica entero (para poder marcar lo
+    de la mañana). Los días siguientes se recalculan enteros, como siempre.
+  - **"Ayer no marcaste esto"** (`screens/epoca/SinMarcar.tsx`, arriba en la pestaña Época;
+    `sinMarcar` en `services/epoca/sinMarcar.ts`): lo previsto de los últimos 7 días sin
+    marcar. Casillas para lo que sí hizo, motivo opcional y "No lo hice" / "Guardar" / "Lo
+    hice todo" (`marcarBloques`). Mientras no se marca, cuenta como no hecho y ya se ha
+    repartido en los días que quedan.
+  - **Motivo** (`RegistroBloque.motivo`, solo en saltados; `screens/epoca/Motivo.tsx`):
+    atajos "Me surgió un plan", "Me fui fuera", "Estaba malo", "No me dio tiempo" y "Otro"
+    (se escribe). Al pulsar "Saltar" en "Plan de hoy" se pregunta debajo (opcional). La
+    pestaña Época tiene plegado "Lo que no hiciste" con cada bloque y su motivo.
+  - La pestaña Época enseña con la activa: lo sin marcar, "Hoy" (`PlanDeHoy`: cuenta atrás,
+    plan, no caben y "Cómo vas"), los próximos días, hitos, repaso con IA, ritmo y avisos.
+  - Probado el 26/10 en la web a tamaño móvil: recomendación de inicio, guardar un plan sin
+    Época dorada, ayer sin marcar con "Otro" escrito y "Saltar" con motivo. Pruebas en
+    `services/epoca/__tests__/planEstudio.test.ts`.
 
 ## Servidor propio: Supabase (desde la fase 5)
 

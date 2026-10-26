@@ -2,6 +2,7 @@ import type { Epoca } from '@/data/epocas/tipos';
 import type { Perfil } from '@/data/perfil';
 import { NOMBRE_CASA, resolverLugar } from '@/services/agenda';
 import {
+  esDorada,
   estadoEpoca,
   lugarDelDia,
   textoHoras,
@@ -86,7 +87,8 @@ export function avisosDeEpoca(
     }
   });
 
-  if (epoca.avisos.dormir) {
+  // Solo con Época dorada: un plan de estudio no cambia la hora de acostarse.
+  if (epoca.avisos.dormir && esDorada(epoca)) {
     const manana = plan.bloques.filter((b) => b.dia === sumarDias(dia, 1) && b.estado === 'pendiente');
     const minutosManana = manana.reduce((t, b) => t + (b.fin - b.inicio), 0);
     avisos.push({

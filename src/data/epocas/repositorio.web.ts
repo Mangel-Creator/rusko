@@ -10,9 +10,11 @@ const CLAVE_EPOCAS = 'epocas';
 const CLAVE_REGISTRO = 'bloquesEpoca';
 
 // Los hitos guardados antes de tener temas no traen el campo: se leen sin temas.
+// Las épocas de antes del plan de estudio (26/10/2026) son todas doradas.
 const leerEpocas = async () =>
   (await leerAjuste<Epoca[]>(CLAVE_EPOCAS, [])).map((e) => ({
     ...e,
+    dorada: e.dorada ?? true,
     hitos: e.hitos.map((h) => ({ ...h, temas: normalizarTemas(h.temas) })),
   }));
 const leerRegistro = () => leerAjuste<RegistroBloque[]>(CLAVE_REGISTRO, []);
