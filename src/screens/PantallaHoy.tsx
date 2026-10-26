@@ -23,7 +23,7 @@ import {
   ventanaDelDia,
   type Siguiente,
 } from '@/services/agenda';
-import { imprescindiblesDelDia, ventanaEpoca } from '@/services/epoca';
+import { esDorada, imprescindiblesDelDia, ventanaEpoca } from '@/services/epoca';
 import {
   claveDia,
   fechaDesdeClave,
@@ -94,7 +94,8 @@ export function PantallaHoy() {
   );
   const bloquesHoy = (plan?.bloques ?? []).filter((b) => b.dia === hoy && b.estado !== 'saltado');
   const ocupados = [...delDia.map(intervaloDe), ...bloquesHoy.map((b) => ({ inicio: b.inicio, fin: b.descansoFin }))];
-  const ventana = epoca ? ventanaEpoca(epoca) : ventanaDelDia(perfil);
+  // Un plan de estudio sin Época dorada no cambia el horario de la persona.
+  const ventana = epoca && esDorada(epoca) ? ventanaEpoca(epoca) : ventanaDelDia(perfil);
   const desde = Math.max(ventana.inicio, Math.ceil(minutosDelDia(ahora) / 15) * 15);
   const quedan = { inicio: desde, fin: ventana.fin };
 
