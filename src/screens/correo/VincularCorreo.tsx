@@ -207,7 +207,7 @@ const estilos = StyleSheet.create({
   icono: {
     width: 40,
     height: 40,
-    borderRadius: radio.normal,
+    borderRadius: radio.chip,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colores.fondo,

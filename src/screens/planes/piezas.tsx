@@ -3,7 +3,7 @@ import { router } from 'expo-router';
 import type { ComponentProps } from 'react';
 import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 
-import { Texto } from '@/components';
+import { BotonAtras, Texto } from '@/components';
 import type { TipoPlan } from '@/data/planes';
 import { capitalizar, fechaDesdeClave, formatearDiaCorto } from '@/services/fechas';
 import { alturaTactil, cifras, colorBaldosa, colores, espacio, fuentes, radio, tamanos } from '@/theme';
@@ -88,14 +88,7 @@ export function abrirWhatsapp(url: string) {
 
 export function BotonVolver({ destino = '/planes', texto = 'Volver' }: { destino?: '/planes'; texto?: string }) {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel={texto}
-      onPress={() => (router.canGoBack() ? router.back() : router.replace(destino))}
-      style={({ pressed }) => [estilos.volver, pressed && estilos.pulsado]}>
-      <Ionicons name="chevron-back" size={24} color={colores.texto} />
-      <Texto fuerte>{texto}</Texto>
-    </Pressable>
+    <BotonAtras texto={texto} etiqueta={texto} onPress={() => (router.canGoBack() ? router.back() : router.replace(destino))} />
   );
 }
 
@@ -188,7 +181,7 @@ export function ChipNombre({ nombre, alQuitar }: { nombre: string; alQuitar: () 
 }
 
 const estilos = StyleSheet.create({
-  baldosa: { borderRadius: radio.normal, alignItems: 'center', justifyContent: 'center' },
+  baldosa: { borderRadius: radio.chip, alignItems: 'center', justifyContent: 'center' },
   whatsapp: {
     minHeight: alturaTactil + 10,
     flexDirection: 'row',
@@ -196,20 +189,12 @@ const estilos = StyleSheet.create({
     justifyContent: 'center',
     gap: espacio.s,
     paddingHorizontal: espacio.l,
-    borderRadius: radio.normal,
+    borderRadius: radio.chip,
     backgroundColor: colores.whatsapp,
   },
   textoWhatsapp: { color: colores.textoOscuro },
   pulsado: { transform: [{ scale: 0.98 }] },
   desactivado: { opacity: 0.5 },
-  volver: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    minHeight: alturaTactil,
-    paddingRight: espacio.s,
-    marginLeft: -espacio.xs,
-  },
   fila: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -218,7 +203,7 @@ const estilos = StyleSheet.create({
     paddingHorizontal: espacio.m,
     paddingVertical: espacio.s,
     backgroundColor: colores.tarjeta,
-    borderRadius: radio.normal,
+    borderRadius: radio.grande - 4,
   },
   filaGana: { borderLeftWidth: 4, borderLeftColor: colores.principal },
   cuando: { width: 84 },
@@ -234,7 +219,7 @@ const estilos = StyleSheet.create({
     gap: espacio.xs,
     minHeight: alturaTactil,
     paddingHorizontal: espacio.m,
-    borderRadius: radio.pequeno,
+    borderRadius: radio.chip,
     borderWidth: 1,
     borderColor: colores.borde,
     backgroundColor: colores.tarjeta,

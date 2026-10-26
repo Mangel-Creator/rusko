@@ -1,4 +1,6 @@
+import type Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
+import type { ComponentProps } from 'react';
 
 import type { Opcion } from '@/components';
 import type { Evento, Repeticion, TipoEvento } from '@/data/eventos';
@@ -8,6 +10,13 @@ import { PREFIJO_EPOCA } from '@/services/epoca';
 import type { ClaveDia } from '@/services/fechas';
 
 // Textos y atajos compartidos por Hoy, Semana y la ficha de evento.
+
+// Icono de cada tipo: el mismo en las casillas de Hoy, las filas y la ficha.
+export const ICONO_TIPO: Record<TipoEvento, ComponentProps<typeof Ionicons>['name']> = {
+  cliente: 'briefcase-outline',
+  amigos: 'people-outline',
+  yo: 'person-outline',
+};
 
 export const OPCIONES_TIPO: Opcion<TipoEvento>[] = [
   { valor: 'cliente', etiqueta: 'Cliente' },

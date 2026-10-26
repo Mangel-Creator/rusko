@@ -39,7 +39,7 @@ const estilos = StyleSheet.create({
     backgroundColor: colores.tarjeta,
     borderWidth: 1,
     borderColor: colores.bordeCampo,
-    borderRadius: radio.pequeno,
+    borderRadius: radio.normal,
     paddingHorizontal: espacio.m,
     fontFamily: fuentes.texto,
     fontSize: tamanos.normal,

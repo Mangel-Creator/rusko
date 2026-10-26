@@ -3,7 +3,7 @@ import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
-import { Boton, Interruptor, Pantalla, Tarjeta, Texto, Titulo } from '@/components';
+import { Boton, BotonAtras, Interruptor, Pantalla, Tarjeta, Texto, Titulo } from '@/components';
 import { useEnergia } from '@/data/energia';
 import {
   borrarEpoca,
@@ -391,26 +391,11 @@ function Etiqueta() {
 
 function BotonVolver() {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Volver"
-      onPress={volver}
-      style={({ pressed }) => [estilos.volver, pressed && estilos.pulsado]}>
-      <Ionicons name="chevron-back" size={24} color={colores.texto} />
-      <Texto fuerte>Volver</Texto>
-    </Pressable>
+    <BotonAtras texto="Volver" onPress={volver} />
   );
 }
 
 const estilos = StyleSheet.create({
-  volver: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    minHeight: alturaTactil,
-    paddingRight: espacio.s,
-    marginLeft: -espacio.xs,
-  },
   pulsado: { transform: [{ scale: 0.98 }] },
   etiqueta: {
     flexDirection: 'row',
@@ -442,11 +427,9 @@ const estilos = StyleSheet.create({
     minHeight: alturaTactil + 12,
     paddingHorizontal: espacio.m,
     backgroundColor: colores.tarjeta,
-    borderWidth: 1,
-    borderColor: colores.borde,
     borderLeftWidth: 4,
     borderLeftColor: colores.dorado,
-    borderRadius: radio.normal,
+    borderRadius: radio.grande - 4,
   },
   resumen: { borderColor: colores.dorado, borderWidth: 2 },
   confirmar: { borderColor: colores.aviso, borderWidth: 2, gap: espacio.m },

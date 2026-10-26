@@ -1,9 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useState, type ReactNode } from 'react';
+import { useState, type ComponentProps, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { alturaTactil, colores, espacio } from '@/theme';
+import { alturaTactil, colores, espacio, radio } from '@/theme';
 
 import { Texto } from './Texto';
 
@@ -11,12 +11,13 @@ type Props = {
   titulo: string; // "Más ajustes"
   resumen?: string; // lo que ya está puesto, para no tener que abrirlo: "Te levantas a las 7:30 · de lunes a viernes"
   abierto?: boolean; // ábrelo desde fuera, por ejemplo si hay un error dentro
+  icono?: ComponentProps<typeof Ionicons>['name']; // icono en un círculo a la izquierda (menús como Perfil)
   children: ReactNode;
 };
 
 // Esconde lo opcional detrás de una fila que se toca para abrir. Así un formulario
 // enseña solo lo importante (lo pidió el usuario: "mucho más cortos y visuales").
-export function Plegable({ titulo, resumen, abierto, children }: Props) {
+export function Plegable({ titulo, resumen, abierto, icono, children }: Props) {
   const [abiertoAMano, setAbiertoAMano] = useState(false);
   const visible = abiertoAMano || !!abierto;
 
@@ -27,6 +28,11 @@ export function Plegable({ titulo, resumen, abierto, children }: Props) {
         accessibilityState={{ expanded: visible }}
         onPress={() => setAbiertoAMano((actual) => !actual)}
         style={({ pressed }) => [estilos.cabecera, pressed && estilos.pulsado]}>
+        {icono ? (
+          <View style={estilos.icono}>
+            <Ionicons name={icono} size={20} color={colores.texto} />
+          </View>
+        ) : null}
         <View style={estilos.textos}>
           <Texto fuerte>{titulo}</Texto>
           {resumen && !visible ? (
@@ -51,13 +57,22 @@ const estilos = StyleSheet.create({
   cabecera: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: espacio.s,
-    minHeight: alturaTactil + 8,
+    gap: espacio.m - 4,
+    minHeight: alturaTactil + 12,
     paddingVertical: espacio.s,
-    borderTopWidth: 1,
-    borderTopColor: colores.borde,
+    paddingHorizontal: espacio.m,
+    backgroundColor: colores.tarjeta,
+    borderRadius: radio.grande - 4,
+  },
+  icono: {
+    width: 40,
+    height: 40,
+    borderRadius: radio.chip,
+    backgroundColor: colores.elevado,
+    alignItems: 'center',
+    justifyContent: 'center',
   },
   textos: { flex: 1, gap: 2 },
-  pulsado: { opacity: 0.7 },
+  pulsado: { backgroundColor: colores.elevado },
   contenido: { gap: espacio.m },
 });

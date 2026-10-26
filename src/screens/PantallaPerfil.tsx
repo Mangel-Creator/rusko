@@ -1,9 +1,8 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect } from 'expo-router';
 import { useCallback, useRef, useState } from 'react';
-import { AppState, Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { AppState, ScrollView, StyleSheet, View } from 'react-native';
 
-import { Boton, Pantalla, Selector, Texto, Titulo } from '@/components';
+import { Boton, BotonAtras, Pantalla, Plegable, Selector, Texto, Titulo } from '@/components';
 import { guardarDensidad, OPCIONES_DENSIDAD, useDensidad } from '@/data/densidad';
 import { borrarEventosEjemplo, crearEventosEjemplo } from '@/data/eventos';
 import { guardarPerfil, repetirBienvenida, usePerfil } from '@/data/perfil';
@@ -15,7 +14,7 @@ import {
   type EstadoPermiso,
   type Permiso,
 } from '@/services/permisos';
-import { alturaTactil, colores, espacio } from '@/theme';
+import { colores, espacio } from '@/theme';
 
 import {
   borradorDesdePerfil,
@@ -41,6 +40,8 @@ import { SeccionRecordatorios } from './perfil/SeccionRecordatorios';
 type EstadosPermisos = Record<Permiso, EstadoPermiso | undefined>;
 
 // Perfil: editar los datos de la bienvenida, activar permisos y repetir la bienvenida.
+// Es un menú de ajustes: cada apartado, una fila con icono que se abre al tocarla, para
+// no tener que bajar por una página larguísima.
 const EXPLICACION_DENSIDAD = {
   aire: 'Letra algo mayor y más espacio: unos 3 o 4 eventos por pantalla.',
   equilibrado: 'Unos 5 o 6 eventos por pantalla.',
@@ -117,148 +118,128 @@ export function PantallaPerfil() {
 
   return (
     <Pantalla ref={scroll}>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Volver"
-        onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-        style={({ pressed }) => [estilos.volver, pressed && estilos.pulsado]}>
-        <Ionicons name="chevron-back" size={24} color={colores.texto} />
-        <Texto fuerte>Hoy</Texto>
-      </Pressable>
+      <BotonAtras texto="Hoy" etiqueta="Volver" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
 
       <Titulo>Perfil</Titulo>
 
-      <Titulo nivel={2} style={estilos.seccion}>
-        Sobre ti
-      </Titulo>
-      <CamposSobreTi borrador={borrador} cambiar={cambiar} errores={errores} />
+      <Plegable
+        titulo="Sobre ti y tu ritmo"
+        icono="person-outline"
+        resumen={[perfil?.nombre, perfil?.vivienda.direccion].filter(Boolean).join(' · ')}
+        abierto={hayErrores(errores)}>
+        <Titulo nivel={3}>Sobre ti</Titulo>
+        <CamposSobreTi borrador={borrador} cambiar={cambiar} errores={errores} />
 
-      <Titulo nivel={2} style={estilos.seccion}>
-        Tu ritmo
-      </Titulo>
-      <CamposRitmo borrador={borrador} cambiar={cambiar} errores={errores} />
+        <Titulo nivel={3} style={estilos.seccion}>
+          Tu ritmo
+        </Titulo>
+        <CamposRitmo borrador={borrador} cambiar={cambiar} errores={errores} />
 
-      <View>
-        <Boton
-          titulo={ocupado ? 'Guardando…' : 'Guardar cambios'}
-          disabled={ocupado}
-          onPress={guardar}
-        />
-        {aviso === 'Guardado.' ? (
-          <Texto fuerte style={estilos.guardado} accessibilityLiveRegion="polite">
-            {aviso}
-          </Texto>
-        ) : (
-          <MensajeError texto={aviso} />
-        )}
-      </View>
+        <View>
+          <Boton
+            titulo={ocupado ? 'Guardando…' : 'Guardar cambios'}
+            disabled={ocupado}
+            onPress={guardar}
+          />
+          {aviso === 'Guardado.' ? (
+            <Texto fuerte style={estilos.guardado} accessibilityLiveRegion="polite">
+              {aviso}
+            </Texto>
+          ) : (
+            <MensajeError texto={aviso} />
+          )}
+        </View>
+      </Plegable>
 
       {/* Plan personal o plan empresa (fase 15). Solo sale en Expo Go y en desarrollo. */}
       <SeccionPlan />
 
-      <Titulo nivel={2} style={estilos.seccion}>
-        Cómo se ve
-      </Titulo>
-      <Selector
-        etiqueta="Cuánto cabe en Hoy y en Semana"
-        opciones={OPCIONES_DENSIDAD}
-        valor={densidad}
-        alCambiar={guardarDensidad}
-      />
-      <Texto pequeno secundario>
-        {EXPLICACION_DENSIDAD[densidad]} Se aplica al momento.
-      </Texto>
-
-      <Titulo nivel={2} style={estilos.seccion}>
-        Permisos
-      </Titulo>
-      {PERMISOS_DISPONIBLES.map((permiso) => (
-        <TarjetaPermiso
-          key={permiso}
-          permiso={permiso}
-          estado={permisos[permiso]}
-          alActivar={() => activar(permiso)}
+      <Plegable titulo="Cómo se ve" icono="contrast-outline" resumen={OPCIONES_DENSIDAD.find((o) => o.valor === densidad)?.etiqueta}>
+        <Selector
+          etiqueta="Cuánto cabe en Hoy y en Semana"
+          opciones={OPCIONES_DENSIDAD}
+          valor={densidad}
+          alCambiar={guardarDensidad}
         />
-      ))}
-
-      <Titulo nivel={2} style={estilos.seccion}>
-        Tu IA
-      </Titulo>
-      <SeccionIA />
-
-      <Titulo nivel={2} style={estilos.seccion}>
-        Avisos
-      </Titulo>
-      <SeccionAvisos
-        permiso={permisos.notificaciones}
-        alActivarPermiso={() => activar('notificaciones')}
-      />
-
-      <Titulo nivel={2} style={estilos.seccion}>
-        Recordatorios a clientes
-      </Titulo>
-      <SeccionRecordatorios
-        permiso={permisos.notificaciones}
-        alActivarPermiso={() => activar('notificaciones')}
-      />
-
-      <Titulo nivel={2} style={estilos.seccion}>
-        Épocas doradas
-      </Titulo>
-      <SeccionEpocas />
-
-      <Titulo nivel={2} style={estilos.seccion}>
-        Tus otros calendarios
-      </Titulo>
-      <SeccionCalendarios />
-
-      <Titulo nivel={2} style={estilos.seccion}>
-        Copia de seguridad
-      </Titulo>
-      <SeccionCopia />
-
-      <Titulo nivel={2} style={estilos.seccion}>
-        Pruebas
-      </Titulo>
-      <Texto secundario>
-        Vuelve a mostrar el formulario de bienvenida. Tus datos se conservan.
-      </Texto>
-      <Boton variante="secundario" titulo="Repetir bienvenida" onPress={repetirBienvenida} />
-
-      <Texto secundario style={estilos.separado}>
-        Eventos de ejemplo para probar Hoy y Semana.
-        {__DEV__ ? ' En modo desarrollo se crean solos la primera vez.' : ''} Tus eventos no se tocan.
-      </Texto>
-      <Boton
-        variante="secundario"
-        titulo="Crear eventos de ejemplo"
-        onPress={async () => setAvisoEjemplos(`Creados ${await crearEventosEjemplo()} eventos de ejemplo.`)}
-      />
-      <Boton
-        variante="secundario"
-        titulo="Borrar eventos de ejemplo"
-        onPress={async () => setAvisoEjemplos(`Borrados ${await borrarEventosEjemplo()} eventos de ejemplo.`)}
-      />
-      {avisoEjemplos ? (
-        <Texto fuerte style={estilos.guardado} accessibilityLiveRegion="polite">
-          {avisoEjemplos}
+        <Texto pequeno secundario>
+          {EXPLICACION_DENSIDAD[densidad]} Se aplica al momento.
         </Texto>
-      ) : null}
+      </Plegable>
+
+      <Plegable titulo="Permisos" icono="key-outline">
+        {PERMISOS_DISPONIBLES.map((permiso) => (
+          <TarjetaPermiso
+            key={permiso}
+            permiso={permiso}
+            estado={permisos[permiso]}
+            alActivar={() => activar(permiso)}
+          />
+        ))}
+      </Plegable>
+
+      <Plegable titulo="Tu IA" icono="sparkles-outline">
+        <SeccionIA />
+      </Plegable>
+
+      <Plegable titulo="Avisos" icono="notifications-outline">
+        <SeccionAvisos
+          permiso={permisos.notificaciones}
+          alActivarPermiso={() => activar('notificaciones')}
+        />
+      </Plegable>
+
+      <Plegable titulo="Recordatorios a clientes" icono="chatbubble-ellipses-outline">
+        <SeccionRecordatorios
+          permiso={permisos.notificaciones}
+          alActivarPermiso={() => activar('notificaciones')}
+        />
+      </Plegable>
+
+      <Plegable titulo="Épocas doradas" icono="star-outline">
+        <SeccionEpocas />
+      </Plegable>
+
+      <Plegable titulo="Tus otros calendarios" icono="calendar-outline">
+        <SeccionCalendarios />
+      </Plegable>
+
+      <Plegable titulo="Copia de seguridad" icono="cloud-upload-outline">
+        <SeccionCopia />
+      </Plegable>
+
+      <Plegable titulo="Pruebas" icono="construct-outline">
+        <Texto secundario>
+          Vuelve a mostrar el formulario de bienvenida. Tus datos se conservan.
+        </Texto>
+        <Boton variante="secundario" titulo="Repetir bienvenida" onPress={repetirBienvenida} />
+
+        <Texto secundario style={estilos.separado}>
+          Eventos de ejemplo para probar Hoy y Semana.
+          {__DEV__ ? ' En modo desarrollo se crean solos la primera vez.' : ''} Tus eventos no se tocan.
+        </Texto>
+        <Boton
+          variante="secundario"
+          titulo="Crear eventos de ejemplo"
+          onPress={async () => setAvisoEjemplos(`Creados ${await crearEventosEjemplo()} eventos de ejemplo.`)}
+        />
+        <Boton
+          variante="secundario"
+          titulo="Borrar eventos de ejemplo"
+          onPress={async () => setAvisoEjemplos(`Borrados ${await borrarEventosEjemplo()} eventos de ejemplo.`)}
+        />
+        {avisoEjemplos ? (
+          <Texto fuerte style={estilos.guardado} accessibilityLiveRegion="polite">
+            {avisoEjemplos}
+          </Texto>
+        ) : null}
+      </Plegable>
     </Pantalla>
   );
 }
 
 const estilos = StyleSheet.create({
-  volver: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    minHeight: alturaTactil,
-    paddingRight: espacio.s,
-    marginLeft: -espacio.xs,
-  },
   pulsado: { opacity: 0.6 },
-  seccion: { marginTop: espacio.m },
+  seccion: { marginTop: espacio.s },
   guardado: { color: colores.texto, marginTop: espacio.xs }, // el verde es solo de Amigos
   separado: { marginTop: espacio.s },
 });

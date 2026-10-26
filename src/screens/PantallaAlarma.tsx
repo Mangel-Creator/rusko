@@ -1,10 +1,10 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useState } from 'react';
-import { Linking, Pressable, StyleSheet, View } from 'react-native';
+import { Linking, StyleSheet, View } from 'react-native';
 
 import {
   Boton,
+  BotonAtras,
   CampoTexto,
   Pantalla,
   Plegable,
@@ -31,7 +31,7 @@ import {
 import type { DiaSemana } from '@/data/perfil';
 import { diaDeUnaVez, permisoAlarmas, textoDias } from '@/services/alarmas';
 import { enlaceAtajo, esWebDeIphone } from '@/services/alarmas/atajo';
-import { alturaTactil, colores, espacio } from '@/theme';
+import { colores, espacio } from '@/theme';
 
 // Nueva alarma (/alarma) o editar una (/alarma?id=...). Corta: tipo, hora y días a la
 // vista; el nombre, el sonido y el adelanto máximo, plegados en "Más ajustes".
@@ -115,14 +115,7 @@ function Formulario({ inicial }: { inicial: Alarma | null }) {
 
   return (
     <Pantalla>
-      <Pressable
-        accessibilityRole="button"
-        accessibilityLabel="Volver sin guardar"
-        onPress={volver}
-        style={({ pressed }) => [estilos.volver, pressed && estilos.pulsado]}>
-        <Ionicons name="chevron-back" size={24} color={colores.texto} />
-        <Texto fuerte>Alarmas</Texto>
-      </Pressable>
+      <BotonAtras texto="Alarmas" etiqueta="Volver sin guardar" onPress={volver} />
       <Titulo>{inicial ? 'Editar alarma' : 'Nueva alarma'}</Titulo>
 
       <SelectorVisual opciones={TIPOS} valor={tipo} alCambiar={setTipo} />
@@ -180,14 +173,6 @@ function Formulario({ inicial }: { inicial: Alarma | null }) {
 }
 
 const estilos = StyleSheet.create({
-  volver: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    minHeight: alturaTactil,
-    paddingRight: espacio.s,
-    marginLeft: -espacio.xs,
-  },
   pulsado: { transform: [{ scale: 0.97 }] },
   botones: { gap: espacio.s, marginTop: espacio.s },
   confirmar: { gap: espacio.m, borderColor: colores.aviso, borderWidth: 2 },

@@ -584,7 +584,19 @@ con el naranja y el rojo del tráfico.
 - **Hoy**: arriba la fecha y el botón de Perfil; debajo, el saludo gigante (40 px, 800) y
   la tarjeta "Lo siguiente" con degradado naranja → ámbar: "LO SIGUIENTE", la hora en
   grande ("10:00 hasta 12:00"), título y lugar, todo en `textoOscuro`; "Cómo llegar" va en
-  píldora oscura.
+  píldora oscura. Debajo, **acciones rápidas** (`AccionesRapidas`, 26/10/2026, porque el
+  usuario lo quería "mucho más cómodo"): cuatro botones redondos con una palabra debajo,
+  Apuntar (naranja; abre la captura y pasa a "Cerrar"), Dictar, Semana y Mapa. Hoy ya no
+  lleva `BotonFlotante`, que tapaba las casillas. El aviso de "añádela a la pantalla de
+  inicio" va al final de Hoy, no arriba.
+- **Todo lo que se pulsa se parece**: botones y chips en píldora; botones de solo icono,
+  redondos (micrófono, enviar, "+", − y +); iconos de contenido dentro de un círculo.
+  **Para volver, siempre `BotonAtras`** (píldora gris con flecha arriba a la izquierda); no
+  hagas otro "Volver" a mano.
+- **Perfil es un menú de ajustes** (26/10/2026): cada apartado es un `Plegable` con icono
+  (Sobre ti y tu ritmo, Cómo se ve, Permisos, Tu IA, Avisos, Épocas doradas...), cerrado
+  hasta que lo tocas. "Sobre ti y tu ritmo" se abre solo si al guardar hay un error. Si
+  añades un apartado a Perfil, que sea otro `Plegable` con icono.
 - **Tono cercano** en todos los textos: tuteo, frases cortas, algún giro coloquial
   suave, sin emojis ni exclamaciones. Ejemplos en `BRIEF.md` > "Tono".
 - Todo lo pulsable mide 44 px de alto como mínimo (`alturaTactil`).
@@ -598,8 +610,8 @@ con el naranja y el rojo del tráfico.
   "Todo el día" y "Época dorada" (esta abre `/epoca`). Al tocar una, su lista sale
   debajo y la casilla se pone en `acentoSuave` con borde naranja; al tocarla otra vez,
   se cierra. La energía solo
-  sale en Tareas y Estudio. La captura rápida está plegada: el "+" la abre (y pasa a
-  "×"); dentro, "Mejor lo relleno a mano" abre la ficha vacía. Si añades algo a Hoy,
+  sale en Tareas y Estudio. La captura rápida está plegada: "Apuntar" la abre (y pasa a
+  "Cerrar"); dentro, "Mejor lo relleno a mano" abre la ficha vacía. Si añades algo a Hoy,
   que sea una casilla o vaya dentro de la lista de una, no un bloque suelto más.
 - **Formularios cortos y visuales**: a la vista solo lo esencial, con casillas de icono
   (`SelectorVisual`) mejor que chips de texto; lo opcional, en un `Plegable` ("Más
@@ -659,8 +671,13 @@ animaciones infinitas.
 - `SelectorVisual` — como `Selector`, con casillas grandes de icono y texto (`OpcionVisual`:
   `valor`, `etiqueta`, `icono` de Ionicons y `veces` para repetirlo, como las llamas de la
   dificultad). La elegida, en naranja suave, como los chips.
-- `Plegable` — fila "Más ajustes" que se abre al tocarla; `resumen` enseña lo que ya
-  está puesto y `abierto` la abre desde fuera (por ejemplo, si hay un error dentro).
+- `Plegable` — tarjeta "Más ajustes" que se abre al tocarla; `resumen` enseña lo que ya
+  está puesto, `abierto` la abre desde fuera (por ejemplo, si hay un error dentro) e
+  `icono` le pone un icono en un círculo a la izquierda (menús como Perfil).
+- `BotonAtras` — píldora gris con flecha para volver (`texto`, `etiqueta` para el lector de
+  pantalla y `onPress`). Es el único "Volver" de la app.
+- `AccionesRapidas` — fila de botones redondos con icono y una palabra debajo (`DatosAccion`:
+  `clave`, `icono`, `texto`, `etiqueta`, `activa`, `alPulsar`); el primero, en naranja.
 - `BotonFlotante` admite `icono="close"` para cuando lo que abre ya está abierto.
 - `BotonEntrarCon` — botón oficial para entrar con `proveedor="google"` o `"microsoft"`, como
   piden sus normas de marca (no cambies su aspecto). `LogoMarca` enseña solo el logo.

@@ -64,6 +64,6 @@ const estilos = StyleSheet.create({
     borderRadius: radio.grande,
   },
   pulsado: { opacity: 0.8 },
-  icono: { width: 36, height: 36, borderRadius: radio.normal, alignItems: 'center', justifyContent: 'center' },
+  icono: { width: 40, height: 40, borderRadius: radio.chip, alignItems: 'center', justifyContent: 'center' },
   textos: { flex: 1, gap: 2 },
 });

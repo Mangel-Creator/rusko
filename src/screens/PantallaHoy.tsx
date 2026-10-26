@@ -4,9 +4,9 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, LayoutAnimationConfig, LinearTransition } from 'react-native-reanimated';
 
 import {
+  AccionesRapidas,
   AvisoPantallaInicio,
   Boton,
-  BotonFlotante,
   BotonInicial,
   Casilla,
   Pantalla,
@@ -375,6 +375,31 @@ export function PantallaHoy() {
           {cargado && siguiente ? <TarjetaSiguiente siguiente={siguiente} hoy={hoy} perfil={perfil} ahora={ahora} /> : null}
         </View>
 
+        {/* Acciones rápidas, como en una app de banco: lo que más se hace, a un toque. */}
+        <AccionesRapidas
+          acciones={[
+            {
+              clave: 'apuntar',
+              icono: capturaAbierta ? 'close' : 'add',
+              texto: capturaAbierta ? 'Cerrar' : 'Apuntar',
+              etiqueta: capturaAbierta ? 'Cerrar la captura rápida' : 'Apuntar algo',
+              alPulsar: () => setCapturaAbierta((abierta) => !abierta),
+            },
+            {
+              clave: 'dictar',
+              icono: 'mic-outline',
+              texto: 'Dictar',
+              etiqueta: 'Apuntar algo con la voz',
+              alPulsar: () => {
+                setCapturaAbierta(true);
+                setEscucharAlAbrir((n) => (n ?? 0) + 1);
+              },
+            },
+            { clave: 'semana', icono: 'calendar-outline', texto: 'Semana', alPulsar: () => router.navigate('/semana') },
+            { clave: 'mapa', icono: 'navigate-outline', texto: 'Mapa', etiqueta: 'Abrir el mapa', alPulsar: () => router.navigate('/mapa') },
+          ]}
+        />
+
         <CapturaRapida
           hoy={hoy}
           plegada={!capturaAbierta}
@@ -384,7 +409,6 @@ export function PantallaHoy() {
             nuevoEvento(hoy);
           }}
         />
-        <AvisoPantallaInicio />
         <ResumenFinEpoca epocas={epocas} registro={registro} hoy={hoy} />
 
         {cargado ? (
@@ -513,12 +537,9 @@ export function PantallaHoy() {
         ) : (
           <Texto secundario>Cargando tu día…</Texto>
         )}
+        {/* Solo en la web del móvil: cómo guardarla en la pantalla de inicio. Abajo, para no tapar el día. */}
+        <AvisoPantallaInicio />
       </Pantalla>
-      <BotonFlotante
-        etiqueta={capturaAbierta ? 'Cerrar la captura rápida' : 'Apuntar algo'}
-        icono={capturaAbierta ? 'close' : 'add'}
-        onPress={() => setCapturaAbierta((abierta) => !abierta)}
-      />
     </View>
   );
 }
@@ -613,7 +634,7 @@ function FilaTarea({ tarea, detalle, apagada }: FilaTareaLista) {
 
 const estilos = StyleSheet.create({
   contenedor: { flex: 1, backgroundColor: colores.fondo },
-  contenido: { paddingBottom: 120 }, // deja sitio al botón "+"
+  contenido: { paddingBottom: espacio.xxl, gap: espacio.l - 4 },
   cabecera: { gap: espacio.m, paddingBottom: espacio.s },
   cabeceraFila: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espacio.m },
   fecha: { fontFamily: fuentes.textoMedio, textTransform: 'capitalize' },

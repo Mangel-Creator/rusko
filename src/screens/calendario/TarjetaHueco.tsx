@@ -35,7 +35,7 @@ const estilos = StyleSheet.create({
     borderWidth: 1.5,
     borderStyle: 'dashed',
     borderColor: colores.cargaNormal,
-    borderRadius: radio.normal,
+    borderRadius: radio.grande - 4,
   },
   horas: { width: 48 },
   hora: { ...cifras, fontFamily: fuentes.hora },

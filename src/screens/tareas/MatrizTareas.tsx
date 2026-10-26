@@ -182,7 +182,7 @@ const estilos = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     marginLeft: -espacio.s,
-    borderRadius: radio.pequeno,
+    borderRadius: radio.normal,
   },
   filaAncha: { marginLeft: 0, paddingRight: espacio.m, backgroundColor: colores.tarjeta, borderRadius: 0 },
   // La que se está colocando, con el fondo del papel para distinguirla.

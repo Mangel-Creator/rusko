@@ -1,16 +1,17 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import {
   Boton,
+  BotonAtras,
   CampoTexto,
   Interruptor,
   Pantalla,
   Selector,
   SelectorFecha,
   SelectorHora,
+  SelectorVisual,
   Tarjeta,
   Texto,
   Titulo,
@@ -47,9 +48,10 @@ import {
   type ClaveDia,
 } from '@/services/fechas';
 import { ATRIBUCION_OPENSTREETMAP, buscarCoordenadas, usaOpenStreetMap } from '@/services/lugares';
-import { alturaTactil, colores, espacio } from '@/theme';
+import { colores, espacio } from '@/theme';
 
 import {
+  ICONO_TIPO,
   OPCIONES_AVISO,
   OPCIONES_DURACION,
   OPCIONES_REPETICION,
@@ -409,9 +411,9 @@ function Formulario({ evento, rellenar, fechaInicial, perfil, eventos }: Props) 
         error={errores.titulo}
       />
 
-      <Selector
+      <SelectorVisual
         etiqueta="Tipo"
-        opciones={opcionesTipo(modoEmpresa, evento?.tipo ?? null)}
+        opciones={opcionesTipo(modoEmpresa, evento?.tipo ?? null).map((o) => ({ ...o, icono: ICONO_TIPO[o.valor] }))}
         valor={b.tipo}
         alCambiar={(tipo) => cambiar({ tipo })}
       />
@@ -605,26 +607,11 @@ function Formulario({ evento, rellenar, fechaInicial, perfil, eventos }: Props) 
 
 function BotonVolver() {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Volver sin guardar"
-      onPress={volver}
-      style={({ pressed }) => [estilos.volver, pressed && estilos.pulsado]}>
-      <Ionicons name="chevron-back" size={24} color={colores.texto} />
-      <Texto fuerte>Volver</Texto>
-    </Pressable>
+    <BotonAtras texto="Volver" etiqueta="Volver sin guardar" onPress={volver} />
   );
 }
 
 const estilos = StyleSheet.create({
-  volver: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    minHeight: alturaTactil,
-    paddingRight: espacio.s,
-    marginLeft: -espacio.xs,
-  },
   pulsado: { opacity: 0.6 },
   fila: { flexDirection: 'row', gap: espacio.m },
   grupo: { gap: espacio.s },

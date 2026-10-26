@@ -4,7 +4,7 @@ import { SafeAreaView } from 'react-native-safe-area-context';
 
 import { colores, espacio } from '@/theme';
 
-// Contenedor base de cada pantalla: fondo crema, márgenes y scroll.
+// Contenedor base de cada pantalla: fondo oscuro, márgenes y scroll.
 // Se aparta del teclado para que no tape los campos.
 // colorArriba pinta la franja de la hora y la batería (Hoy la pone oscura, como su cabecera).
 export function Pantalla({
@@ -38,9 +38,9 @@ const estilos = StyleSheet.create({
   scroll: { flex: 1 },
   fondo: { backgroundColor: colores.fondo },
   contenido: {
-    paddingHorizontal: espacio.l,
-    paddingTop: espacio.l,
+    paddingHorizontal: espacio.l - 4,
+    paddingTop: espacio.m,
     paddingBottom: espacio.xxl,
-    gap: espacio.m,
+    gap: espacio.l - 4,
   },
 });

@@ -1,9 +1,9 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState } from 'react';
-import { Platform, Pressable, StyleSheet, View } from 'react-native';
+import { Platform, StyleSheet, View } from 'react-native';
 
-import { Pantalla, Plegable, Tarjeta, Texto, Titulo } from '@/components';
+import { BotonAtras, Pantalla, Plegable, Tarjeta, Texto, Titulo } from '@/components';
 import { useCorreos } from '@/data/correos';
 import {
   actualizarCorreos,
@@ -14,7 +14,7 @@ import {
   textoVuelta,
 } from '@/services/correo';
 import { claveDia } from '@/services/fechas';
-import { alturaTactil, colores, espacio, radio } from '@/theme';
+import { colores, espacio, radio } from '@/theme';
 
 import { CuentasCorreo } from './correo/CuentasCorreo';
 import { FilaCorreo } from './correo/FilaCorreo';
@@ -178,25 +178,11 @@ export function PantallaResumenes() {
 
 function BotonVolver() {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Volver"
-      onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))}
-      style={({ pressed }) => [estilos.volver, pressed && estilos.pulsado]}>
-      <Ionicons name="chevron-back" size={24} color={colores.texto} />
-      <Texto fuerte>Hoy</Texto>
-    </Pressable>
+    <BotonAtras texto="Hoy" etiqueta="Volver" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
   );
 }
 
 const estilos = StyleSheet.create({
-  volver: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: espacio.xs,
-    minHeight: alturaTactil,
-    alignSelf: 'flex-start',
-  },
   pulsado: { opacity: 0.8 },
   mensaje: { gap: espacio.xs },
   aviso: { color: colores.aviso },
@@ -204,7 +190,7 @@ const estilos = StyleSheet.create({
   icono: {
     width: 48,
     height: 48,
-    borderRadius: radio.normal,
+    borderRadius: radio.chip,
     alignItems: 'center',
     justifyContent: 'center',
     backgroundColor: colores.tarjeta,

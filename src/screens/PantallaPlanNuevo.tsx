@@ -392,7 +392,7 @@ const estilos = StyleSheet.create({
   botonMas: {
     width: alturaTactil + 6,
     height: alturaTactil + 6,
-    borderRadius: radio.normal,
+    borderRadius: radio.chip,
     backgroundColor: colores.principal,
     alignItems: 'center',
     justifyContent: 'center',

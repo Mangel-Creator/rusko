@@ -19,3 +19,5 @@ export { SelectorVisual, type OpcionVisual } from './SelectorVisual';
 export { Tarjeta } from './Tarjeta';
 export { Texto } from './Texto';
 export { Titulo } from './Titulo';
+export { AccionesRapidas, type DatosAccion } from './AccionRapida';
+export { BotonAtras } from './BotonAtras';

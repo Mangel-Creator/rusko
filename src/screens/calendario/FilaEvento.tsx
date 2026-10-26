@@ -9,7 +9,7 @@ import { usePerfil } from '@/data/perfil';
 import { resolverLugar } from '@/services/agenda';
 import { cifras, colorBaldosa, colores, espacio, fuentes, radio, tamanos } from '@/theme';
 
-import { abrirEvento } from './textos';
+import { abrirEvento, ICONO_TIPO } from './textos';
 
 type Props = {
   evento: Evento;
@@ -18,13 +18,6 @@ type Props = {
 };
 
 type NombreIcono = ComponentProps<typeof Ionicons>['name'];
-
-// El mismo icono que su casilla en Hoy.
-const ICONO_TIPO: Record<Evento['tipo'], NombreIcono> = {
-  cliente: 'briefcase-outline',
-  amigos: 'people-outline',
-  yo: 'person-outline',
-};
 
 // Un evento con hora fija, como una fila de movimientos: icono redondo del color de su
 // tipo a la izquierda, título y lugar en el centro y la hora, grande, a la derecha.

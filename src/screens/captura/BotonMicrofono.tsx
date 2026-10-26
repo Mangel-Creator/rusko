@@ -79,9 +79,9 @@ export function AvisoMicrofono({
 
 const estilos = StyleSheet.create({
   boton: {
-    width: alturaTactil + 6,
-    height: alturaTactil + 6,
-    borderRadius: radio.normal,
+    width: alturaTactil + 8,
+    height: alturaTactil + 8,
+    borderRadius: radio.chip,
     alignItems: 'center',
     justifyContent: 'center',
   },

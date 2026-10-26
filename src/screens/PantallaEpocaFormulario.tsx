@@ -1,11 +1,11 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
 import { useRef, useState } from 'react';
-import { Pressable, ScrollView, StyleSheet, View } from 'react-native';
+import { ScrollView, StyleSheet, View } from 'react-native';
 
 import {
   BarraProgreso,
   Boton,
+  BotonAtras,
   CampoTexto,
   Interruptor,
   Pantalla,
@@ -27,7 +27,7 @@ import { usePerfil } from '@/data/perfil';
 import { NOMBRE_CASA } from '@/services/agenda';
 import { epocasSolapadas } from '@/services/epoca';
 import { claveDia, fechaDesdeClave, formatearDiaCorto } from '@/services/fechas';
-import { alturaTactil, colores, espacio } from '@/theme';
+import { colores, espacio } from '@/theme';
 
 import {
   borradorConPropuesta,
@@ -375,26 +375,11 @@ function Formulario({ epoca, epocas, perfil, pasoInicial }: Props) {
 
 function BotonVolver() {
   return (
-    <Pressable
-      accessibilityRole="button"
-      accessibilityLabel="Volver sin guardar"
-      onPress={volver}
-      style={({ pressed }) => [estilos.volver, pressed && estilos.pulsado]}>
-      <Ionicons name="chevron-back" size={24} color={colores.texto} />
-      <Texto fuerte>Volver</Texto>
-    </Pressable>
+    <BotonAtras texto="Volver" etiqueta="Volver sin guardar" onPress={volver} />
   );
 }
 
 const estilos = StyleSheet.create({
-  volver: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    alignSelf: 'flex-start',
-    minHeight: alturaTactil,
-    paddingRight: espacio.s,
-    marginLeft: -espacio.xs,
-  },
   pulsado: { transform: [{ scale: 0.97 }] },
   fila: { flexDirection: 'row', gap: espacio.m },
   botones: { gap: espacio.s, marginTop: espacio.s },

@@ -217,7 +217,7 @@ const estilos = StyleSheet.create({
     gap: espacio.s,
     borderColor: colores.aviso,
     borderWidth: 2,
-    borderRadius: radio.normal,
+    borderRadius: radio.grande - 4,
     padding: espacio.m,
   },
 });
