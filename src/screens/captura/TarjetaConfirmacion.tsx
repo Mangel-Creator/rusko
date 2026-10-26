@@ -23,7 +23,8 @@ import { colores, espacio, radio } from '@/theme';
 
 import { OPCIONES_DURACION, OPCIONES_TIPO, rangoHoras } from '../calendario/textos';
 
-// Tarjeta "¿Lo guardo así?" con lo que ha entendido la IA. Todo se puede cambiar
+// Tarjeta "¿Lo guardo así?" con lo que ha entendido la app (o la IA). Si solo se dijo
+// la franja ("por la tarde"), ofrece sus horas a un toque. Todo se puede cambiar
 // antes de guardar; con "Cancelar" no se guarda nada. Lo menos habitual
 // (repetición, notas, aviso, otra dirección) está en "Más opciones", que abre
 // la ficha normal ya rellena.
@@ -167,18 +168,28 @@ export function TarjetaConfirmacion({ propuesta, perfil, alGuardar, alCancelar, 
       {flexible ? (
         <Selector etiqueta="Duración estimada" opciones={OPCIONES_DURACION} valor={duracion} alCambiar={setDuracion} />
       ) : (
-        <View style={estilos.fila}>
-          <SelectorHora etiqueta="Empieza" valor={horaInicio} alCambiar={cambiarInicio} />
-          <SelectorHora
-            etiqueta="Termina"
-            valor={horaFin}
-            alCambiar={(h) => {
-              setHoraFin(h);
-              setError(null);
-              setFocoPisado(null);
-            }}
-          />
-        </View>
+        <>
+          {propuesta.opcionesHora ? (
+            <Selector
+              etiqueta="¿A qué hora?"
+              opciones={propuesta.opcionesHora.map((h) => ({ valor: h, etiqueta: h }))}
+              valor={horaInicio}
+              alCambiar={cambiarInicio}
+            />
+          ) : null}
+          <View style={estilos.fila}>
+            <SelectorHora etiqueta="Empieza" valor={horaInicio} alCambiar={cambiarInicio} />
+            <SelectorHora
+              etiqueta="Termina"
+              valor={horaFin}
+              alCambiar={(h) => {
+                setHoraFin(h);
+                setError(null);
+                setFocoPisado(null);
+              }}
+            />
+          </View>
+        </>
       )}
       <Selector etiqueta="Lugar" opciones={opcionesLugar} valor={lugar} alCambiar={setLugar} />
 

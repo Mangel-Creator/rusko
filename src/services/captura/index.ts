@@ -1,17 +1,22 @@
 import { FunctionsFetchError, FunctionsHttpError } from '@supabase/supabase-js';
 
+import type { Evento } from '@/data/eventos/tipos';
 import type { Perfil } from '@/data/perfil';
 import { asegurarSesion, obtenerSupabase } from '@/data/supabase';
 import { claveDia, formatearHora } from '@/services/fechas';
 import { limiteDelError, mensajeLimite } from '@/services/ia';
 
+import { interpretarLocal } from './local';
 import { ID_CASA, validarPropuesta, type Propuesta } from './validar';
+
+export { interpretarLocal } from './local';
 
 export { validarPropuesta, type Confianza, type Propuesta } from './validar';
 
-// Captura rápida: manda la frase al servidor propio (Edge Function "captura" de
-// Supabase), que pregunta a Claude y devuelve los datos del evento en JSON.
-// La app lo comprueba (validar.ts) y lo enseña para que el usuario lo confirme:
+// Captura rápida: primero la lee la app sola (local.ts): si ve el día o la hora, ya
+// está, sin gastar IA ni necesitar conexión. Si no, manda la frase al servidor propio
+// (Edge Function "captura" de Supabase), que pregunta a Claude y devuelve los datos
+// del evento en JSON. La app lo comprueba (validar.ts) y lo enseña para que el usuario lo confirme:
 // aquí nunca se guarda nada.
 
 export const MAX_FRASE = 300;
@@ -52,11 +57,25 @@ export function datosPeticion(frase: string, ahora: Date, perfil: Perfil | null)
   };
 }
 
-export async function interpretarFrase(frase: string, perfil: Perfil | null): Promise<ResultadoCaptura> {
+export async function interpretarFrase(
+  frase: string,
+  perfil: Perfil | null,
+  eventos: readonly Evento[] = [],
+): Promise<ResultadoCaptura> {
+  const ahora = new Date();
+  const local = interpretarLocal(frase, { ahora, perfil, eventos });
+  if (local?.confianza === 'alta') return { estado: 'ok', propuesta: local };
+
+  // La IA no está o falla: vale lo que haya sacado la app sola, para revisarlo.
+  const resultado = await interpretarConIA(frase, perfil, ahora);
+  if (resultado.estado === 'fallo' && local) return { estado: 'ok', propuesta: { ...local, confianza: 'media' } };
+  return resultado;
+}
+
+async function interpretarConIA(frase: string, perfil: Perfil | null, ahora: Date): Promise<ResultadoCaptura> {
   const supabase = obtenerSupabase();
   if (!supabase) return fallo('sin-configurar');
 
-  const ahora = new Date();
   const peticion = datosPeticion(frase, ahora, perfil);
 
   try {

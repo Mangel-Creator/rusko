@@ -97,7 +97,7 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
     setRespuesta(null);
     setPensando(true);
     campo.current?.blur();
-    const resultado = await interpretarFrase(limpia, perfil);
+    const resultado = await interpretarFrase(limpia, perfil, eventos);
     setPensando(false);
     if (resultado.estado === 'ok') {
       setPropuesta(resultado.propuesta);
@@ -177,7 +177,7 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
             setHecho(null);
           }}
           onSubmitEditing={() => enviar(frase)}
-          placeholder={escuchando ? 'Te escucho…' : 'pádel con Javi el jueves a las 8'}
+          placeholder={escuchando ? 'Te escucho…' : 'mañana pádel por la tarde'}
           placeholderTextColor={colores.textoSecundario}
           accessibilityLabel="Captura rápida"
           accessibilityHint="Escribe o dicta lo que tienes que hacer y te preparo el evento."

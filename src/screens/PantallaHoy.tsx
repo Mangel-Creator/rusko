@@ -1,25 +1,14 @@
+import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useLocalSearchParams } from 'expo-router';
-import { useEffect, useState } from 'react';
+import { useEffect, useState, type ComponentProps } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn, FadeOut, LayoutAnimationConfig, LinearTransition } from 'react-native-reanimated';
 
-import {
-  AccionesRapidas,
-  AvisoPantallaInicio,
-  Boton,
-  BotonInicial,
-  Casilla,
-  Pantalla,
-  Selector,
-  Tarjeta,
-  Texto,
-  Titulo,
-} from '@/components';
-import { useCorreos } from '@/data/correos';
+import { AvisoPantallaInicio, Boton, BotonInicial, Casilla, Pantalla, Tarjeta, Texto, Titulo } from '@/components';
 import { useDensidad } from '@/data/densidad';
 import { useEnergia } from '@/data/energia';
 import { marcarHecha, moverTareas, useEventos, type Evento } from '@/data/eventos';
-import { usePerfil, type MomentoDelDia, type Perfil } from '@/data/perfil';
+import { usePerfil, type Perfil } from '@/data/perfil';
 import {
   DATOS_CUADRANTE,
   calcularHuecos,
@@ -32,12 +21,9 @@ import {
   siguienteEvento,
   tareasPendientes,
   ventanaDelDia,
-  type Energia,
-  type Intervalo,
   type Siguiente,
 } from '@/services/agenda';
-import { contarNuevos } from '@/services/correo/correos';
-import { imprescindiblesDelDia, textoQuedan, ventanaEpoca } from '@/services/epoca';
+import { imprescindiblesDelDia, ventanaEpoca } from '@/services/epoca';
 import {
   claveDia,
   fechaDesdeClave,
@@ -48,43 +34,17 @@ import {
   saludoSegunHora,
   sumarDias,
 } from '@/services/fechas';
-import { cifras, colorBaldosa, colores, colorEvento, espacio, fuentes, radio, tamanos } from '@/theme';
+import { cifras, colores, colorEvento, espacio, fuentes, radio, tamanos } from '@/theme';
 
 import { CapturaRapida } from './captura/CapturaRapida';
 import { ConfirmacionMovidas } from './calendario/ConfirmacionMovidas';
 import { FilaEvento } from './calendario/FilaEvento';
 import { SalidaSiguiente } from './calendario/SalidaSiguiente';
-import { TarjetaHueco } from './calendario/TarjetaHueco';
-import { OPCIONES_ENERGIA, abrirEvento, nuevoEvento, rangoHoras } from './calendario/textos';
+import { abrirEvento, nuevoEvento, rangoHoras } from './calendario/textos';
 import { useAhora } from './calendario/useAhora';
 import { PlanDeHoy } from './epoca/PlanDeHoy';
 import { ResumenFinEpoca } from './epoca/ResumenFinEpoca';
 import { useEpocaActiva } from './epoca/useEpoca';
-import { PanelHoy, type DatosBaldosa, type Vista } from './hoy/PanelHoy';
-import { MatrizTareas, useModoTareas, type ModoTareas } from './tareas/MatrizTareas';
-
-const NOMBRE_MOMENTO: Record<MomentoDelDia, string> = {
-  manana: 'por la mañana',
-  tarde: 'por la tarde',
-  noche: 'por la noche',
-};
-
-// Las tareas van ordenadas por la matriz de Eisenhower: lo importante, primero.
-function explicacionEnergia(energia: Energia, rindeMas: MomentoDelDia): string {
-  if (energia === 'a-tope') return `Te las coloco ${NOMBRE_MOMENTO[rindeMas]}, cuando rindes más. Lo importante, primero.`;
-  if (energia === 'normal') return 'Repartidas entre tus huecos libres. Lo importante, primero.';
-  return 'Hoy vas tranqui: como mucho 2, las más importantes.';
-}
-
-const OPCIONES_MODO_TAREAS: { valor: ModoTareas; etiqueta: string }[] = [
-  { valor: 'horas', etiqueta: 'Por horas' },
-  { valor: 'matriz', etiqueta: 'Matriz' },
-];
-
-// "1 cliente" / "2 clientes"
-function contar(n: number, uno: string, varios: string): string {
-  return n === 1 ? uno : varios;
-}
 
 // Las filas se recolocan deslizándose (por ejemplo, al marcar una tarea como hecha)
 // en vez de saltar. Con "reducir movimiento" activado en el móvil, cambian sin animar.
@@ -92,59 +52,43 @@ const RECOLOCAR = LinearTransition.duration(220);
 const APARECER = FadeIn.duration(180);
 const DESAPARECER = FadeOut.duration(120);
 
+type NombreIcono = ComponentProps<typeof Ionicons>['name'];
+
 type FilaTareaLista = { tarea: Evento; detalle: string; apagada?: boolean };
 
-const TITULO_VISTA: Record<Vista, string> = {
-  cliente: 'Clientes de hoy',
-  amigos: 'Planes con amigos',
-  yo: 'Para ti',
-  tareas: 'Tareas',
-  estudio: 'Estudio de hoy',
-  dia: 'Todo el día',
-};
-
-// Hoy (rediseño del 26/09/2026, "mucho más visual"): cabecera oscura con el saludo y
-// lo siguiente, y un panel de casillas grandes con icono y número. Al tocar una, su
-// lista sale debajo. La captura rápida está plegada: se abre con el "+".
+// Hoy (26/10/2026, lo pidió el usuario: "quita todo y que solo aparezcan las cosas que
+// tienes ese día"): la fecha, la captura rápida siempre a mano y, debajo, lo de hoy por
+// orden de hora. Lo siguiente sale en su sitio como la tarjeta naranja. Luego las tareas
+// del día y, si hay época dorada, su estudio. Planes y Alarmas, en los dos círculos de arriba.
 export function PantallaHoy() {
   const ahora = useAhora();
   const hoy = claveDia(ahora);
   const { perfil } = usePerfil();
   const { cargado, eventos } = useEventos();
-  const correo = useCorreos();
-  const [energia, setEnergia] = useEnergia(hoy);
+  const [energia] = useEnergia(hoy);
   // Época dorada activa (fase 4b): cambia el horario del día y añade su plan.
   const { epoca, plan, epocas, registro } = useEpocaActiva(hoy, eventos, energia);
   const { medidas } = useDensidad();
   const separacion = { gap: medidas.separacion };
-  const [vista, setVista] = useState<Vista | null>(null);
-  const [capturaAbierta, setCapturaAbierta] = useState(false);
-  const [modoTareas, setModoTareas] = useModoTareas();
 
-  // /?voz=1 (accesos directos, widget y Atajo; fase 9): abre la captura y empieza a
-  // escuchar. Se quita de la dirección para que no vuelva a pasar al volver a Hoy.
+  // /?voz=1 (accesos directos, widget y Atajo; fase 9): empieza a escuchar.
+  // Se quita de la dirección para que no vuelva a pasar al volver a Hoy.
   const { voz } = useLocalSearchParams<{ voz?: string }>();
   const [escucharAlAbrir, setEscucharAlAbrir] = useState<number | undefined>(undefined);
   const [vozAtendida, setVozAtendida] = useState(false);
   if ((voz === '1') !== vozAtendida) {
     setVozAtendida(voz === '1');
-    if (voz === '1') {
-      setCapturaAbierta(true);
-      setEscucharAlAbrir((n) => (n ?? 0) + 1);
-    }
+    if (voz === '1') setEscucharAlAbrir((n) => (n ?? 0) + 1);
   }
   useEffect(() => {
     if (voz === '1') router.replace('/');
   }, [voz]);
 
   const nombre = perfil?.nombre ?? '';
-  const saludo = saludoSegunHora(ahora, nombre);
-
   const rindeMas = perfil?.rindeMas ?? 'manana';
 
-  // Huecos a partir de ahora (redondeado al cuarto de hora) dentro del horario del perfil.
-  // Durante una época, lo que no quiere dejar de hacer cuenta como un evento más
-  // y los bloques de estudio (con su descanso) ocupan su tiempo.
+  // Lo de hoy con hora. Durante una época, lo que no quiere dejar de hacer cuenta como un
+  // evento más y los bloques de estudio ocupan su tiempo al repartir las tareas.
   const delDia = [...eventosDelDia(eventos, hoy), ...(epoca ? imprescindiblesDelDia(epoca, hoy) : [])].sort(
     (a, b) => intervaloDe(a).inicio - intervaloDe(b).inicio,
   );
@@ -153,23 +97,15 @@ export function PantallaHoy() {
   const ventana = epoca ? ventanaEpoca(epoca) : ventanaDelDia(perfil);
   const desde = Math.max(ventana.inicio, Math.ceil(minutosDelDia(ahora) / 15) * 15);
   const quedan = { inicio: desde, fin: ventana.fin };
-  const huecos = calcularHuecos(ocupados, quedan);
 
-  // Ordenadas por la matriz de Eisenhower: las importantes cogen antes los huecos (y con
-  // energía "Tranqui" son las que se quedan hoy).
+  // Tareas de hoy, ordenadas por la matriz de Eisenhower y colocadas en los huecos libres.
   const pendientes = ordenarPorPrioridad(tareasPendientes(eventos, hoy, hoy));
   const reparto = repartirTareas(pendientes, duracionTarea, calcularHuecos(ocupados, quedan, 15), energia, rindeMas);
   const hechasHoy = eventos.filter((e) => e.flexible && e.hecha && e.fecha === hoy);
   const siguiente = siguienteEvento(eventos, ahora);
+  const siguienteHoy = siguiente && siguiente.dia === hoy ? siguiente : null;
   const minutoActual = minutosDelDia(ahora);
 
-  // Lista del día: eventos y huecos libres mezclados por orden de hora.
-  const lista = [
-    ...delDia.map((evento) => ({ inicio: intervaloDe(evento).inicio, evento, hueco: null })),
-    ...huecos.map((hueco) => ({ inicio: hueco.inicio, evento: null, hueco })),
-  ].sort((a, b) => a.inicio - b.inicio);
-
-  // Todas las tareas en una sola lista, para que al marcar una se deslice a su sitio.
   const filasTareas: FilaTareaLista[] = [
     ...reparto.colocadas.map((c) => ({
       tarea: c.tarea,
@@ -179,277 +115,108 @@ export function PantallaHoy() {
       tarea,
       detalle: `Sin hueco hoy · ${formatearDuracion(duracionTarea(tarea))}`,
     })),
-    ...reparto.paraManana.map((tarea) => ({ tarea, detalle: 'Mejor mañana', apagada: true })),
+    ...reparto.paraManana.map((tarea) => ({
+      tarea,
+      detalle: 'Mejor mañana',
+      apagada: true,
+    })),
+    ...hechasHoy.map((tarea) => ({ tarea, detalle: 'Hecha', apagada: true })),
   ];
-  const filasHechas: FilaTareaLista[] = hechasHoy.map((tarea) => ({ tarea, detalle: 'Hecha', apagada: true }));
-
-  // --- Casillas del panel ---
-  const normales = delDia.filter((e) => !e.foco);
-  const deTipo = (tipo: Evento['tipo']) => delDia.filter((e) => e.tipo === tipo && (tipo === 'yo' || !e.foco));
-  const nClientes = normales.filter((e) => e.tipo === 'cliente').length;
-  const nAmigos = normales.filter((e) => e.tipo === 'amigos').length;
-  const nYo = deTipo('yo').length;
-  const bloquesDeHoy = (plan?.bloques ?? []).filter((b) => b.dia === hoy);
-  const bloquesHechos = bloquesDeHoy.filter((b) => b.estado === 'hecho').length;
-
-  const correosNuevos = contarNuevos(correo.correos);
-
-  const baldosas: DatosBaldosa[] = [
-    {
-      clave: 'cliente',
-      icono: 'briefcase-outline',
-      colores: colorBaldosa.cliente,
-      numero: String(nClientes),
-      etiqueta: contar(nClientes, 'cliente', 'clientes'),
-      lectura: `${nClientes} ${contar(nClientes, 'cliente', 'clientes')} hoy. Ver la lista`,
-    },
-    {
-      clave: 'amigos',
-      icono: 'people-outline',
-      colores: colorBaldosa.amigos,
-      numero: String(nAmigos),
-      etiqueta: contar(nAmigos, 'plan con amigos', 'planes con amigos'),
-      lectura: `${nAmigos} ${contar(nAmigos, 'plan con amigos', 'planes con amigos')} hoy. Ver la lista`,
-    },
-    {
-      clave: 'tareas',
-      icono: 'checkbox-outline',
-      colores: colorBaldosa.neutro,
-      numero: String(pendientes.length),
-      etiqueta: contar(pendientes.length, 'tarea', 'tareas'),
-      lectura: `${pendientes.length} ${contar(pendientes.length, 'tarea pendiente', 'tareas pendientes')}. Ver la lista`,
-    },
-    epoca
-      ? {
-          clave: 'estudio',
-          icono: 'school-outline',
-          colores: colorBaldosa.estudio,
-          numero: `${bloquesHechos}/${bloquesDeHoy.length}`,
-          etiqueta: 'bloques de estudio',
-          lectura: `${bloquesHechos} de ${bloquesDeHoy.length} bloques de estudio hechos. Ver el plan`,
-        }
-      : {
-          clave: 'yo',
-          icono: 'person-outline',
-          colores: colorBaldosa.yo,
-          numero: String(nYo),
-          etiqueta: contar(nYo, 'cosa tuya', 'cosas tuyas'),
-          lectura: `${nYo} ${contar(nYo, 'cosa tuya', 'cosas tuyas')} hoy. Ver la lista`,
-        },
-    {
-      clave: 'dia',
-      icono: 'calendar-outline',
-      colores: colorBaldosa.neutro,
-      etiqueta: 'Todo el día',
-      lectura: 'Todo el día, por horas. Ver la lista',
-    },
-    {
-      clave: 'epoca',
-      icono: epoca ? 'star' : 'star-outline',
-      colores: colorBaldosa.estudio,
-      etiqueta: epoca ? `Época dorada · ${textoQuedan(epoca, hoy)}` : 'Época dorada',
-      lectura: epoca ? `Época dorada, ${textoQuedan(epoca, hoy)}. Abrir` : 'Época dorada. Abrir',
-    },
-    // Resúmenes de correo (fase 11). Va la última y ocupa toda la fila.
-    correo.conexion || correo.cuentas.length > 0
-      ? {
-          clave: 'resumenes',
-          icono: correosNuevos > 0 ? 'mail-unread-outline' : 'mail-outline',
-          colores: colorBaldosa.neutro,
-          numero: String(correosNuevos),
-          etiqueta: contar(correosNuevos, 'correo nuevo', 'correos nuevos'),
-          lectura: `${correosNuevos} ${contar(correosNuevos, 'correo nuevo', 'correos nuevos')}. Ver los resúmenes`,
-        }
-      : {
-          clave: 'resumenes',
-          icono: 'mail-outline',
-          colores: colorBaldosa.neutro,
-          etiqueta: 'Resúmenes de tu correo',
-          lectura: 'Resúmenes de tu correo. Conectar Gmail',
-        },
-  ];
-
-  const pulsarBaldosa = (clave: DatosBaldosa['clave']) => {
-    if (clave === 'epoca') {
-      router.push('/epoca');
-      return;
-    }
-    if (clave === 'resumenes') {
-      router.push('/resumenes');
-      return;
-    }
-    setVista((actual) => (actual === clave ? null : clave));
-  };
-
-  const selectorEnergia = (
-    <Selector etiqueta="¿Cómo vas de energía?" opciones={OPCIONES_ENERGIA} valor={energia} alCambiar={setEnergia} />
-  );
-
-  // Filas de eventos (con sus huecos si es "Todo el día"), con las animaciones de siempre.
-  const listaEventos = (items: typeof lista, vacio: string) =>
-    items.length === 0 ? (
-      <Texto secundario>{vacio}</Texto>
-    ) : (
-      <LayoutAnimationConfig skipEntering>
-        <View style={separacion}>
-          {items.map((item) => (
-            <Animated.View
-              key={item.evento ? item.evento.id : `hueco-${item.inicio}`}
-              layout={RECOLOCAR}
-              entering={APARECER}
-              exiting={DESAPARECER}>
-              {item.evento ? (
-                <FilaEvento evento={item.evento} pasado={intervaloDe(item.evento).fin <= minutoActual} />
-              ) : (
-                <TarjetaHueco hueco={item.hueco as Intervalo} />
-              )}
-            </Animated.View>
-          ))}
-        </View>
-      </LayoutAnimationConfig>
-    );
-  const soloEventos = (tipo: Evento['tipo']) =>
-    deTipo(tipo).map((evento) => ({ inicio: intervaloDe(evento).inicio, evento, hueco: null }));
+  const nada = delDia.length === 0 && filasTareas.length === 0 && bloquesHoy.length === 0;
 
   return (
     <View style={estilos.contenedor}>
       <Pantalla contentContainerStyle={estilos.contenido}>
-        {/* Cabecera: fecha, saludo gigante y lo siguiente en la tarjeta naranja. */}
+        {/* Cabecera: la fecha en grande, Planes y Alarmas a un toque y el Perfil. */}
         <View style={estilos.cabecera}>
-          <View style={estilos.cabeceraFila}>
-            <Texto secundario style={estilos.fecha}>
-              {formatearDiaCorto(ahora)}
+          <View style={estilos.cabeceraTextos}>
+            <Texto secundario style={estilos.saludo}>
+              {saludoSegunHora(ahora, nombre)}
             </Texto>
-            <BotonInicial nombre={nombre} onPress={() => router.push('/perfil')} />
+            <Titulo style={estilos.fecha}>{formatearDiaCorto(ahora)}</Titulo>
           </View>
-          <Titulo style={estilos.saludo}>{saludo}</Titulo>
-          {cargado && siguiente ? <TarjetaSiguiente siguiente={siguiente} hoy={hoy} perfil={perfil} ahora={ahora} /> : null}
+          <BotonRedondo icono="people-outline" etiqueta="Planes" onPress={() => router.push('/planes')} />
+          <BotonRedondo icono="alarm-outline" etiqueta="Alarmas" onPress={() => router.push('/alarmas')} />
+          <BotonInicial nombre={nombre} onPress={() => router.push('/perfil')} />
         </View>
 
-        {/* Acciones rápidas, como en una app de banco: lo que más se hace, a un toque. */}
-        <AccionesRapidas
-          acciones={[
-            {
-              clave: 'apuntar',
-              icono: capturaAbierta ? 'close' : 'add',
-              texto: capturaAbierta ? 'Cerrar' : 'Apuntar',
-              etiqueta: capturaAbierta ? 'Cerrar la captura rápida' : 'Apuntar algo',
-              alPulsar: () => setCapturaAbierta((abierta) => !abierta),
-            },
-            {
-              clave: 'dictar',
-              icono: 'mic-outline',
-              texto: 'Dictar',
-              etiqueta: 'Apuntar algo con la voz',
-              alPulsar: () => {
-                setCapturaAbierta(true);
-                setEscucharAlAbrir((n) => (n ?? 0) + 1);
-              },
-            },
-            { clave: 'planes', icono: 'people-outline', texto: 'Planes', etiqueta: 'Abrir los planes', alPulsar: () => router.push('/planes') },
-            { clave: 'alarmas', icono: 'alarm-outline', texto: 'Alarmas', etiqueta: 'Abrir las alarmas', alPulsar: () => router.push('/alarmas') },
-          ]}
-        />
-
-        <CapturaRapida
-          hoy={hoy}
-          plegada={!capturaAbierta}
-          escucharAlAbrir={escucharAlAbrir}
-          alRellenarAMano={() => {
-            setCapturaAbierta(false);
-            nuevoEvento(hoy);
-          }}
-        />
+        <CapturaRapida hoy={hoy} escucharAlAbrir={escucharAlAbrir} alRellenarAMano={() => nuevoEvento(hoy)} />
         <ResumenFinEpoca epocas={epocas} registro={registro} hoy={hoy} />
 
-        {cargado ? (
+        {!cargado ? (
+          <Texto secundario>Cargando tu día…</Texto>
+        ) : (
           <>
             <ConfirmacionMovidas />
-            <PanelHoy baldosas={baldosas} elegida={vista} alPulsar={pulsarBaldosa} />
 
-            {vista ? (
-              <Animated.View key={vista} entering={APARECER} style={estilos.vista}>
-                <Titulo nivel={2}>{TITULO_VISTA[vista]}</Titulo>
+            {nada ? (
+              <View style={estilos.vacio}>
+                <Ionicons name="sunny-outline" size={40} color={colores.textoSecundario} />
+                <Texto secundario style={estilos.centrado}>
+                  Hoy no tienes nada. Apunta algo arriba, por ejemplo «mañana pádel por la tarde».
+                </Texto>
+              </View>
+            ) : null}
 
-                {vista === 'dia' ? listaEventos(lista, 'Nada con hora por hoy.') : null}
-                {vista === 'cliente' ? listaEventos(soloEventos('cliente'), 'Hoy no tienes clientes.') : null}
-                {vista === 'amigos' ? listaEventos(soloEventos('amigos'), 'Hoy no hay planes con amigos.') : null}
-                {vista === 'yo' ? listaEventos(soloEventos('yo'), 'Hoy no tienes nada tuyo con hora.') : null}
-
-                {vista === 'estudio' && epoca && plan ? (
-                  <>
-                    {selectorEnergia}
-                    <PlanDeHoy epoca={epoca} plan={plan} registro={registro} perfil={perfil} ahora={ahora} energia={energia} />
-                  </>
-                ) : null}
-
-                {vista === 'tareas' ? (
-                  <>
-                    <Selector
-                      etiqueta="Ver"
-                      opciones={OPCIONES_MODO_TAREAS}
-                      valor={modoTareas}
-                      alCambiar={setModoTareas}
-                    />
-                    {modoTareas === 'horas' ? selectorEnergia : null}
-                    {pendientes.length + hechasHoy.length === 0 ? (
-                      <Texto secundario>No te queda ninguna tarea. Bien.</Texto>
-                    ) : modoTareas === 'matriz' ? (
-                      pendientes.length === 0 ? (
-                        <Texto secundario>Hoy ya lo has hecho todo. Bien.</Texto>
+            {delDia.length > 0 ? (
+              <LayoutAnimationConfig skipEntering>
+                <View style={separacion}>
+                  {delDia.map((evento) => (
+                    <Animated.View key={evento.id} layout={RECOLOCAR} entering={APARECER} exiting={DESAPARECER}>
+                      {siguienteHoy && siguienteHoy.evento.id === evento.id ? (
+                        <TarjetaSiguiente siguiente={siguienteHoy} hoy={hoy} perfil={perfil} ahora={ahora} />
                       ) : (
-                        <MatrizTareas tareas={pendientes} />
-                      )
-                    ) : (
-                      <>
-                        <Texto pequeno secundario>
-                          {explicacionEnergia(energia, rindeMas)}
-                        </Texto>
-                        <LayoutAnimationConfig skipEntering>
-                          <View style={separacion}>
-                            {filasTareas.map((fila) => (
-                              <Animated.View
-                                key={fila.tarea.id}
-                                layout={RECOLOCAR}
-                                entering={APARECER}
-                                exiting={DESAPARECER}>
-                                <FilaTarea {...fila} />
-                              </Animated.View>
-                            ))}
-                            {reparto.paraManana.length > 0 ? (
-                              <Animated.View key="pasar-a-manana" layout={RECOLOCAR}>
-                                <Boton
-                                  variante="secundario"
-                                  titulo={`Pasar el resto a mañana (${reparto.paraManana.length})`}
-                                  onPress={() =>
-                                    moverTareas(
-                                      reparto.paraManana.map((t) => t.id),
-                                      sumarDias(hoy, 1),
-                                    )
-                                  }
-                                />
-                              </Animated.View>
-                            ) : null}
-                            {filasHechas.map((fila) => (
-                              <Animated.View
-                                key={fila.tarea.id}
-                                layout={RECOLOCAR}
-                                entering={APARECER}
-                                exiting={DESAPARECER}>
-                                <FilaTarea {...fila} />
-                              </Animated.View>
-                            ))}
-                          </View>
-                        </LayoutAnimationConfig>
-                      </>
-                    )}
-                  </>
-                ) : null}
-              </Animated.View>
+                        <FilaEvento evento={evento} pasado={intervaloDe(evento).fin <= minutoActual} />
+                      )}
+                    </Animated.View>
+                  ))}
+                </View>
+              </LayoutAnimationConfig>
+            ) : null}
+
+            {epoca && plan && bloquesHoy.length > 0 ? (
+              <View style={estilos.seccion}>
+                <Titulo nivel={2}>Estudio de hoy</Titulo>
+                <PlanDeHoy
+                  epoca={epoca}
+                  plan={plan}
+                  registro={registro}
+                  perfil={perfil}
+                  ahora={ahora}
+                  energia={energia}
+                />
+              </View>
+            ) : null}
+
+            {filasTareas.length > 0 ? (
+              <View style={estilos.seccion}>
+                <Titulo nivel={2}>Tareas</Titulo>
+                <LayoutAnimationConfig skipEntering>
+                  <View style={separacion}>
+                    {filasTareas.map((fila) => (
+                      <Animated.View key={fila.tarea.id} layout={RECOLOCAR} entering={APARECER} exiting={DESAPARECER}>
+                        <FilaTarea {...fila} />
+                      </Animated.View>
+                    ))}
+                    {reparto.paraManana.length > 0 ? (
+                      <Animated.View key="pasar-a-manana" layout={RECOLOCAR}>
+                        <Boton
+                          variante="secundario"
+                          titulo={`Pasar el resto a mañana (${reparto.paraManana.length})`}
+                          onPress={() =>
+                            moverTareas(
+                              reparto.paraManana.map((t) => t.id),
+                              sumarDias(hoy, 1),
+                            )
+                          }
+                        />
+                      </Animated.View>
+                    ) : null}
+                  </View>
+                </LayoutAnimationConfig>
+              </View>
             ) : null}
           </>
-        ) : (
-          <Texto secundario>Cargando tu día…</Texto>
         )}
         {/* Solo en la web del móvil: cómo guardarla en la pantalla de inicio. Abajo, para no tapar el día. */}
         <AvisoPantallaInicio />
@@ -458,9 +225,28 @@ export function PantallaHoy() {
   );
 }
 
+// Círculo con icono de la cabecera (Planes, Alarmas).
+function BotonRedondo({ icono, etiqueta, onPress }: { icono: NombreIcono; etiqueta: string; onPress: () => void }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={etiqueta}
+      onPress={onPress}
+      hitSlop={4}
+      style={({ pressed }) => [estilos.redondo, pressed && estilos.redondoPulsado]}>
+      <Ionicons name={icono} size={22} color={colores.texto} />
+    </Pressable>
+  );
+}
+
 // Lo siguiente (o lo que está en curso): la tarjeta destacada de Hoy, con degradado
 // naranja y la hora en grande, como el saldo de una cuenta. Texto oscuro encima.
-type PropsSiguiente = { siguiente: Siguiente; hoy: string; perfil: Perfil | null; ahora: Date };
+type PropsSiguiente = {
+  siguiente: Siguiente;
+  hoy: string;
+  perfil: Perfil | null;
+  ahora: Date;
+};
 
 function TarjetaSiguiente({ siguiente, hoy, perfil, ahora }: PropsSiguiente) {
   const { evento, dia, enCurso } = siguiente;
@@ -510,7 +296,10 @@ function FilaTarea({ tarea, detalle, apagada }: FilaTareaLista) {
       style={[
         estilos.tarea,
         { borderLeftColor: apagada ? colores.borde : colorEvento(tarea) },
-        { minHeight: medidas.altoFila, paddingVertical: Math.max(medidas.rellenoFila - 4, 0) },
+        {
+          minHeight: medidas.altoFila,
+          paddingVertical: Math.max(medidas.rellenoFila - 4, 0),
+        },
         apagada && estilos.apagada,
       ]}>
       <Casilla
@@ -548,15 +337,39 @@ function FilaTarea({ tarea, detalle, apagada }: FilaTareaLista) {
 const estilos = StyleSheet.create({
   contenedor: { flex: 1, backgroundColor: colores.fondo },
   contenido: { paddingBottom: espacio.xxl, gap: espacio.l - 4 },
-  cabecera: { gap: espacio.m, paddingBottom: espacio.s },
-  cabeceraFila: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espacio.m },
-  fecha: { fontFamily: fuentes.textoMedio, textTransform: 'capitalize' },
-  // Saludo gigante y apretado, como el titular de una página.
-  saludo: { fontSize: 40, lineHeight: 44, letterSpacing: -1.6 },
-  vista: { gap: espacio.m, marginTop: espacio.s },
-  siguiente: { marginTop: espacio.xs },
+  cabecera: { flexDirection: 'row', alignItems: 'center', gap: espacio.s },
+  cabeceraTextos: { flex: 1, gap: 2 },
+  saludo: { fontFamily: fuentes.textoMedio },
+  // La fecha, grande y apretada, como el titular de la página.
+  fecha: {
+    fontSize: 32,
+    lineHeight: 36,
+    letterSpacing: -1.2,
+    textTransform: 'capitalize',
+  },
+  redondo: {
+    width: 44,
+    height: 44,
+    borderRadius: radio.chip,
+    backgroundColor: colores.elevado,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  redondoPulsado: {
+    backgroundColor: colores.borde,
+    transform: [{ scale: 0.96 }],
+  },
+  seccion: { gap: espacio.m, marginTop: espacio.s },
+  vacio: { alignItems: 'center', gap: espacio.s, paddingVertical: espacio.xl },
+  centrado: { textAlign: 'center' },
+  siguiente: {},
   siguienteTextos: { gap: 2 },
-  cuando: { color: colores.textoOscuro, fontFamily: fuentes.textoFuerte, textTransform: 'uppercase', letterSpacing: 0.6 },
+  cuando: {
+    color: colores.textoOscuro,
+    fontFamily: fuentes.textoFuerte,
+    textTransform: 'uppercase',
+    letterSpacing: 0.6,
+  },
   cifraFila: { flexDirection: 'row', alignItems: 'baseline', gap: espacio.s },
   cifra: {
     ...cifras,
@@ -566,7 +379,11 @@ const estilos = StyleSheet.create({
     lineHeight: tamanos.cifra + 14,
     letterSpacing: -2,
   },
-  hasta: { ...cifras, color: colores.textoOscuro, fontFamily: fuentes.textoMedio },
+  hasta: {
+    ...cifras,
+    color: colores.textoOscuro,
+    fontFamily: fuentes.textoMedio,
+  },
   sobreDegradado: { color: colores.textoOscuro },
   pulsado: { opacity: 0.85, transform: [{ scale: 0.99 }] },
   tarea: {

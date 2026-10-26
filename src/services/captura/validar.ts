@@ -26,6 +26,7 @@ export type Propuesta = {
   flexible: boolean;
   duracionMin: number | null; // solo en tareas flexibles: 15, 30, 60 o 120
   confianza: Confianza;
+  opcionesHora?: string[]; // solo dijo la franja ("por la tarde"): las horas que se ofrecen
 };
 
 export type ContextoValidacion = {

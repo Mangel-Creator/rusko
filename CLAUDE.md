@@ -383,6 +383,14 @@ sesión que fuera**:
   **Alarmas** pasan a pantallas normales con "‹ Hoy" arriba; se abren desde las acciones
   rápidas de Hoy (Apuntar · Dictar · Planes · Alarmas), y las rutas `/planes` y `/alarmas`
   no cambian (los avisos siguen llevando allí).
+- 26/10/2026 — **Hoy, solo lo del día** (sustituye al panel de casillas del 26/09 y a las
+  acciones rápidas). Lo pidió el usuario: "en hoy quita todo y que solo aparezcan las
+  cosas que tienes ese día, con la captura rápida para añadir cosas como «mañana pádel
+  por la tarde»". Arriba la fecha, dos círculos (Planes y Alarmas) y el Perfil; la captura
+  rápida **siempre abierta**; debajo, lo de hoy por orden de hora (lo siguiente, como la
+  tarjeta naranja, en su sitio), las tareas del día y, si hay época, "Estudio de hoy". Sin
+  casillas, sin matriz y sin selector de energía. La captura **lee la frase en el móvil
+  sin IA** (`services/captura/local.ts`), ver "Fase 5".
 
 ## Cómo prueba el usuario en el iPhone
 
@@ -602,14 +610,12 @@ con el naranja y el rojo del tráfico.
   izquierda, título y lugar en el centro, hora de inicio grande y en negrita a la derecha
   (y la de fin debajo). Cada fila es una tarjeta redondeada (radio 20); las pasadas,
   sin fondo y en gris.
-- **Hoy**: arriba la fecha y el botón de Perfil; debajo, el saludo gigante (40 px, 800) y
-  la tarjeta "Lo siguiente" con degradado naranja → ámbar: "LO SIGUIENTE", la hora en
-  grande ("10:00 hasta 12:00"), título y lugar, todo en `textoOscuro`; "Cómo llegar" va en
-  píldora oscura. Debajo, **acciones rápidas** (`AccionesRapidas`, 26/10/2026, porque el
-  usuario lo quería "mucho más cómodo"): cuatro botones redondos con una palabra debajo,
-  Apuntar (naranja; abre la captura y pasa a "Cerrar"), Dictar, Semana y Mapa. Hoy ya no
-  lleva `BotonFlotante`, que tapaba las casillas. El aviso de "añádela a la pantalla de
-  inicio" va al final de Hoy, no arriba.
+- **Hoy** (26/10/2026): arriba el saludo pequeño y la fecha grande (32 px), con dos
+  círculos de 44 px (Planes y Alarmas) y el botón de Perfil. Debajo, la captura rápida
+  abierta y la lista del día. Lo siguiente es la tarjeta con degradado naranja → ámbar:
+  "LO SIGUIENTE", la hora en grande, título y lugar en `textoOscuro` y "Cómo llegar" en
+  píldora oscura. Sin `BotonFlotante`. El aviso de "añádela a la pantalla de inicio" va
+  al final de Hoy, no arriba.
 - **Todo lo que se pulsa se parece**: botones y chips en píldora; botones de solo icono,
   redondos (micrófono, enviar, "+", − y +); iconos de contenido dentro de un círculo.
   **Para volver, siempre `BotonAtras`** (píldora gris con flecha arriba a la izquierda); no
@@ -624,7 +630,9 @@ con el naranja y el rojo del tráfico.
 - Nada de `opacity` para "apagar" texto (baja del contraste mínimo): quita el fondo
   y usa `textoSecundario`, como las filas de eventos pasados.
 - Barra de pestañas sobre `fondo` con una raya `borde` arriba; la activa, en naranja.
-- **Hoy es un panel de casillas** (`screens/hoy/PanelHoy.tsx`, 26/09/2026): cabecera
+- (**Anulado el 26/10/2026**: Hoy ya solo enseña lo del día, ver "Decisiones del usuario".
+  `PanelHoy`, `MatrizTareas` y `AccionesRapidas` quedan sin usar en Hoy.)
+  **Hoy era un panel de casillas** (`screens/hoy/PanelHoy.tsx`, 26/09/2026): cabecera
   (fecha, saludo, "Lo siguiente") y seis casillas grandes de dos en dos, con icono en
   un círculo de color suave (`colorBaldosa`) y número grande:
   clientes, planes con amigos, tareas, cosas tuyas (o bloques de estudio si hay época),
@@ -1032,12 +1040,21 @@ borran solos a los 7 días.
 ## Fase 5: captura rápida con IA (decisiones)
 
 - En Hoy, bajo la cabecera, campo "¿Qué apunto?" (`screens/captura/CapturaRapida.tsx`),
-  **plegado** hasta tocar el "+" (`plegada`). Sigue montado aunque no se vea, así que
+  siempre abierto desde el 26/10/2026 (antes, **plegado** hasta tocar el "+", `plegada`). Sigue montado aunque no se vea, así que
   `enviarFraseACaptura` funciona igual y lo despliega mientras piensa.
   Se escribe o se dicta con el micrófono del teclado. `accesorio` deja poner otro botón
   junto al de enviar (micrófono de la fase 9) y `enviarFraseACaptura(frase)` manda una
   frase desde fuera por el mismo camino.
-- `services/captura/index.ts`: `interpretarFrase(frase, perfil)` envía la frase, el día y la
+- **Primero, sin IA** (26/10/2026, lo pidió el usuario): `services/captura/local.ts`
+  (`interpretarLocal`, con pruebas) entiende el día (hoy, mañana, pasado mañana, el jueves,
+  el 5 de noviembre), la hora ("a las 8", "de 5 a 7 y media"), la franja (mañana 9-11,
+  mediodía 14, tarde 17-19, noche 20-22) y lo que suele durar cada cosa (pádel 2 h, cena
+  2 h, comida 1 h 30, médico 1 h...), con su tipo. Con solo la franja coge la primera hora
+  libre y la tarjeta ofrece las demás a un toque (`opcionesHora`). "A las 8" de un plan
+  de tarde son las 20:00; una hora ya pasada sin día es mañana. Si ve día, hora o franja,
+  confianza alta y no llama a la IA; si no, pregunta a la IA y, si esta falla, enseña lo
+  suyo con confianza media. Para enseñarle una actividad nueva, añádela a `ACTIVIDADES`.
+- `services/captura/index.ts`: `interpretarFrase(frase, perfil, eventos)` envía la frase, el día y la
   hora, la zona horaria y los sitios (Casa con id `casa` y los habituales, solo id y
   nombre, sin direcciones) a la Edge Function `captura`. Nunca guarda nada.
 - La función (`supabase/functions/captura`) usa **Claude Haiku 4.5** (`claude-haiku-4-5`) con
