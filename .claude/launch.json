@@ -33,6 +33,7 @@
         "start",
         "C:\\proyectos\\organizy",
         "--tunnel",
+        "ngrok",
         "--port",
         "8083"
       ],

@@ -17,6 +17,8 @@ alarmas. En español de España.
   - **Web** para el resto de la gente: https://mangel-creator.github.io/organizy/
     Se publica sola con GitHub Actions (`.github/workflows/pages.yml`) al subir a
     `main`. Se añade a la pantalla de inicio como app web (`src/app/+html.tsx`).
+    **Desde el SDK 58, `+html.tsx` tiene que pintar `headNodes` y `bodyNodes` de
+    `useServerDocumentContext()`**: sin ellos la web publicada sale en blanco (pasó el 26/10).
     `baseUrl` es `/organizy` (en `app.json`); en desarrollo la web está en
     `http://localhost:8081/`.
     La web **se actualiza sola** (`src/services/actualizacionWeb.ts`): al abrirla, o al
@@ -460,6 +462,8 @@ sesión que fuera**:
   - Arráncalo con `preview_start` y el nombre `organizy-tunel` (`.claude/launch.json`).
     Vale desde cualquier sesión, también desde un worktree: usa las rutas de
     `C:\proyectos\organizy`. Nunca con otro puerto: cambiaría la dirección.
+  - Lleva `--tunnel ngrok`: desde el SDK 58, `--tunnel` a secas usa el túnel nuevo de
+    Expo, con otra dirección, y la de siempre da 404 (visto el 26/10).
   - Solo una sesión a la vez: si el puerto 8083 ya está en uso, el túnel ya está en
     marcha y no hay que hacer nada.
   - En el iPhone: Expo Go → "Development servers" → Organizy, o escribir la dirección
