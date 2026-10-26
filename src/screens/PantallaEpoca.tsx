@@ -14,7 +14,7 @@ import {
   type Epoca,
   type RegistroBloque,
 } from '@/data/epocas';
-import { useAgenda } from '@/data/agenda';
+import { useEventos } from '@/data/eventos';
 import { usePerfil, type Perfil } from '@/data/perfil';
 import { resolverLugar } from '@/services/agenda';
 import { avisosDisponibles } from '@/services/avisos';
@@ -54,7 +54,7 @@ export function PantallaEpoca() {
   const { id } = useLocalSearchParams<{ id?: string }>();
   const hoy = claveDia(new Date());
   const { cargado, epocas, registro } = useEpocas();
-  const { eventos } = useAgenda();
+  const { eventos } = useEventos();
   const { perfil } = usePerfil();
   const [energia] = useEnergia(hoy);
 

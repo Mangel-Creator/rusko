@@ -2,7 +2,7 @@ import { StyleSheet, View } from 'react-native';
 
 import { Texto, Titulo } from '@/components';
 import { alternarAlarmaSalida, useAlarmas } from '@/data/alarmas';
-import { useAgenda } from '@/data/agenda';
+import { useEventos } from '@/data/eventos';
 import { usePerfil } from '@/data/perfil';
 import { useSalidas } from '@/data/salidas';
 import { citasParaAlarma } from '@/services/alarmas';
@@ -19,7 +19,7 @@ import { InterruptorPequeno } from './FilaAlarma';
 // se mueve sola si cambia el evento o el tráfico. Filas planas con la barra del tipo.
 export function SeccionSalidas() {
   const ahora = useAhora();
-  const { eventos } = useAgenda();
+  const { eventos } = useEventos();
   const { perfil } = usePerfil();
   const salidas = useSalidas();
   const { ajustes } = useAlarmas();

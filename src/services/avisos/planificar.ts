@@ -40,7 +40,6 @@ import {
   type ClaveDia,
 } from '@/services/fechas';
 
-import { avisosDeClientes, type RecordatoriosParaAvisos } from './clientes';
 import { avisosDePlazos } from './correos';
 import { avisosDeEpoca, type EpocaParaAvisos } from './epoca';
 import { avisosDePlanes } from './planes';
@@ -77,8 +76,6 @@ export type ContextoAvisos = {
   navegador?: string;
   // Planes con votación (fase 8), para "Recordar a todos 3 h antes".
   planes?: Plan[];
-  // Recordatorios a clientes (fase 10): interruptor, hora y lo ya enviado.
-  recordatorios?: RecordatoriosParaAvisos | null;
   // Resúmenes de correo (fase 11): los plazos con su tarea en el calendario.
   correos?: CorreoResumido[];
   // Alarmas (fase 7). comoAvisos: en Expo Go (o sin alarmas de verdad) el despertador,
@@ -341,11 +338,6 @@ const GENERADORES: Generador[] = [
   { activo: () => true, generar: avisoDormir },
   // Planes: cada plan tiene su interruptor "Recordar a todos 3 h antes" (Plan.recordar).
   { activo: () => true, generar: (ctx, dia) => avisosDePlanes(ctx.planes, ctx.eventos, dia) },
-  // Recordatorios a clientes: interruptor en Perfil > Recordatorios a clientes (fase 10).
-  {
-    activo: () => true,
-    generar: (ctx, dia) => avisosDeClientes(ctx.recordatorios, ctx.eventos, ctx.perfil, dia),
-  },
   // Plazos que llegaron por correo (fase 11): la víspera, a la hora de levantarse.
   { activo: (a) => a.plazosCorreo, generar: (ctx, dia) => avisosDePlazos(ctx.correos, ctx.eventos, ctx.perfil, dia) },
 ];

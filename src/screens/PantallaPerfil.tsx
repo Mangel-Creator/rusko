@@ -34,8 +34,6 @@ import { SeccionCalendarios } from './perfil/SeccionCalendarios';
 import { SeccionCopia } from './perfil/SeccionCopia';
 import { SeccionEpocas } from './perfil/SeccionEpocas';
 import { SeccionIA } from './perfil/SeccionIA';
-import { SeccionPlan } from './perfil/SeccionPlan';
-import { SeccionRecordatorios } from './perfil/SeccionRecordatorios';
 
 type EstadosPermisos = Record<Permiso, EstadoPermiso | undefined>;
 
@@ -151,9 +149,6 @@ export function PantallaPerfil() {
         </View>
       </Plegable>
 
-      {/* Plan personal o plan empresa (fase 15). Solo sale en Expo Go y en desarrollo. */}
-      <SeccionPlan />
-
       <Plegable titulo="Cómo se ve" icono="contrast-outline" resumen={OPCIONES_DENSIDAD.find((o) => o.valor === densidad)?.etiqueta}>
         <Selector
           etiqueta="Cuánto cabe en Hoy y en Semana"
@@ -183,13 +178,6 @@ export function PantallaPerfil() {
 
       <Plegable titulo="Avisos" icono="notifications-outline">
         <SeccionAvisos
-          permiso={permisos.notificaciones}
-          alActivarPermiso={() => activar('notificaciones')}
-        />
-      </Plegable>
-
-      <Plegable titulo="Recordatorios a clientes" icono="chatbubble-ellipses-outline">
-        <SeccionRecordatorios
           permiso={permisos.notificaciones}
           alActivarPermiso={() => activar('notificaciones')}
         />

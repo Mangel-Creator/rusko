@@ -127,8 +127,6 @@ function leerEstado() {
   return estado;
 }
 
-// El perfil ya cargado, sin esperar (para la agenda de data/agenda.ts).
-export { leerEstado as estadoPerfilActual };
 
 // Hook para usar el perfil en pantallas. Se vuelve a pintar cuando cambia.
 export function usePerfil(): EstadoPerfil {

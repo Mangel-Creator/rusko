@@ -55,9 +55,6 @@ export const colores = {
   // oscuro (colores.textoOscuro).
   whatsapp: '#25D366',
 
-  // Azul pizarra: solo lo que viene de la empresa (plan empresa, fase 15): turnos,
-  // eventos de empresa y tareas asignadas.
-  empresa: '#7F93A8',
 } as const;
 
 // Degradados de las tarjetas destacadas: lo único llamativo de cada pantalla.
@@ -114,15 +111,14 @@ export const colorBaldosa = {
   yo: { fondo: colores.elevado, icono: colores.texto },
   estudio: { fondo: '#3A2C16', icono: colores.dorado }, // Época dorada
   neutro: { fondo: colores.elevado, icono: colores.texto }, // tareas, todo el día
-  empresa: { fondo: '#252A30', icono: colores.empresa }, // plan empresa (fase 15)
 } as const;
 
-// Color de la barra de un evento: el de su tipo o, si viene de la empresa, el de empresa.
-export function colorEvento(evento: { tipo: keyof typeof colorTipo; empresa?: unknown }): string {
-  return evento.empresa ? colores.empresa : colorTipo[evento.tipo];
+// Color de la barra de un evento: el de su tipo.
+export function colorEvento(evento: { tipo: keyof typeof colorTipo }): string {
+  return colorTipo[evento.tipo];
 }
 
-export function colorEventoSobreTinta(evento: { tipo: keyof typeof colorTipoSobreTinta; empresa?: unknown }): string {
+export function colorEventoSobreTinta(evento: { tipo: keyof typeof colorTipoSobreTinta }): string {
   return colorEvento(evento);
 }
 

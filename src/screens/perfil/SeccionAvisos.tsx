@@ -22,7 +22,6 @@ import {
 import type { EstadoPermiso } from '@/services/permisos';
 import { colores, espacio } from '@/theme';
 
-import { AvisosEmpresa } from '../empresa/AvisosEmpresa';
 
 const OPCIONES_SIN_PENDIENTES: Opcion<CierreSinPendientes>[] = [
   { valor: 'buenas-noches', etiqueta: 'Dar las buenas noches' },
@@ -167,8 +166,6 @@ export function SeccionAvisos({ permiso, alActivarPermiso }: Props) {
           {mensajePrueba}
         </Texto>
       ) : null}
-      {/* Plan empresa (fase 15): solo si estás dentro de una empresa. */}
-      <AvisosEmpresa />
     </>
   );
 }

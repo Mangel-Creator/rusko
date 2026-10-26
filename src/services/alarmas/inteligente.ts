@@ -1,5 +1,5 @@
 import { guardarAdelantos, leerAdelantos, leerAlarmas, type Adelanto, type Adelantos } from '@/data/alarmas';
-import { leerAgenda } from '@/data/agenda';
+import { leerEventos } from '@/data/eventos';
 import { leerPerfil } from '@/data/perfil';
 import { minutosDesdeHora } from '@/services/fechas';
 import { calcularRutas } from '@/services/rutas';
@@ -30,7 +30,7 @@ export async function actualizarAdelantos(): Promise<void> {
   const [{ alarmas }, perfil, eventos, anteriores] = await Promise.all([
     leerAlarmas(),
     leerPerfil(),
-    leerAgenda({ tareas: false }), // un turno cuenta como ir al trabajo (plan empresa)
+    leerEventos(),
     leerAdelantos(),
   ]);
   const ahora = new Date();

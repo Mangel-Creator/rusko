@@ -147,3 +147,13 @@ export function formatearDuracion(minutos: number): string {
   if (h === 0) return `${m} min`;
   return m === 0 ? `${h} h` : `${h} h ${m} min`;
 }
+
+// "hoy a las 11:02", "ayer a las 11:02" o "el lunes 21 sept a las 09:00".
+export function cuandoFue(fecha: Date, ahora: Date): string {
+  const dia = claveDia(fecha);
+  const hoy = claveDia(ahora);
+  const hora = formatearHora(fecha);
+  if (dia === hoy) return `hoy a las ${hora}`;
+  if (dia === sumarDias(hoy, -1)) return `ayer a las ${hora}`;
+  return `el ${formatearDiaCorto(fecha).toLocaleLowerCase('es-ES')} a las ${hora}`;
+}

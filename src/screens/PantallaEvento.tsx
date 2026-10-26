@@ -21,7 +21,6 @@ import {
   borrarEvento,
   guardarEvento,
   type Cuadrante,
-  type DatosCliente,
   nuevoId,
   useEventos,
   type Evento,
@@ -29,7 +28,6 @@ import {
   type Repeticion,
   type TipoEvento,
 } from '@/data/eventos';
-import { useEmpresa } from '@/data/empresa';
 import { guardarPerfil, usePerfil, type Perfil, type SitioHabitual } from '@/data/perfil';
 import {
   NOMBRE_CASA,
@@ -55,12 +53,10 @@ import {
   OPCIONES_AVISO,
   OPCIONES_DURACION,
   OPCIONES_REPETICION,
-  opcionesTipo,
+  OPCIONES_TIPO,
   rangoHoras,
 } from './calendario/textos';
 import { OrigenEvento } from './calendario/OrigenEvento';
-import { CamposCliente, errorTelefono, type BorradorCliente } from './clientes/CamposCliente';
-import { RecordatorioCliente } from './clientes/RecordatorioCliente';
 import { SelectorCuadrante } from './tareas/SelectorCuadrante';
 import { MENSAJE_NO_ENCONTRADO } from './formulario-perfil/borrador';
 import { MensajeError } from './formulario-perfil/MensajeError';
@@ -120,7 +116,7 @@ function avisoInicial(avisoMin: number | null, perfil: Perfil | null): Aviso {
   return (OPCIONES_AVISO.find((o) => o.valor === valor)?.valor ?? '30') as Aviso;
 }
 
-type Borrador = BorradorCliente & {
+type Borrador = {
   titulo: string;
   tipo: TipoEvento;
   fecha: ClaveDia;
@@ -141,7 +137,7 @@ type Borrador = BorradorCliente & {
   notas: string;
 };
 
-type Errores = Partial<Record<'titulo' | 'horaFin' | 'direccion' | 'clienteTelefono', string>>;
+type Errores = Partial<Record<'titulo' | 'horaFin' | 'direccion', string>>;
 
 // Hora por defecto: la siguiente hora en punto (hoy) o las 10:00 (otro día).
 function horaPorDefecto(fecha: ClaveDia): string {
@@ -184,9 +180,6 @@ function borradorInicial(
       direccion: '',
       direccionTrabajo: '',
       notas: '',
-      clienteNombre: '',
-      clienteTelefono: '',
-      clienteAcepta: false,
     };
   }
   const inicio = evento.horaInicio ?? horaPorDefecto(evento.fecha);
@@ -207,9 +200,6 @@ function borradorInicial(
     direccion: evento.lugar?.tipo === 'otro' ? evento.lugar.direccion : '',
     direccionTrabajo: '',
     notas: evento.notas,
-    clienteNombre: evento.cliente?.nombre ?? '',
-    clienteTelefono: evento.cliente?.telefono ?? '',
-    clienteAcepta: evento.cliente?.acepta ?? false,
   };
 }
 
@@ -223,7 +213,6 @@ type Props = {
 
 function Formulario({ evento, rellenar, fechaInicial, perfil, eventos }: Props) {
   const [b, setBorrador] = useState<Borrador>(() => borradorInicial(evento, fechaInicial, perfil, rellenar));
-  const { modo: modoEmpresa } = useEmpresa();
   const antelacionPerfil = antelacionDelPerfil(perfil);
   const [errores, setErrores] = useState<Errores>({});
   const [ocupado, setOcupado] = useState(false);
@@ -307,13 +296,6 @@ function Formulario({ evento, rellenar, fechaInicial, perfil, eventos }: Props) 
     return { tipo: 'sitio', sitioId: sitio.id };
   };
 
-  // Datos del cliente (fase 10): solo en citas de Clientes con hora.
-  const conCliente = b.tipo === 'cliente' && !b.flexible;
-  const clienteDelBorrador = (): DatosCliente | null => {
-    const datos = { nombre: b.clienteNombre.trim(), telefono: b.clienteTelefono.trim(), acepta: b.clienteAcepta };
-    return datos.nombre || datos.telefono || datos.acepta ? datos : null;
-  };
-
   const guardar = async () => {
     const nuevosErrores: Errores = {};
     if (!b.titulo.trim()) nuevosErrores.titulo = 'Ponle un título.';
@@ -325,10 +307,6 @@ function Formulario({ evento, rellenar, fechaInicial, perfil, eventos }: Props) 
     }
     if (b.lugar === 'nuevo-trabajo' && !b.direccionTrabajo.trim()) {
       nuevosErrores.direccion = 'Pon la dirección de tu trabajo o elige otro lugar.';
-    }
-    if (conCliente) {
-      const error = errorTelefono(b);
-      if (error) nuevosErrores.clienteTelefono = error;
     }
     setErrores(nuevosErrores);
     if (Object.keys(nuevosErrores).length > 0) return;
@@ -358,8 +336,8 @@ function Formulario({ evento, rellenar, fechaInicial, perfil, eventos }: Props) 
       // Si coincide con el del perfil se guarda null: así sigue al perfil si lo cambias.
       avisoMin: b.flexible || Number(b.aviso) === antelacionPerfil ? null : Number(b.aviso),
       ejemplo: evento?.ejemplo ?? false,
-      // Solo en citas con clientes; si deja de serlo, sus datos se borran.
-      cliente: conCliente ? clienteDelBorrador() : null,
+      // Los recordatorios a clientes ya no existen; lo que hubiera guardado se conserva.
+      cliente: evento?.cliente ?? null,
       // Si vino de otro calendario se conserva: así, al traerlo otra vez, se sabe que
       // lo has cambiado aquí y no se duplica ni se pisa.
       origen: evento?.origen ?? null,
@@ -413,20 +391,10 @@ function Formulario({ evento, rellenar, fechaInicial, perfil, eventos }: Props) 
 
       <SelectorVisual
         etiqueta="Tipo"
-        opciones={opcionesTipo(modoEmpresa, evento?.tipo ?? null).map((o) => ({ ...o, icono: ICONO_TIPO[o.valor] }))}
+        opciones={OPCIONES_TIPO.map((o) => ({ ...o, icono: ICONO_TIPO[o.valor] }))}
         valor={b.tipo}
         alCambiar={(tipo) => cambiar({ tipo })}
       />
-
-      {conCliente ? (
-        <CamposCliente
-          clienteNombre={b.clienteNombre}
-          clienteTelefono={b.clienteTelefono}
-          clienteAcepta={b.clienteAcepta}
-          cambiar={cambiar}
-          error={errores.clienteTelefono}
-        />
-      ) : null}
 
       <Interruptor
         etiqueta="Tarea flexible"
@@ -551,15 +519,6 @@ function Formulario({ evento, rellenar, fechaInicial, perfil, eventos }: Props) 
         multiline
         style={estilos.notas}
       />
-
-      {/* Recordatorio por WhatsApp de una cita con cliente ya guardada (fase 10). */}
-      {conCliente && evento && !evento.flexible ? (
-        <RecordatorioCliente
-          evento={evento}
-          cliente={{ nombre: b.clienteNombre.trim(), telefono: b.clienteTelefono.trim(), acepta: b.clienteAcepta }}
-          perfil={perfil}
-        />
-      ) : null}
 
       {focoPisado ? (
         <Tarjeta style={estilos.aviso} accessibilityLiveRegion="assertive">

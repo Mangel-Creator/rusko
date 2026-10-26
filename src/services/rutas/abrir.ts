@@ -1,6 +1,6 @@
 import { Linking } from 'react-native';
 
-import { leerAgenda } from '@/data/agenda';
+import { leerEventos } from '@/data/eventos';
 import { leerNavegador } from '@/data/navegador';
 import { leerPerfil } from '@/data/perfil';
 import type { ClaveDia } from '@/services/fechas';
@@ -22,7 +22,7 @@ export async function abrirEnNavegador(destino: Punto, app?: Navegador): Promise
 // navegación con el sitio del evento. Devuelve false si el evento ya no existe o no
 // tiene lugar con coordenadas (entonces se enseña el Mapa).
 export async function irACita(eventoId: string, dia: ClaveDia): Promise<boolean> {
-  const [eventos, perfil] = await Promise.all([leerAgenda({ tareas: false }), leerPerfil()]);
+  const [eventos, perfil] = await Promise.all([leerEventos(), leerPerfil()]);
   const evento = eventos.find((e) => e.id === eventoId);
   const cita = evento ? citaDe(evento, dia, perfil) : null;
   if (!cita) return false;

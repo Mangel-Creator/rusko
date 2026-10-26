@@ -20,7 +20,6 @@ export type TipoAviso =
   | 'alarma-salida'
   | 'dormir'
   | 'plan-recordatorio' // "Recordar a todos 3 h antes" (fase 8)
-  | 'recordatorio-cliente' // el día antes de una cita con un cliente (fase 10)
   | 'plazo-correo'; // la víspera de un plazo que llegó por correo (fase 11)
 
 // Los que van primero al recortar a MAX_AVISOS: una alarma nunca se queda fuera.
@@ -33,12 +32,11 @@ export type Destino =
   | { pantalla: 'evento'; id: string }
   | { pantalla: 'mapa'; id: string; dia: ClaveDia } // la ruta hasta ese evento (fase 6)
   | { pantalla: 'plan'; id: string } // un plan con votación (fase 8)
-  | { pantalla: 'resumenes' } // resúmenes de correo (fase 11)
-  | { pantalla: 'empresa'; seccion?: string; id?: string }; // plan empresa (fase 15): turnos, chat...
+  | { pantalla: 'resumenes' }; // resúmenes de correo (fase 11)
 
 // Botones dentro de la notificación. Cada categoría se registra una vez al
 // arrancar (services/avisos/programar.ts).
-export type CategoriaAviso = 'cierre-dia' | 'salida' | 'alarma' | 'alarma-salida' | 'plan' | 'cliente';
+export type CategoriaAviso = 'cierre-dia' | 'salida' | 'alarma' | 'alarma-salida' | 'plan';
 
 export const ACCION_A_MANANA = 'a-manana';
 export const ACCION_ABRIR = 'abrir';
@@ -49,8 +47,7 @@ export const ACCION_POSPONER = 'posponer';
 export const ACCION_PARAR = 'parar';
 export const ACCION_COMO_LLEGAR = 'como-llegar';
 export const MINUTOS_POSPONER = 5;
-// Recordatorio de un plan (fase 8) o a un cliente (fase 10): abre WhatsApp con el
-// recordatorio escrito (el de un cliente, directamente en su chat).
+// Recordatorio de un plan (fase 8): abre WhatsApp con el recordatorio escrito.
 export const ACCION_WHATSAPP = 'whatsapp';
 
 export type AvisoPlanificado = {
@@ -63,17 +60,15 @@ export type AvisoPlanificado = {
   cuerpo: string;
   destino: Destino;
   categoria?: CategoriaAviso;
-  mensaje?: string; // texto para WhatsApp (recordatorio de un plan o a un cliente)
-  telefono?: string; // chat de WhatsApp al que va el mensaje (cliente, fase 10)
+  mensaje?: string; // texto para WhatsApp (recordatorio de un plan)
 };
 
 // Lo que se guarda dentro de la notificación para saber qué hacer al tocarla.
 // "plan-voto" es el push que manda el servidor cuando alguien vota (fase 8) y
 // "correo", el que manda el ayudante de Gmail del usuario (fase 11).
 export type DatosAviso = {
-  tipo: TipoAviso | 'prueba' | 'plan-voto' | 'correo' | 'empresa';
+  tipo: TipoAviso | 'prueba' | 'plan-voto' | 'correo';
   dia: ClaveDia;
   destino: Destino;
   mensaje?: string;
-  telefono?: string;
 };

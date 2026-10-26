@@ -5,8 +5,7 @@ import Animated, { FadeIn, FadeOut, LayoutAnimationConfig, LinearTransition } fr
 
 import { Boton, Casilla, Texto, Titulo } from '@/components';
 import { guardarAjuste, leerAjuste } from '@/data/ajustes';
-import { clasificarTarea, type Cuadrante, type Evento } from '@/data/eventos';
-import { marcarHechaDeAgenda } from '@/services/empresa';
+import { clasificarTarea, marcarHecha, type Cuadrante, type Evento } from '@/data/eventos';
 import { CUADRANTES, DATOS_CUADRANTE, agruparPorCuadrante } from '@/services/agenda';
 import { alturaTactil, colores, espacio, radio } from '@/theme';
 
@@ -47,11 +46,7 @@ export function MatrizTareas({ tareas }: { tareas: Evento[] }) {
   const [elegida, setElegida] = useState<string | null>(null);
   const grupos = agruparPorCuadrante(tareas);
   const tarea = tareas.find((t) => t.id === elegida) ?? null;
-  // Las tareas de la empresa ya traen su prioridad (la pone quien la asigna): se abren.
-  const elegir = (id: string) => {
-    if (tareas.find((t) => t.id === id)?.empresa) abrirEvento(id);
-    else setElegida((actual) => (actual === id ? null : id));
-  };
+  const elegir = (id: string) => setElegida((actual) => (actual === id ? null : id));
 
   const clasificador = tarea ? (
     <Clasificador
@@ -134,7 +129,7 @@ function FilaMatriz({ tarea, elegida, alTocar, ancha }: PropsFila) {
     <View style={[estilos.fila, ancha && estilos.filaAncha, elegida && estilos.filaElegida]}>
       <Casilla
         marcada={tarea.hecha}
-        alCambiar={(hecha) => marcarHechaDeAgenda(tarea.id, hecha)}
+        alCambiar={(hecha) => marcarHecha(tarea.id, hecha)}
         etiqueta={`Marcar como hecha: ${tarea.titulo}`}
       />
       <Pressable

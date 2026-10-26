@@ -8,7 +8,7 @@ import {
   suscribirseAdelantos,
   suscribirseAlarmas,
 } from '@/data/alarmas';
-import { leerAgenda, suscribirseAgenda } from '@/data/agenda';
+import { leerEventos, suscribirseEventos } from '@/data/eventos';
 import { cargarPerfil, suscribirsePerfil } from '@/data/perfil';
 import { leerSalidas, suscribirseSalidas } from '@/data/salidas';
 
@@ -51,7 +51,7 @@ export function sincronizarAlarmas(): Promise<void> {
     const ahora = new Date();
     const [{ alarmas, ajustes }, eventos, adelantos, salidas] = await Promise.all([
       leerAlarmas(),
-      leerAgenda({ tareas: false }), // con el plan empresa, también sus turnos
+      leerEventos(),
       leerAdelantos(),
       leerSalidas(),
     ]);
@@ -117,7 +117,7 @@ export function iniciarAlarmas(): () => void {
   todo();
   const quitar = [
     suscribirseAlarmas(todo),
-    suscribirseAgenda(todo),
+    suscribirseEventos(todo),
     suscribirsePerfil(todo),
     suscribirseSalidas(solo), // la hora de salida cambió con el tráfico (fase 6)
     suscribirseAdelantos(solo),

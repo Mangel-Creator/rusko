@@ -1,6 +1,6 @@
 import { AppState } from 'react-native';
 
-import { leerAgenda, suscribirseAgenda } from '@/data/agenda';
+import { leerEventos, suscribirseEventos } from '@/data/eventos';
 import { guardarHorasPunta, leerHorasPunta, type Trayecto } from '@/data/horasPunta';
 import { cargarPerfil, leerPerfil, suscribirsePerfil, type Perfil } from '@/data/perfil';
 import { guardarSalidas, leerSalidas, type Salida, type Salidas } from '@/data/salidas';
@@ -47,7 +47,7 @@ export async function actualizarSalidas(): Promise<void> {
     return;
   }
   const ahora = new Date();
-  const citas = proximasCitas(await leerAgenda({ tareas: false }), perfil, ahora);
+  const citas = proximasCitas(await leerEventos(), perfil, ahora);
   const origen = citas.length > 0 ? await origenActual(perfil) : null;
 
   const nuevas: Salidas = {};
@@ -183,8 +183,7 @@ const CADA_MS = 10 * 60 * 1000;
 // Se llama una vez al arrancar la app (_layout.tsx). Devuelve la función para pararlo.
 export function iniciarTrafico(): () => void {
   actualizarEnUnMomento();
-  // La agenda: tus eventos y, con el plan empresa, tus turnos y eventos de empresa (fase 15).
-  const quitar = [suscribirseAgenda(actualizarEnUnMomento), suscribirsePerfil(actualizarEnUnMomento)];
+  const quitar = [suscribirseEventos(actualizarEnUnMomento), suscribirsePerfil(actualizarEnUnMomento)];
   const app = AppState.addEventListener('change', (estado) => {
     if (estado === 'active') actualizarEnUnMomento();
   });

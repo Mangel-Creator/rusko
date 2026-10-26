@@ -345,8 +345,11 @@ sesión que fuera**:
   saldo** se quedan (lo eligió él). **Se quitan de la app**: el **Plan empresa** (pestaña
   Empresa, turnos, tareas, chat, avisos de superiores y "Cambiar de plan"; vuelve la pestaña
   Planes con amigos a su hueco) y los **recordatorios a clientes por WhatsApp** (fase 10, con
-  la parte B de WhatsApp Business). Lo hace la sesión "Quitar Plan empresa y WhatsApp a
-  clientes"; hasta entonces, no amplíes esas dos partes.
+  la parte B de WhatsApp Business). **Hecho el 26/10/2026** (lo pidió el usuario al verlo
+  aún en Expo Go): fuera del código de la app. Se conserva lo ya guardado en el móvil
+  (columna `cliente` y tabla `empresa_copia` de SQLite, sin uso) y lo del servidor de
+  Supabase (tablas y funciones de la empresa, que la app ya no llama). Las secciones "Fase
+  10" y "Fase 15" quedan solo como historia: no las vuelvas a programar sin que lo pida.
 - 26/10/2026 (sustituye a "agenda nocturna" del 25/09) — **Rediseño "fintech" oscuro con
   paleta naranja**, pedido por el usuario: minimalista y plano (cero sombras, sin bordes
   gruesos), mucho aire, letra **Inter** para todo (titulares 700-800 apretados, cifras y
@@ -467,8 +470,7 @@ src/
     (tabs)/_layout.tsx Barra inferior con las 5 pestañas.
     (tabs)/index.tsx   Hoy
     (tabs)/semana.tsx  Semana
-    (tabs)/planes.tsx  Planes (con el plan personal)
-    (tabs)/trabajo.tsx Empresa (con el plan empresa, en el sitio de Planes)
+    (tabs)/planes.tsx  Planes
     (tabs)/mapa.tsx    Mapa
     (tabs)/alarmas.tsx Alarmas
   screens/             Una pantalla por archivo (PantallaHoy, PantallaSemana...).
@@ -485,10 +487,8 @@ src/
                        hora de dormir, aviso del nivel).
     planes/            Piezas de Planes (botón de WhatsApp, fila de votos, hueco de
                        Semana con "Proponer plan").
-    clientes/          Datos del cliente en la ficha y su recordatorio por WhatsApp.
     tareas/            Matriz de Eisenhower: selector de cuadrante y vista "Matriz" de Hoy.
     correo/            Piezas de Resúmenes (fila de correo, "Vincular con…", tus cuentas).
-    empresa/           Piezas del plan empresa (entrar, casillas, filas, QR, avisos).
   components/          Piezas reutilizables. Se importan desde '@/components'.
   theme/               Colores, letras, tamaños, espacios y radios.
   data/                Guardado local: ajustes.ts (AsyncStorage), db.ts (SQLite),
@@ -500,12 +500,9 @@ src/
                        (app de navegación elegida), parkings.ts (parkings llenos),
                        alarmas.ts (alarmas, ajustes y adelantos de la inteligente),
                        planes.ts (planes con votación y sus votos),
-                       recordatorios.ts (recordatorios a clientes: ajustes y envíos),
                        copia.ts (reunir y recuperar la copia de seguridad),
                        correos.ts (resúmenes de correo y enlace del ayudante de Gmail),
-                       calendarios.ts (enlaces de otros calendarios),
-                       empresa/ (plan empresa: copia y modo), supabaseEmpresa.ts (su sesión),
-                       agenda.ts (tus eventos + lo de la empresa: úsalo para calcular el día).
+                       calendarios.ts (enlaces de otros calendarios).
   services/            Lógica sin pantalla: fechas.ts (formatos en español),
                        copia/ (formato de la copia de seguridad y su archivo; con pruebas),
                        calendarios/ (traer Google, iCloud u Outlook por su enlace iCal;
@@ -524,14 +521,10 @@ src/
                        y Atajo de la web; con pruebas),
                        planes/ (horas sugeridas, recuento, mensajes de WhatsApp,
                        servidor y votación; con pruebas), contactos.ts (agenda),
-                       clientes/ (recordatorios a clientes: teléfono, mensaje, estado;
-                       con pruebas),
                        correo/ (resúmenes de correo: traerlos del servidor y del ayudante,
                        vincular y quitar cuentas, plazos como tareas; con pruebas),
                        ia/ (límites de IA de 5 horas y semana: porcentajes y mensajes;
-                       con pruebas),
-                       empresa/ (plan empresa: servidor, entrar, calendario, disponibilidad,
-                       papeles, QR; con pruebas).
+                       con pruebas).
 supabase/              Servidor propio: Edge Functions (Deno) y SQL. Ver "Servidor propio".
                        tests/: pruebas SQL de las reglas (se deshacen solas al acabar).
 gmail/                 Ayudante de Gmail (Google Apps Script): ayudante.js (lo de Google) y
@@ -571,7 +564,6 @@ destacadas; no lo uses para un tipo de evento, ni para errores ni para mensajes 
 | Barrita de carga normal y borde de huecos | `cargaNormal` | `#7A6F64` (gris) |
 | Solo la Época dorada (franja, bloques de estudio, días con hito) | `dorado` | `#FFB020` (ámbar; texto oscuro encima) |
 | Solo los botones de WhatsApp (excepción del 26/09) | `whatsapp` | `#25D366` (texto oscuro encima) |
-| Solo lo de la empresa (plan empresa, fase 15) | `empresa` | `#7F93A8` (azul pizarra) |
 | Solo los botones de entrar con Google o Microsoft y sus logos (excepción del 29/09) | `coloresMarca` | los de sus normas de marca |
 | Tarjeta destacada (una por pantalla como mucho) | `degradados.naranja` / `degradados.teja` | `#FF6B1A → #FFB020` / `#FF6B1A → #C2361B` |
 
@@ -1404,6 +1396,8 @@ borran solos a los 7 días.
 
 ## Fase 10: recordatorios a clientes por WhatsApp (decisiones)
 
+> **Quitado de la app el 26/10/2026** (decisión del 23/10). Lo de abajo es historia.
+
 - **Parte A (hecha, 27/09/2026)**: gratis, sin cuentas de Meta y sin servidor. Nada sale
   del dispositivo: la app abre WhatsApp en el chat del cliente con el mensaje escrito
   (`enlaceWhatsapp(texto, telefono)` → `wa.me/34612345678?text=`) y lo envía la persona.
@@ -1705,6 +1699,9 @@ borran solos a los 7 días.
 
 ## Fase 15: plan empresa, Organizy grupal (29/09/2026)
 
+> **Quitado de la app el 26/10/2026** (decisión del 23/10). Lo de abajo es historia; en
+> Supabase siguen sus tablas y funciones sin uso.
+
 - **Es un plan extra** (decisión del 29/09): Perfil > "Tu plan" (`screens/perfil/SeccionPlan.tsx`)
   > "Cambiar de plan" (`/cambiar-plan`, `PantallaCambiarPlan`: tarjetas Plan personal / Plan
   empresa y "Cambiando de plan…"). Dónde se ve: `planEmpresaVisible` (`services/empresa/plan.ts`):
@@ -1850,6 +1847,6 @@ borran solos a los 7 días.
 - [x] 7. Alarmas (en Expo Go son avisos con sonido; las alarmas de verdad están programadas pero sin probar hasta que haya build de EAS: ver "Fase 7").
 - [x] 8. Planes con WhatsApp y votación (servidor y función `votar` ya desplegados: ver "Fase 8").
 - [ ] 9. Voz sin abrir la app y widget.
-- [x] 10. Recordatorios a clientes por WhatsApp (parte A, gratis y sin servidor, hecha el 27/09/2026; la parte B, envío automático con WhatsApp Business, espera a que el usuario cree las cuentas de Meta: ver "Fase 10").
+- [x] 10. Recordatorios a clientes por WhatsApp (hecha el 27/09/2026 y **quitada el 26/10/2026**: ver "Fase 10").
 - [x] 11. Correo: plazos al calendario y resúmenes con aviso (27/09/2026; "Vincular con Gmail / Outlook" y QR del ayudante el 28/09; falta que el usuario registre Organizy en Google y Microsoft y lo pruebe: ver "Fase 11").
-- [x] 15. Organizy grupal como plan extra ("Plan empresa", 29/09/2026; servidor aplicado y probado; por ahora solo visible en Expo Go; falta que el usuario active Google y Microsoft en Supabase y lo pruebe con cuentas de verdad: ver "Fase 15").
+- [x] 15. Organizy grupal como plan extra ("Plan empresa", 29/09/2026; **quitado el 26/10/2026**: ver "Fase 15").

@@ -29,11 +29,11 @@ export function FilaEvento({ evento, pasado, focoEnNegro }: Props) {
   const negro = focoEnNegro && evento.foco;
   const apagado = pasado && !negro;
   const lugar = resolverLugar(evento.lugar, perfil);
-  const detalle = [evento.empresa ? 'Empresa' : null, lugar?.nombre ?? lugar?.direccion, evento.foco && !negro ? 'Bloque de foco' : null]
+  const detalle = [lugar?.nombre ?? lugar?.direccion, evento.foco && !negro ? 'Bloque de foco' : null]
     .filter(Boolean)
     .join(' · ');
-  const baldosa = colorBaldosa[evento.empresa ? 'empresa' : evento.tipo];
-  const icono: NombreIcono = negro ? 'lock-closed-outline' : evento.empresa ? 'business-outline' : ICONO_TIPO[evento.tipo];
+  const baldosa = colorBaldosa[evento.tipo];
+  const icono: NombreIcono = negro ? 'lock-closed-outline' : ICONO_TIPO[evento.tipo];
 
   return (
     <Pressable

@@ -3,7 +3,7 @@ import { useCallback, useEffect, useState } from 'react';
 import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
 import { Boton, CampoTexto, Pantalla, Selector, Tarjeta, Texto, Titulo, type Opcion } from '@/components';
-import { useAgenda } from '@/data/agenda';
+import { useEventos } from '@/data/eventos';
 import { useHorasPunta } from '@/data/horasPunta';
 import { guardarNavegador, useNavegador } from '@/data/navegador';
 import { empezarAparcar, parkingLleno, terminarAparcar, useAparcando, useParkingsLlenos } from '@/data/parkings';
@@ -64,7 +64,7 @@ function claveDe(punto: Punto): string {
 
 export function PantallaMapa() {
   const { perfil } = usePerfil();
-  const { eventos } = useAgenda();
+  const { eventos } = useEventos();
   const salidas = useSalidas();
   const horasPunta = useHorasPunta();
   const navegador = useNavegador();

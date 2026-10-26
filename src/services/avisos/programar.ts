@@ -82,10 +82,6 @@ export function prepararAvisos(): Promise<void> {
       await Notifications.setNotificationCategoryAsync('plan', [
         { identifier: ACCION_WHATSAPP, buttonTitle: 'Recordar por WhatsApp', options: { opensAppToForeground: true } },
       ]);
-      // Recordatorio a un cliente (fase 10): igual, pero en el chat de ese cliente.
-      await Notifications.setNotificationCategoryAsync('cliente', [
-        { identifier: ACCION_WHATSAPP, buttonTitle: 'Enviar por WhatsApp', options: { opensAppToForeground: true } },
-      ]);
     })().catch(() => {});
   }
   return preparado;
@@ -117,7 +113,7 @@ export async function programarAvisos(avisos: AvisoPlanificado[]): Promise<numbe
       content: contenido(
         aviso.titulo,
         aviso.cuerpo,
-        { tipo: aviso.tipo, dia: aviso.dia, destino: aviso.destino, mensaje: aviso.mensaje, telefono: aviso.telefono },
+        { tipo: aviso.tipo, dia: aviso.dia, destino: aviso.destino, mensaje: aviso.mensaje },
         aviso.categoria,
       ),
       trigger: { type: Notifications.SchedulableTriggerInputTypes.DATE, date: aviso.cuando, channelId: CANAL },
@@ -140,7 +136,7 @@ export async function enviarAvisoDePrueba(aviso?: AvisoPlanificado): Promise<voi
       ? contenido(
           aviso.titulo,
           aviso.cuerpo,
-          { tipo: aviso.tipo, dia: aviso.dia, destino: aviso.destino, mensaje: aviso.mensaje, telefono: aviso.telefono },
+          { tipo: aviso.tipo, dia: aviso.dia, destino: aviso.destino, mensaje: aviso.mensaje },
           aviso.categoria,
         )
       : contenido('Aviso de prueba', 'Si ves esto, los avisos de Organizy funcionan.', {

@@ -10,7 +10,7 @@ import { cifras, colores, espacio, fuentes, radio } from '@/theme';
 // cierra. "Época dorada" y "Resúmenes" (de correo, fase 11) no abren lista: llevan a
 // su sección.
 
-export type Vista = 'cliente' | 'amigos' | 'yo' | 'tareas' | 'estudio' | 'dia' | 'empresa';
+export type Vista = 'cliente' | 'amigos' | 'yo' | 'tareas' | 'estudio' | 'dia';
 
 type NombreIcono = ComponentProps<typeof Ionicons>['name'];
 
