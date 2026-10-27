@@ -19,30 +19,30 @@ import { CENTRO_POR_DEFECTO, puntosDeTramo, puntosVisibles, type PropsMapa } fro
 
 const CLAVE_MAPA = process.env.EXPO_PUBLIC_TOMTOM_MAPA_KEY ?? '';
 
-// Fondo oscuro (27/10/2026, el usuario lo quería "más moderno, no de cartografía"):
-// con la clave, el estilo nocturno de TomTom y su tráfico para fondos oscuros; sin
-// ella, el mapa de OpenStreetMap pasado a oscuro con un filtro (CARTO y Stadia, que lo
-// dan ya oscuro, piden cuenta y clave). Los dos van algo apagados para que destaquen
-// la ruta y el tráfico.
+// Estilo "navegador" (27/10/2026, el usuario lo quería así, con una imagen de ejemplo):
+// fondo azul marino con las calles en azul claro, ruta blanca con halo cian y marcas
+// cian. Con la clave, el estilo nocturno de TomTom y su tráfico para fondos oscuros;
+// sin ella, el mapa de OpenStreetMap pasado a azul con un filtro (CARTO y Stadia, que
+// dan fondos oscuros hechos, piden cuenta y clave).
 const ATRIBUCION_OSM = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 const ATRIBUCION_TOMTOM = '© <a href="https://www.tomtom.com">TomTom</a>';
 
 // Los botones + y − y la atribución de Leaflet vienen blancos y cuadrados: se pasan al
 // estilo de la app (redondos y oscuros). Se añade una vez al documento.
 const CSS_MAPA = `
-.organizy-mapa { background: ${colores.fondo}; font-family: ${fuentes.texto}, sans-serif; }
-.organizy-fondo-osm { filter: invert(1) hue-rotate(180deg) grayscale(0.85) brightness(0.8) contrast(1.15); }
-.organizy-fondo-tomtom { filter: grayscale(0.7) brightness(0.9); }
+.organizy-mapa { background: ${coloresMapa.fondo}; font-family: ${fuentes.texto}, sans-serif; }
+.organizy-fondo-osm { filter: grayscale(1) invert(1) sepia(1) hue-rotate(180deg) saturate(2.5) brightness(0.7) contrast(1.4); }
+.organizy-fondo-tomtom { filter: saturate(1.3); }
 .organizy-mapa .leaflet-bar { border: none; box-shadow: none; }
 .organizy-mapa .leaflet-bar a, .organizy-mapa .leaflet-bar a:first-child, .organizy-mapa .leaflet-bar a:last-child {
   width: 40px; height: 40px; line-height: 40px; margin-bottom: 8px;
-  border: none; border-radius: 20px; background: ${colores.elevado}; color: ${colores.texto};
+  border: 1px solid rgba(56, 211, 255, 0.35); border-radius: 20px; background: rgba(7, 22, 49, 0.85); color: ${colores.texto};
   font: 400 22px ${fuentes.texto}, sans-serif;
 }
-.organizy-mapa .leaflet-bar a:hover { background: ${colores.tintaSuave}; color: ${colores.texto}; }
-.organizy-mapa .leaflet-bar a.leaflet-disabled { background: ${colores.tarjeta}; color: ${colores.textoSecundario}; }
+.organizy-mapa .leaflet-bar a:hover { background: ${coloresMapa.fondo}; color: ${coloresMapa.halo}; }
+.organizy-mapa .leaflet-bar a.leaflet-disabled { color: ${colores.textoSecundario}; }
 .organizy-mapa .leaflet-control-attribution {
-  background: rgba(15, 13, 12, 0.7); color: ${colores.textoSecundario};
+  background: rgba(7, 22, 49, 0.75); color: ${colores.textoSecundario};
   border-radius: 8px 0 0 0; font-size: 10px;
 }
 .organizy-mapa .leaflet-control-attribution a { color: ${colores.texto}; }
@@ -62,6 +62,33 @@ function ponerEstilos() {
   estilo.id = 'organizy-mapa-css';
   estilo.textContent = CSS_MAPA;
   document.head.appendChild(estilo);
+}
+
+// Marcas en cian: tu posición (punto con aro), la salida (aro) y el destino (chincheta
+// con aros en la base).
+function iconoPosicion(Lf: typeof L) {
+  return Lf.divIcon({
+    className: '',
+    iconSize: [30, 30],
+    html: `<div style="width:30px;height:30px;border-radius:15px;box-sizing:border-box;border:2px solid ${coloresMapa.halo};background:rgba(56,211,255,.18);display:flex;align-items:center;justify-content:center"><div style="width:12px;height:12px;border-radius:6px;background:${coloresMapa.halo};border:2px solid ${coloresMapa.ruta}"></div></div>`,
+  });
+}
+
+function iconoSalida(Lf: typeof L) {
+  return Lf.divIcon({
+    className: '',
+    iconSize: [18, 18],
+    html: `<div style="width:18px;height:18px;border-radius:9px;box-sizing:border-box;border:3px solid ${coloresMapa.halo};background:${coloresMapa.fondo}"></div>`,
+  });
+}
+
+function iconoDestino(Lf: typeof L) {
+  return Lf.divIcon({
+    className: '',
+    iconSize: [40, 52],
+    iconAnchor: [20, 44],
+    html: `<svg width="40" height="52" viewBox="0 0 40 52" xmlns="http://www.w3.org/2000/svg"><ellipse cx="20" cy="44" rx="15" ry="6" fill="none" stroke="${coloresMapa.halo}" stroke-opacity=".45" stroke-width="1.5"/><ellipse cx="20" cy="44" rx="8" ry="3.2" fill="none" stroke="${coloresMapa.halo}" stroke-width="1.5"/><path d="M20 4c-6.6 0-12 5.2-12 11.7C8 24.5 20 40 20 40s12-15.5 12-24.3C32 9.2 26.6 4 20 4z" fill="${coloresMapa.halo}"/><circle cx="20" cy="15.5" r="4.5" fill="${coloresMapa.fondo}"/></svg>`,
+  });
 }
 
 type Capas = { rutas: L.LayerGroup; parkings: L.LayerGroup; marcas: L.LayerGroup };
@@ -148,19 +175,23 @@ export function MapaRuta({
 
     rutas.forEach((r, i) => {
       if (i === elegida) return;
-      Lf.polyline(r.puntos, { color: coloresMapa.rutaAlternativa, weight: 6, opacity: 0.9 })
+      Lf.polyline(r.puntos, { color: coloresMapa.rutaAlternativa, weight: 5, opacity: 0.9 })
         .on('click', () => alElegir(i))
         .addTo(c.rutas);
     });
     const ruta = rutas[elegida];
     if (ruta) {
-      Lf.polyline(ruta.puntos, { color: coloresMapa.ruta, weight: 7 }).addTo(c.rutas);
+      // Ruta blanca con un halo cian por debajo, como en los navegadores.
+      Lf.polyline(ruta.puntos, { color: coloresMapa.halo, weight: 14, opacity: 0.25 }).addTo(c.rutas);
+      Lf.polyline(ruta.puntos, { color: coloresMapa.ruta, weight: 5 }).addTo(c.rutas);
       for (const t of ruta.tramos) {
         Lf.polyline(puntosDeTramo(ruta, t.desde, t.hasta), {
           color: t.nivel === 'atasco' ? coloresMapa.atasco : coloresMapa.denso,
-          weight: 7,
+          weight: 5,
         }).addTo(c.rutas);
       }
+      // Salida: un aro cian (si no se sabe dónde estás, la ruta sale de casa).
+      if (!ubicacion) Lf.marker(ruta.puntos[0], { icon: iconoSalida(Lf), keyboard: false }).addTo(c.marcas);
     }
     // Parkings: "P" blanca en un cuadrado azul, como las señales; el elegido, más grande.
     for (const pk of parkings) {
@@ -174,24 +205,8 @@ export function MapaRuta({
         .bindTooltip(`${pk.nombre} · ${pk.direccion}`)
         .addTo(c.parkings);
     }
-    if (ubicacion) {
-      Lf.circleMarker(ubicacion, {
-        radius: 8,
-        color: '#FFFFFF',
-        weight: 3,
-        fillColor: colores.principal,
-        fillOpacity: 1,
-      }).addTo(c.marcas);
-    }
-    if (destino) {
-      Lf.circleMarker(destino, {
-        radius: 10,
-        color: colores.principal,
-        weight: 4,
-        fillColor: '#FFFFFF',
-        fillOpacity: 1,
-      }).addTo(c.marcas);
-    }
+    if (ubicacion) Lf.marker(ubicacion, { icon: iconoPosicion(Lf), keyboard: false }).addTo(c.marcas);
+    if (destino) Lf.marker(destino, { icon: iconoDestino(Lf), keyboard: false }).addTo(c.marcas);
   }, [leaflet, rutas, elegida, alElegir, parkings, parkingElegido, ubicacion, destino]);
 
   // Encuadrar la ruta (o tu posición y el destino) al cambiar.
@@ -209,5 +224,5 @@ export function MapaRuta({
 }
 
 const estilos = StyleSheet.create({
-  contenedor: { overflow: 'hidden', backgroundColor: colores.borde, zIndex: 0 },
+  contenedor: { overflow: 'hidden', backgroundColor: coloresMapa.fondo, zIndex: 0 },
 });

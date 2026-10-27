@@ -1,9 +1,10 @@
+import { Ionicons } from '@expo/vector-icons';
 import { useEffect, useRef } from 'react';
 import { Platform, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, Polyline, type LatLng } from 'react-native-maps';
 
 import type { Punto } from '@/services/rutas';
-import { colores, coloresMapa, fuentes } from '@/theme';
+import { coloresMapa, fuentes } from '@/theme';
 
 import { CENTRO_POR_DEFECTO, puntosDeTramo, puntosVisibles, type PropsMapa } from './tipos';
 
@@ -13,10 +14,14 @@ import { CENTRO_POR_DEFECTO, puntosDeTramo, puntosVisibles, type PropsMapa } fro
 // tráfico, las alternativas en gris y, si los has pedido, los parkings ("P").
 // En la web se usa MapaRuta.web.tsx.
 //
-// Estilo (27/10/2026, el usuario lo quería "más moderno, no de cartografía"): siempre
-// oscuro, como la app, y en el iPhone el mapa "apagado" de Apple (mutedStandard), que
+// Estilo "navegador" (27/10/2026, el usuario lo quería así, con una imagen de ejemplo):
+// ruta blanca con halo cian y marcas cian. El mapa de Apple no deja cambiar sus colores
+// (la web sí lo pinta de azul marino): aquí va oscuro y "apagado" (mutedStandard), que
 // quita colores y detalles para que destaquen la ruta y el tráfico. Sin brújula ni
 // sitios de interés.
+
+// Halo de la ruta: el cian de las marcas al 25 %.
+const HALO_RUTA = `${coloresMapa.halo}40`;
 
 function aLatLng([latitude, longitude]: Punto): LatLng {
   return { latitude, longitude };
@@ -86,14 +91,22 @@ export function MapaRuta({
           ),
         )}
         {ruta ? (
-          <Polyline coordinates={ruta.puntos.map(aLatLng)} strokeColor={coloresMapa.ruta} strokeWidth={6} zIndex={2} />
+          <Polyline
+            coordinates={ruta.puntos.map(aLatLng)}
+            strokeColor={HALO_RUTA}
+            strokeWidth={14}
+            zIndex={2}
+          />
+        ) : null}
+        {ruta ? (
+          <Polyline coordinates={ruta.puntos.map(aLatLng)} strokeColor={coloresMapa.ruta} strokeWidth={5} zIndex={2} />
         ) : null}
         {ruta?.tramos.map((t, i) => (
           <Polyline
             key={`tramo-${i}`}
             coordinates={puntosDeTramo(ruta, t.desde, t.hasta).map(aLatLng)}
             strokeColor={t.nivel === 'atasco' ? coloresMapa.atasco : coloresMapa.denso}
-            strokeWidth={6}
+            strokeWidth={5}
             zIndex={3}
           />
         ))}
@@ -111,14 +124,22 @@ export function MapaRuta({
             </View>
           </Marker>
         ))}
+        {ruta && !ubicacion ? (
+          // Salida (si no se sabe dónde estás, la ruta sale de casa): un aro cian.
+          <Marker coordinate={aLatLng(ruta.puntos[0])} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
+            <View style={estilos.salida} />
+          </Marker>
+        ) : null}
         {destino ? (
+          // Destino: chincheta cian con un aro en la base.
           <Marker
             coordinate={aLatLng(destino)}
-            anchor={{ x: 0.5, y: 0.5 }}
+            anchor={{ x: 0.5, y: 0.9 }}
             tracksViewChanges={false}
             title="Destino">
             <View style={estilos.destino}>
-              <View style={estilos.destinoCentro} />
+              <Ionicons name="location" size={36} color={coloresMapa.halo} />
+              <View style={estilos.destinoAro} />
             </View>
           </Marker>
         ) : null}
@@ -128,7 +149,7 @@ export function MapaRuta({
 }
 
 const estilos = StyleSheet.create({
-  contenedor: { overflow: 'hidden', backgroundColor: colores.borde },
+  contenedor: { overflow: 'hidden', backgroundColor: coloresMapa.fondo },
   // "P" blanca en un cuadrado azul, como las señales de aparcamiento.
   parking: {
     width: 26,
@@ -142,14 +163,21 @@ const estilos = StyleSheet.create({
   },
   parkingElegido: { width: 34, height: 34, borderRadius: 8, borderWidth: 3 },
   letraP: { color: coloresMapa.bordeParking, fontFamily: fuentes.textoFuerte, fontSize: 14 },
-  // Destino: aro naranja con el centro claro, como en la web (en vez del alfiler clásico).
-  destino: {
-    width: 26,
-    height: 26,
-    borderRadius: 13,
-    backgroundColor: colores.principal,
-    alignItems: 'center',
-    justifyContent: 'center',
+  salida: {
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    borderWidth: 3,
+    borderColor: coloresMapa.halo,
+    backgroundColor: coloresMapa.fondo,
   },
-  destinoCentro: { width: 12, height: 12, borderRadius: 6, backgroundColor: colores.texto },
+  destino: { width: 40, height: 46, alignItems: 'center' },
+  destinoAro: {
+    width: 22,
+    height: 8,
+    marginTop: -6,
+    borderRadius: 11,
+    borderWidth: 1.5,
+    borderColor: coloresMapa.halo,
+  },
 });

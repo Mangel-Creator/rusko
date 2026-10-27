@@ -652,8 +652,8 @@ destacadas; no lo uses para un tipo de evento, ni para errores ni para mensajes 
 Para el color de un tipo de evento usa `colorTipo[evento.tipo]` (en `theme`), y para su
 icono redondo, `colorBaldosa[tipo]` (fondo del color al 14 % e icono del color).
 `colorTipoSobreTinta` y `colorEventoSobreTinta` siguen existiendo pero ya dan lo mismo.
-Dentro del mapa, la ruta elegida sigue en azul (`coloresMapa.ruta`) para no confundirla
-con el naranja y el rojo del tráfico.
+Dentro del mapa, estilo "navegador" (27/10/2026): fondo azul marino, ruta blanca
+(`coloresMapa.ruta`) con halo cian (`coloresMapa.halo`) y marcas cian (ver "Fase 6").
 
 - **Solo modo oscuro.** Cero sombras, sin degradados en botones y sin bordes gruesos: las
   cosas se separan por el color de fondo (`fondo` → `tarjeta` → `elevado`).
@@ -1238,19 +1238,24 @@ borran solos a los 7 días.
   y la capa de tráfico de todas las carreteras. Sin ella, fondo de OpenStreetMap y solo
   los tramos de la ruta. Sin tarjeta en TomTom, un abuso no puede generar gasto.
   **Ojo (27/10/2026): esa variable no existe todavía**; la web usa el fondo de OpenStreetMap.
-- **Estilo del mapa** (27/10/2026, el usuario lo quería "más moderno, no de cartografía"):
-  siempre oscuro. En el móvil, `userInterfaceStyle="dark"` y, en iPhone, `mutedStandard`
-  (mapa apagado de Apple), sin brújula; el destino es un aro naranja. En la web, el fondo
-  de OpenStreetMap con un filtro CSS que lo invierte y lo apaga (`organizy-fondo-osm`); con
-  la clave pública, el estilo `night` de TomTom y su tráfico `relative0-dark`. Botones + y −
-  redondos y oscuros. CARTO y Stadia (fondos oscuros hechos) piden cuenta y clave.
+- **Estilo del mapa: "navegador"** (27/10/2026; el usuario no quería el de "cartografía" ni
+  uno gris oscuro y mandó una imagen de ejemplo): fondo azul marino con las calles en azul
+  claro, ruta blanca con halo cian, alternativas en azul apagado y marcas cian (chincheta
+  con aro en el destino, aro en la salida, punto con aro en tu posición). En la web, el
+  fondo de OpenStreetMap pasado a azul con un filtro CSS (`organizy-fondo-osm`); con la
+  clave pública, el estilo `night` de TomTom y su tráfico `relative0-dark`. Botones + y −
+  redondos en azul marino. **En el iPhone el mapa de Apple no deja cambiar sus colores**:
+  va oscuro y apagado (`userInterfaceStyle="dark"`, `mutedStandard`, sin brújula) con la
+  misma ruta y marcas. Para que también fuera azul habría que dibujarlo como en la web
+  (Leaflet dentro de una WebView), perdiendo el tráfico de todas las calles de Apple.
+  CARTO y Stadia (fondos oscuros hechos) piden cuenta y clave.
 - **Mapa**: `screens/mapa/MapaRuta.tsx` (móvil, `react-native-maps`, incluido en Expo Go:
   mapa de Apple en iPhone, sin clave, con `showsTraffic` para pintar el tráfico como Waze)
   y `MapaRuta.web.tsx` (web, Leaflet, cargado al montar porque necesita el navegador).
   Mismas props (`screens/mapa/tipos.ts`). Para la app propia en **Android** hará falta una
   clave de Google Maps SDK en el plugin de `react-native-maps` (en iPhone no).
-- **Colores del tráfico** (`coloresMapa` en theme): rojo atasco, amarillo denso, ruta en
-  azul, alternativas en gris y parkings como "P" blanca en un cuadrado azul. Solo dentro
+- **Colores del tráfico** (`coloresMapa` en theme): rojo atasco, amarillo denso, ruta
+  blanca con halo cian, alternativas en azul apagado y parkings como "P" blanca en un cuadrado azul. Solo dentro
   del mapa (la excepción del 25/09); fuera, el "+6 min" va en granate (`aviso`).
 - **Servidor** (`supabase/functions/rutas`): acción `rutas` (1 a 3 rutas con
   `maxAlternatives`, `arriveAt` para llegar a una hora o `departAt`; devuelve duración,

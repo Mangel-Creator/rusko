@@ -76,8 +76,12 @@ export const colorTipo = {
 export const coloresMapa = {
   atasco: '#D0312D', // rojo: tramo con atasco
   denso: '#F2B01E', // amarillo: tráfico denso
-  ruta: '#3D6BFF', // la ruta elegida: azul, para no confundirla con el naranja y rojo del tráfico
-  rutaAlternativa: '#8A8374', // las otras rutas, en gris
+  // Estilo "navegador" (27/10/2026, a petición del usuario): fondo azul marino con las
+  // calles en azul claro, la ruta en blanco con un halo cian y los puntos en cian.
+  fondo: '#071631', // azul marino de fondo del mapa (antes de cargar las piezas)
+  ruta: '#FFFFFF', // la ruta elegida: blanca, para no confundirla con el rojo y amarillo del tráfico
+  halo: '#38D3FF', // cian: halo de la ruta, tu posición y el destino
+  rutaAlternativa: '#4F6E9E', // las otras rutas, en azul apagado
   parking: '#3D6BFF', // "P" de los parkings cerca del destino, en azul como las señales
   bordeParking: '#FFFFFF',
 } as const;
