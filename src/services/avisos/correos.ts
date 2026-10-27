@@ -29,7 +29,7 @@ export function avisosDePlazos(
         dia,
         cuando: new Date(fecha.getFullYear(), fecha.getMonth(), fecha.getDate(), 0, minutosDesdeHora(perfil.horario.levantarse)),
         titulo: `Mañana: ${tarea.titulo}`,
-        cuerpo: `Del correo de ${correo.de}. Lo tienes en las tareas.`,
+        cuerpo: `Del correo de ${correo.de}. ${tarea.flexible ? 'Lo tienes en las tareas.' : `A las ${tarea.horaInicio}, en tu calendario.`}`,
         destino: { pantalla: 'evento' as const, id: tarea.id },
       },
     ];

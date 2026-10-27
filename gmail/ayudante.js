@@ -3,10 +3,11 @@
  *
  * Este código vive en TU cuenta de Google (script.google.com), no en Organizy.
  * Cada 10 minutos mira los correos nuevos de la pestaña "Principal" de tu Gmail y:
- *   - si piden algo con fecha ("el plazo acaba el 5 de octubre"), avisa al móvil y
- *     Organizy lo apunta como tarea ese día;
+ *   - si tienen una fecha ("el plazo acaba el 5 de octubre", "cita el 11/11 a las 10"),
+ *     avisa al móvil y Organizy lo apunta ese día (con hora, como cita);
  *   - si son importantes (lo dice la IA de Organizy) o de alguien de "Avisarme siempre
  *     de…", te manda un aviso corto;
+ *   - si vienen de una dirección vetada en Organizy, no hace nada con ellos;
  *   - del resto no avisa: en Organizy sale solo quién lo manda y el asunto.
  * Organizy recoge los resultados al abrirse, desde el enlace de "Aplicación web".
  *
@@ -31,7 +32,7 @@
  * reglas, que comparte con el servidor). No lo edites a mano.
  */
 /* global GmailApp, PropertiesService, ScriptApp, UrlFetchApp, ContentService, HtmlService, Utilities, Session, LockService, Logger */
-/* global analizarCorreo, avisosDeCorreos, leerSiempre, limpiarCuerpo, nombreRemitente, resultadoDeIA, siempreAvisar, ZONA_CORREO */
+/* global analizarCorreo, avisosDeCorreos, direccionRemitente, leerSiempre, leerVetados, limpiarCuerpo, nombreRemitente, resultadoDeIA, siempreAvisar, vetado, ZONA_CORREO */
 
 var AJUSTES = {
   // Qué correos mira: los de "Principal" de la bandeja de entrada que no mandas tú.
@@ -101,7 +102,7 @@ function revisarCorreo() {
 }
 
 // Organizy pide aquí los resúmenes (con un POST desde la app).
-// Manda { token?, supabase?, siempre? } y recibe { ok, correos, ultimaRevision }.
+// Manda { token?, supabase?, siempre?, vetados? } y recibe { ok, correos, ultimaRevision }.
 function doPost(e) {
   var datos = {};
   try {
@@ -113,6 +114,9 @@ function doPost(e) {
   // "Avisarme siempre de…" (lo elige la persona en Organizy).
   var siempre = leerSiempre(datos.siempre);
   if (siempre) PropertiesService.getScriptProperties().setProperty('siempre', JSON.stringify(siempre));
+  // Direcciones vetadas: sus correos no se apuntan, no avisan y no se mandan a la app.
+  var vetados = leerVetados(datos.vetados);
+  if (vetados) PropertiesService.getScriptProperties().setProperty('vetados', JSON.stringify(vetados));
   var supabase = datos.supabase;
   if (
     supabase &&
@@ -128,7 +132,9 @@ function doPost(e) {
     ok: true,
     version: 1,
     ultimaRevision: ultima ? new Date(ultima).toISOString() : null,
-    correos: leerCorreos_(),
+    correos: leerCorreos_().filter(function (c) {
+      return !vetado(c.direccion || '', vetados || leerJson_('vetados', []));
+    }),
   });
 }
 
@@ -183,6 +189,7 @@ function revisar_(desde, avisar) {
 
     var guardados = [];
     var siempre = leerJson_('siempre', []);
+    var vetados = leerJson_('vetados', []);
     nuevos.forEach(function (m) {
       var correo = {
         asunto: m.getSubject() || '',
@@ -190,15 +197,22 @@ function revisar_(desde, avisar) {
         cuerpo: (m.getPlainBody() || '').slice(0, 20000),
         recibido: m.getDate(),
       };
+      // De una dirección vetada: se da por visto y no se guarda ni avisa.
+      if (vetado(correo.de, vetados)) {
+        vistos.push(m.getId());
+        return;
+      }
       var analisis = analizarConIA_(correo) || analizarCorreo(correo);
       var guardado = {
         id: m.getId(),
         recibido: m.getDate().toISOString(),
         de: nombreRemitente(correo.de),
+        direccion: direccionRemitente(correo.de),
         asunto: correo.asunto.slice(0, 200),
         titulo: analisis.titulo,
         resumen: analisis.resumen,
         fechaLimite: analisis.fechaLimite,
+        hora: analisis.hora || null,
         tarea: analisis.tarea,
         importante: analisis.importante || siempreAvisar(correo.de, siempre),
         via: analisis.via,

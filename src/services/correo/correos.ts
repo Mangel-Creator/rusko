@@ -1,6 +1,14 @@
 import type { CorreoRemoto, CorreoResumido, ProveedorCorreo } from '@/data/correos';
 import type { Evento } from '@/data/eventos/tipos';
-import { DIAS_SEMANA_CORTOS, diaSemanaDesdeLunes, fechaDesdeClave, sumarDias, type ClaveDia } from '@/services/fechas';
+import {
+  DIAS_SEMANA_CORTOS,
+  diaSemanaDesdeLunes,
+  fechaDesdeClave,
+  horaDesdeMinutos,
+  minutosDesdeHora,
+  sumarDias,
+  type ClaveDia,
+} from '@/services/fechas';
 
 // Resúmenes de correo (fase 11): funciones puras, con pruebas en __tests__.
 
@@ -22,6 +30,11 @@ const esTexto = (v: unknown, max: number): v is string => typeof v === 'string' 
 // Solo se abren enlaces de Gmail u Outlook.
 const ENLACES_VALIDOS = /^https:\/\/(mail\.google\.com|outlook\.live\.com|outlook\.office(365)?\.com)\//;
 
+// ¿Es una dirección de correo? ("ana@gl.es"). La misma regla que el servidor.
+export function esDireccion(texto: string): boolean {
+  return texto.length <= 320 && /^[^\s@<>"',;:]+@[^\s@<>"',;:]+\.[a-z]{2,}$/i.test(texto.trim());
+}
+
 // Comprueba un correo que llega del ayudante. Devuelve null si algo no cuadra.
 export function validarRemoto(dato: unknown): CorreoRemoto | null {
   if (!dato || typeof dato !== 'object') return null;
@@ -32,14 +45,18 @@ export function validarRemoto(dato: unknown): CorreoRemoto | null {
   const enlace = esTexto(d.enlace, 600) && ENLACES_VALIDOS.test(d.enlace) ? d.enlace : '';
   const origen: ProveedorCorreo | undefined = d.origen === 'gmail' || d.origen === 'outlook' ? d.origen : undefined;
   const cuenta = esTexto(d.cuenta, 320) && d.cuenta.includes('@') ? d.cuenta : undefined;
+  const direccion = typeof d.direccion === 'string' && esDireccion(d.direccion) ? d.direccion.trim().toLowerCase() : undefined;
+  const hora = fecha && typeof d.hora === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(d.hora) ? d.hora : null;
   return {
     id: d.id,
     recibido: d.recibido,
     de: esTexto(d.de, 200) ? d.de : '',
+    ...(direccion ? { direccion } : {}),
     asunto: esTexto(d.asunto, 300) ? d.asunto : '',
     titulo: d.titulo.trim(),
     resumen: esTexto(d.resumen, 600) ? d.resumen : '',
     fechaLimite: fecha,
+    hora,
     tarea: fecha && esTexto(d.tarea, 200) && d.tarea.trim() ? d.tarea.trim() : null,
     importante: d.importante === true,
     via: d.via === 'ia' ? 'ia' : 'reglas',
@@ -73,10 +90,38 @@ export function textoVuelta(datos: {
   return null;
 }
 
+// --- Remitentes vetados (27/10/2026) ---
+// La persona escribe una dirección y sus correos no salen nada en Rusko: ni en la
+// pestaña, ni avisos, ni tareas ni citas. En Gmail siguen igual.
+
+export const MAX_VETADOS = 100;
+
+// ¿Viene este correo de una dirección vetada? Los de antes del 27/10/2026 no traen la
+// dirección: valen si el remitente era la dirección tal cual.
+export function deVetado(correo: Pick<CorreoRemoto, 'de' | 'direccion'>, vetados: string[]): boolean {
+  if (vetados.length === 0) return false;
+  const direccion = (correo.direccion || correo.de).trim().toLowerCase();
+  return vetados.includes(direccion);
+}
+
+// Pone (o quita) una dirección de la lista. null si no es una dirección.
+export function cambiarVetados(vetados: string[], direccion: string, vetar: boolean): string[] | null {
+  const limpia = direccion.trim().toLowerCase();
+  if (!esDireccion(limpia)) return null;
+  const sin = vetados.filter((v) => v !== limpia);
+  return vetar ? [...sin, limpia].slice(-MAX_VETADOS) : sin;
+}
+
 // Junta lo que ya había en el móvil con lo que manda el ayudante: los nuevos entran
-// sin ver y los que ya estaban conservan lo del móvil (visto, tarea, "no es un
-// plazo"). Se olvidan los de hace más de DIAS_EN_EL_MOVIL días.
-export function mezclarCorreos(locales: CorreoResumido[], remotos: CorreoRemoto[], ahora: Date): CorreoResumido[] {
+// sin ver y los que ya estaban conservan lo del móvil (visto, tarea, "¿Eliminar
+// cita?"). Se olvidan los de hace más de DIAS_EN_EL_MOVIL días y los de direcciones
+// vetadas.
+export function mezclarCorreos(
+  locales: CorreoResumido[],
+  remotos: CorreoRemoto[],
+  ahora: Date,
+  vetados: string[] = [],
+): CorreoResumido[] {
   const porId = new Map(locales.map((c) => [c.id, c]));
   for (const remoto of remotos) {
     const local = porId.get(remoto.id);
@@ -88,10 +133,12 @@ export function mezclarCorreos(locales: CorreoResumido[], remotos: CorreoRemoto[
     );
   }
   const limite = new Date(ahora.getTime() - DIAS_EN_EL_MOVIL * 86400000).toISOString();
-  return [...porId.values()].filter((c) => c.recibido >= limite).sort((a, b) => b.recibido.localeCompare(a.recibido));
+  return [...porId.values()]
+    .filter((c) => c.recibido >= limite && !deVetado(c, vetados))
+    .sort((a, b) => b.recibido.localeCompare(a.recibido));
 }
 
-// Es un plazo (y no se ha dicho que no lo es).
+// Tiene fecha (y no se ha dicho "¿Eliminar cita?" → sí).
 export function esPlazo(correo: CorreoResumido): correo is CorreoResumido & { fechaLimite: ClaveDia } {
   return correo.fechaLimite !== null && !correo.noEsPlazo;
 }
@@ -101,8 +148,10 @@ export function correosSinTarea(correos: CorreoResumido[], hoy: ClaveDia): Corre
   return correos.filter((c) => esPlazo(c) && !c.eventoId && c.fechaLimite >= hoy);
 }
 
-// La tarea del calendario de un correo con plazo: ese día, de 30 min, tipo "Yo".
+// Lo que se apunta en el calendario de un correo con fecha, tipo "Yo": con hora, una
+// cita de 1 h (hasta las 23:59 como mucho); sin hora, una tarea de 30 min ese día.
 export function tareaDeCorreo(correo: CorreoResumido, id: string): Evento {
+  const hora = correo.hora ?? null;
   const notas = [`Del correo de ${correo.de}: «${correo.asunto || correo.titulo}».`, correo.resumen, correo.enlace]
     .filter(Boolean)
     .join('\n\n');
@@ -110,14 +159,14 @@ export function tareaDeCorreo(correo: CorreoResumido, id: string): Evento {
     id,
     titulo: (correo.tarea ?? correo.titulo).slice(0, 80),
     fecha: correo.fechaLimite ?? '',
-    horaInicio: null,
-    horaFin: null,
+    horaInicio: hora,
+    horaFin: hora ? horaDesdeMinutos(Math.min(minutosDesdeHora(hora) + 60, 23 * 60 + 59)) : null,
     tipo: 'yo',
     lugar: null,
     notas,
     repeticion: 'nunca',
-    flexible: true,
-    duracionMin: 30,
+    flexible: !hora,
+    duracionMin: hora ? null : 30,
     hecha: false,
     foco: false,
     avisoMin: null,
@@ -131,12 +180,13 @@ export function textoDiaCorto(dia: ClaveDia): string {
   return `${DIAS_SEMANA_CORTOS[diaSemanaDesdeLunes(fecha)]} ${fecha.getDate()} ${MESES_CORTOS[fecha.getMonth()]}`;
 }
 
-// "Para hoy", "Para mañana", "Para el lun 5 oct", "Era el vie 2 oct". Vale para un
-// plazo, una cita o un cargo.
-export function textoParaDia(dia: ClaveDia, hoy: ClaveDia): string {
-  if (dia === hoy) return 'Para hoy';
-  if (dia === sumarDias(hoy, 1)) return 'Para mañana';
-  return `${dia < hoy ? 'Era' : 'Para'} el ${textoDiaCorto(dia)}`;
+// "Para hoy", "Para mañana a las 10:00", "Para el lun 5 oct", "Era el vie 2 oct". Vale
+// para un plazo, una cita o un cargo.
+export function textoParaDia(dia: ClaveDia, hoy: ClaveDia, hora?: string | null): string {
+  const a = hora ? ` a las ${hora}` : '';
+  if (dia === hoy) return `Para hoy${a}`;
+  if (dia === sumarDias(hoy, 1)) return `Para mañana${a}`;
+  return `${dia < hoy ? 'Era' : 'Para'} el ${textoDiaCorto(dia)}${a}`;
 }
 
 // Máximo de remitentes en "Avisarme siempre de…" (el servidor guarda 30).
@@ -164,26 +214,42 @@ export function textoGrupo(dia: ClaveDia, hoy: ClaveDia): string {
 
 export type GrupoCorreos = { dia: ClaveDia; correos: CorreoResumido[] };
 
-// Plazos (los que vencen de hoy en adelante, el más cercano primero) y el resto de
-// correos por día, del más nuevo al más viejo. Los plazos pasados van con el resto.
-export function ordenarCorreos(
-  correos: CorreoResumido[],
-  hoy: ClaveDia,
-  diaDe: (iso: string) => ClaveDia,
-): { plazos: CorreoResumido[]; grupos: GrupoCorreos[] } {
-  const plazos = correos
-    .filter((c) => esPlazo(c) && c.fechaLimite >= hoy)
-    .sort((a, b) => (a.fechaLimite ?? '').localeCompare(b.fechaLimite ?? ''));
-  const enPlazos = new Set(plazos.map((c) => c.id));
-  const grupos: GrupoCorreos[] = [];
-  for (const correo of [...correos].sort((a, b) => b.recibido.localeCompare(a.recibido))) {
-    if (enPlazos.has(correo.id)) continue;
+// Las tres bandejas de la pestaña Correo (27/10/2026):
+// - todos: TODOS los correos por día, del más nuevo al más viejo (también los que se
+//   apuntaron en el calendario: no desaparecen por eso);
+// - conFecha: los apuntados de hoy en adelante, el más cercano primero, y pasados: los
+//   apuntados con fecha ya pasada, el más reciente primero;
+// - resumenes: los importantes sin fecha (los decide la IA o "Avisarme siempre de…").
+export type BandejasCorreo = {
+  todos: GrupoCorreos[];
+  conFecha: CorreoResumido[];
+  pasados: CorreoResumido[];
+  resumenes: CorreoResumido[];
+};
+
+export function bandejasCorreo(correos: CorreoResumido[], hoy: ClaveDia, diaDe: (iso: string) => ClaveDia): BandejasCorreo {
+  const ordenados = [...correos].sort((a, b) => b.recibido.localeCompare(a.recibido));
+  const todos: GrupoCorreos[] = [];
+  for (const correo of ordenados) {
     const dia = diaDe(correo.recibido);
-    const grupo = grupos.find((g) => g.dia === dia);
+    const grupo = todos.find((g) => g.dia === dia);
     if (grupo) grupo.correos.push(correo);
-    else grupos.push({ dia, correos: [correo] });
+    else todos.push({ dia, correos: [correo] });
   }
-  return { plazos, grupos };
+  const conFecha = ordenados.filter(esPlazo);
+  return {
+    todos,
+    conFecha: conFecha
+      .filter((c) => c.fechaLimite >= hoy)
+      .sort((a, b) => a.fechaLimite.localeCompare(b.fechaLimite) || (a.hora ?? '').localeCompare(b.hora ?? '')),
+    pasados: conFecha.filter((c) => c.fechaLimite < hoy).sort((a, b) => b.fechaLimite.localeCompare(a.fechaLimite)),
+    resumenes: ordenados.filter((c) => c.importante === true && c.fechaLimite === null),
+  };
+}
+
+// ¿Ha llegado algún correo leído por la IA? Si no, la bandeja Resúmenes lo explica.
+export function iaEncendida(correos: CorreoResumido[]): boolean {
+  return correos.some((c) => c.via === 'ia');
 }
 
 export function contarNuevos(correos: CorreoResumido[]): number {

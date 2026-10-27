@@ -25,12 +25,34 @@ describe('fechaLimiteEn', () => {
 
   it('no confunde despedidas, horas, rangos ni fechas pasadas', () => {
     expect(reglas.fechaLimiteEn('Hasta el lunes, que vaya bien', HOY)).toBeNull();
-    expect(reglas.fechaLimiteEn('Nos vemos el 5 de octubre en la cena', HOY)).toBeNull();
     expect(reglas.fechaLimiteEn('Hay que entregar 3-4 copias', HOY)).toBeNull();
     expect(reglas.fechaLimiteEn('Entrega a las 10.30', HOY)).toBeNull();
     expect(reglas.fechaLimiteEn('El plazo acabó el 3 de septiembre', HOY)).toBeNull();
     expect(reglas.fechaLimiteEn('Pásate por la mañana antes de nada', HOY)).toBeNull();
-    expect(reglas.fechaLimiteEn('El plazo es largo. El 5 de octubre hay cena', HOY)).toBeNull();
+    expect(reglas.fechaLimiteEn('El plazo es largo. El 5 de octubre lo vemos', HOY)).toBeNull();
+    expect(reglas.fechaLimiteEn('Fecha del pedido: 27/09/2026', HOY)).toBeNull();
+    expect(reglas.fechaLimiteEn('Puedes consultar tu factura del 15/10', HOY)).toBeNull();
+    expect(reglas.fechaLimiteEn('Mesa para el 12/10 de 4 personas', HOY)).toBeNull();
+  });
+
+  it('apunta las citas y las fechas escritas con año (27/10/2026)', () => {
+    expect(reglas.fechaLimiteEn('Prueba 11/11/2026', HOY)).toBe('2026-11-11');
+    expect(reglas.fechaLimiteEn('Tengo cita el 11/11/2026', HOY)).toBe('2026-11-11');
+    expect(reglas.fechaLimiteEn('Examen el 11/11/2026', HOY)).toBe('2026-11-11');
+    expect(reglas.fechaLimiteEn('Cita médica el 11 de noviembre', HOY)).toBe('2026-11-11');
+    expect(reglas.fechaLimiteEn('Nos vemos el 5 de octubre en la cena', HOY)).toBe('2026-10-05');
+    expect(reglas.fechaLimiteEn('Quedamos mañana para el pádel', HOY)).toBe('2026-09-28');
+    expect(reglas.fechaLimiteEn('Te veo el día 3/10', HOY)).toBe('2026-10-03');
+  });
+
+  it('saca la hora que va detrás de la fecha', () => {
+    expect(reglas.horaEn('Reunión 11/11/2026 a las 10', HOY)).toBe('10:00');
+    expect(reglas.horaEn('Quedamos mañana a las 17:30', HOY)).toBe('17:30');
+    expect(reglas.horaEn('Reunión el 5 de oct, 9:00', HOY)).toBe('09:00');
+    expect(reglas.horaEn('Cena el viernes a las 9 de la noche', HOY)).toBe('21:00');
+    expect(reglas.horaEn('Partido el sábado a las 5', HOY)).toBe('17:00');
+    expect(reglas.horaEn('Examen el 11/11/2026', HOY)).toBeNull();
+    expect(reglas.horaEn('Mesa para el 12/10/2026 de 4 personas', HOY)).toBeNull();
   });
 
   it('en diciembre, "5 de enero" es del año que viene', () => {
@@ -106,6 +128,7 @@ describe('analizarCorreo y avisos', () => {
       titulo: 'Declaración trimestral',
       resumen: '',
       fechaLimite: '2026-10-10',
+      hora: null,
       tarea: 'Declaración trimestral',
       importante: false,
       via: 'reglas',
@@ -135,6 +158,11 @@ describe('analizarCorreo y avisos', () => {
       reglas.avisosDeCorreos([{ titulo: 'X', de: 'Y', resumen: '', fechaLimite: '2026-09-28', tarea: 'X' }], RECIBIDO)[0].titulo,
     ).toBe('Mañana: X');
     expect(reglas.textoCuando(HOY, HOY)).toBe('Hoy');
+    const cita = { titulo: 'Dentista', de: 'Clínica', resumen: '', fechaLimite: '2026-09-28', hora: '10:00', tarea: 'Dentista' };
+    expect(reglas.avisosDeCorreos([cita], RECIBIDO)[0]).toEqual({
+      titulo: 'Mañana a las 10:00: Dentista',
+      cuerpo: 'Te lo he apuntado en el calendario. Correo de Clínica.',
+    });
   });
 
   it('muchos importantes van en un solo aviso', () => {
@@ -156,6 +184,7 @@ describe('resultadoDeIA', () => {
       titulo: 'Cita en el dentista',
       resumen: 'Confírmala.',
       fechaLimite: '2026-10-02',
+      hora: null,
       tarea: 'Dentista a las 10',
       importante: true,
       via: 'ia',
@@ -184,6 +213,18 @@ describe('avisarme siempre de', () => {
     expect(reglas.siempreAvisar(de, ['López'])).toBe(false);
     expect(reglas.siempreAvisar(de, ['.es'])).toBe(false);
     expect(reglas.siempreAvisar(de, [])).toBe(false);
+  });
+
+  it('veta por dirección, sin importar mayúsculas', () => {
+    const de = '"Tienda" <Ofertas@Tienda.es>';
+    expect(reglas.direccionRemitente(de)).toBe('ofertas@tienda.es');
+    expect(reglas.direccionRemitente('ana@x.com')).toBe('ana@x.com');
+    expect(reglas.direccionRemitente('Ana')).toBe('');
+    expect(reglas.vetado(de, ['ofertas@tienda.es'])).toBe(true);
+    expect(reglas.vetado(de, ['otra@tienda.es'])).toBe(false);
+    expect(reglas.vetado(de, [])).toBe(false);
+    expect(reglas.leerVetados('a@b.es')).toBeNull();
+    expect(reglas.leerVetados([' A@B.es ', 'a@b.es', 'tienda', '@b.es', 3])).toEqual(['a@b.es']);
   });
 
   it('limpia la lista que manda la app', () => {

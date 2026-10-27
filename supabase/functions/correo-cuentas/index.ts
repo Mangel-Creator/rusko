@@ -6,9 +6,9 @@
 //   - GET ?code=&state= : vuelta del inicio de sesión. Canjea el código por la llave
 //     (refresh token), la guarda CIFRADA, recoge el último día sin avisar y vuelve a la
 //     app con ?correo=ok (o cancelado / error).
-//   - POST { accion: 'estado', tokenPush?, siempre? } (con sesión): cuentas vinculadas y
-//     correos de los últimos 7 días. Apunta el móvil para los avisos y guarda la lista
-//     de "Avisarme siempre de…".
+//   - POST { accion: 'estado', tokenPush?, siempre?, vetados? } (con sesión): cuentas
+//     vinculadas y correos de los últimos 7 días (sin los de direcciones vetadas). Apunta
+//     el móvil para los avisos y guarda las listas de "Avisarme siempre de…" y de vetados.
 //   - POST { accion: 'quitar', id } (con sesión): desvincula y borra todo lo de la cuenta.
 //   - POST { accion: 'revisar' } con la cabecera x-organizy-cron: lo lanza pg_cron cada
 //     5 minutos (supabase/migrations/20260927000000_correo_cuentas.sql). Mira los correos
@@ -40,11 +40,14 @@ import {
   analizarCorreo,
   avisosDeCorreos,
   diaDe,
+  direccionRemitente,
   leerSiempre,
+  leerVetados,
   limpiarCuerpo,
   nombreRemitente,
   resultadoDeIA,
   siempreAvisar,
+  vetado,
 } from '../_shared/reglasCorreo.js';
 import { clienteAdmin, usuarioDeLaPeticion } from '../_shared/usuario.ts';
 
@@ -74,6 +77,7 @@ type Cuenta = {
   ultima_revision: string | null;
   vistos: string[];
   siempre_avisar: string[]; // "Avisarme siempre de…" (nombres, direcciones o dominios)
+  vetados: string[]; // direcciones vetadas: sus correos no salen nada en Rusko
 };
 
 class LlaveCaducada extends Error {}
@@ -155,10 +159,12 @@ type Resumen = {
   id: string;
   recibido: string;
   de: string;
+  direccion: string;
   asunto: string;
   titulo: string;
   resumen: string;
   fechaLimite: string | null;
+  hora: string | null;
   tarea: string | null;
   importante: boolean;
   via: 'reglas' | 'ia';
@@ -166,7 +172,14 @@ type Resumen = {
 };
 
 async function analizar(cuenta: Cuenta, m: MensajeLeido): Promise<Resumen> {
-  const base = { id: m.id, recibido: m.recibido.toISOString(), de: nombreRemitente(m.de), asunto: m.asunto.slice(0, 200), enlace: m.enlace };
+  const base = {
+    id: m.id,
+    recibido: m.recibido.toISOString(),
+    de: nombreRemitente(m.de),
+    direccion: direccionRemitente(m.de),
+    asunto: m.asunto.slice(0, 200),
+    enlace: m.enlace,
+  };
   const siempre = siempreAvisar(m.de, cuenta.siempre_avisar ?? []);
   // Sin clave o pasado el máximo de correos del día, se usan las reglas.
   if (iaDisponible) {
@@ -181,7 +194,7 @@ async function analizar(cuenta: Cuenta, m: MensajeLeido): Promise<Resumen> {
     }
   }
   const r = analizarCorreo({ asunto: m.asunto, de: m.de, cuerpo: m.cuerpo, recibido: m.recibido });
-  return { ...base, titulo: r.titulo, resumen: r.resumen, fechaLimite: r.fechaLimite, tarea: r.tarea, importante: siempre, via: 'reglas' };
+  return { ...base, titulo: r.titulo, resumen: r.resumen, fechaLimite: r.fechaLimite, hora: r.hora, tarea: r.tarea, importante: siempre, via: 'reglas' };
 }
 
 async function mandarAvisos(cuenta: Cuenta, avisos: { titulo: string; cuerpo: string }[]) {
@@ -224,7 +237,8 @@ async function revisarCuenta(cuenta: Cuenta, acceso: string, desde: Date, avisar
   const inicio = new Date();
   const nuevos = await mensajesNuevos(cuenta, acceso, desde);
   const resumenes: Resumen[] = [];
-  for (const m of nuevos) resumenes.push(await analizar(cuenta, m));
+  // Los de direcciones vetadas se dan por vistos, sin guardarlos ni avisar.
+  for (const m of nuevos) if (!vetado(m.de, cuenta.vetados ?? [])) resumenes.push(await analizar(cuenta, m));
   const db = clienteAdmin();
   if (resumenes.length) {
     await db.from('correo_resumenes').upsert(
@@ -233,10 +247,12 @@ async function revisarCuenta(cuenta: Cuenta, acceso: string, desde: Date, avisar
         id: r.id,
         recibido: r.recibido,
         de: r.de,
+        de_email: r.direccion,
         asunto: r.asunto,
         titulo: r.titulo,
         resumen: r.resumen,
         fecha_limite: r.fechaLimite,
+        hora: r.hora,
         tarea: r.tarea,
         importante: r.importante,
         via: r.via,
@@ -367,7 +383,7 @@ async function vuelta(req: Request): Promise<Response> {
 
 const tokenPushValido = (t: unknown): t is string => typeof t === 'string' && /^Expo(nent)?PushToken\[.+\]$/.test(t) && t.length < 200;
 
-async function estadoDelUsuario(usuario: string, tokenPush: unknown, siempre: unknown) {
+async function estadoDelUsuario(usuario: string, tokenPush: unknown, siempre: unknown, vetadosApp: unknown) {
   const db = clienteAdmin();
   const { data } = await db
     .from('correo_cuentas')
@@ -378,6 +394,10 @@ async function estadoDelUsuario(usuario: string, tokenPush: unknown, siempre: un
   // "Avisarme siempre de…": la lista es de la persona, la misma en todas sus cuentas.
   const lista = leerSiempre(siempre);
   if (lista && cuentas.length) await db.from('correo_cuentas').update({ siempre_avisar: lista }).eq('usuario', usuario);
+  // Las direcciones vetadas, igual. Lo ya guardado de ellas no se devuelve.
+  const vetados = leerVetados(vetadosApp);
+  if (vetados && cuentas.length) await db.from('correo_cuentas').update({ vetados }).eq('usuario', usuario);
+  const fuera = new Set(vetados ?? []);
   if (tokenPushValido(tokenPush)) {
     for (const c of cuentas) {
       if (c.tokens_push.includes(tokenPush)) continue;
@@ -408,21 +428,25 @@ async function estadoDelUsuario(usuario: string, tokenPush: unknown, siempre: un
       estado: c.estado,
       ultimaRevision: c.ultima_revision,
     })),
-    correos: (filas ?? []).map((f) => ({
-      id: f.id,
-      recibido: new Date(f.recibido).toISOString(),
-      de: f.de,
-      asunto: f.asunto,
-      titulo: f.titulo,
-      resumen: f.resumen,
-      fechaLimite: f.fecha_limite,
-      tarea: f.tarea,
-      importante: f.importante === true,
-      via: f.via,
-      enlace: f.enlace,
-      origen: cuentaDe.get(f.cuenta)?.proveedor,
-      cuenta: cuentaDe.get(f.cuenta)?.email,
-    })),
+    correos: (filas ?? [])
+      .filter((f) => !fuera.has(String(f.de_email ?? '')))
+      .map((f) => ({
+        id: f.id,
+        recibido: new Date(f.recibido).toISOString(),
+        de: f.de,
+        direccion: f.de_email ?? '',
+        asunto: f.asunto,
+        titulo: f.titulo,
+        resumen: f.resumen,
+        fechaLimite: f.fecha_limite,
+        hora: f.hora ?? null,
+        tarea: f.tarea,
+        importante: f.importante === true,
+        via: f.via,
+        enlace: f.enlace,
+        origen: cuentaDe.get(f.cuenta)?.proveedor,
+        cuenta: cuentaDe.get(f.cuenta)?.email,
+      })),
   };
 }
 
@@ -444,7 +468,7 @@ Deno.serve(async (req) => {
   if (!usuario) return respuestaJson(req, { error: 'sin-sesion' }, 401);
 
   try {
-    if (datos.accion === 'estado') return respuestaJson(req, await estadoDelUsuario(usuario, datos.tokenPush, datos.siempre));
+    if (datos.accion === 'estado') return respuestaJson(req, await estadoDelUsuario(usuario, datos.tokenPush, datos.siempre, datos.vetados));
 
     if (datos.accion === 'empezar') {
       const proveedor = datos.proveedor as Proveedor;

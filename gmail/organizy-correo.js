@@ -3,10 +3,11 @@
  *
  * Este código vive en TU cuenta de Google (script.google.com), no en Organizy.
  * Cada 10 minutos mira los correos nuevos de la pestaña "Principal" de tu Gmail y:
- *   - si piden algo con fecha ("el plazo acaba el 5 de octubre"), avisa al móvil y
- *     Organizy lo apunta como tarea ese día;
+ *   - si tienen una fecha ("el plazo acaba el 5 de octubre", "cita el 11/11 a las 10"),
+ *     avisa al móvil y Organizy lo apunta ese día (con hora, como cita);
  *   - si son importantes (lo dice la IA de Organizy) o de alguien de "Avisarme siempre
  *     de…", te manda un aviso corto;
+ *   - si vienen de una dirección vetada en Organizy, no hace nada con ellos;
  *   - del resto no avisa: en Organizy sale solo quién lo manda y el asunto.
  * Organizy recoge los resultados al abrirse, desde el enlace de "Aplicación web".
  *
@@ -31,7 +32,7 @@
  * reglas, que comparte con el servidor). No lo edites a mano.
  */
 /* global GmailApp, PropertiesService, ScriptApp, UrlFetchApp, ContentService, HtmlService, Utilities, Session, LockService, Logger */
-/* global analizarCorreo, avisosDeCorreos, leerSiempre, limpiarCuerpo, nombreRemitente, resultadoDeIA, siempreAvisar, ZONA_CORREO */
+/* global analizarCorreo, avisosDeCorreos, direccionRemitente, leerSiempre, leerVetados, limpiarCuerpo, nombreRemitente, resultadoDeIA, siempreAvisar, vetado, ZONA_CORREO */
 
 var AJUSTES = {
   // Qué correos mira: los de "Principal" de la bandeja de entrada que no mandas tú.
@@ -101,7 +102,7 @@ function revisarCorreo() {
 }
 
 // Organizy pide aquí los resúmenes (con un POST desde la app).
-// Manda { token?, supabase?, siempre? } y recibe { ok, correos, ultimaRevision }.
+// Manda { token?, supabase?, siempre?, vetados? } y recibe { ok, correos, ultimaRevision }.
 function doPost(e) {
   var datos = {};
   try {
@@ -113,6 +114,9 @@ function doPost(e) {
   // "Avisarme siempre de…" (lo elige la persona en Organizy).
   var siempre = leerSiempre(datos.siempre);
   if (siempre) PropertiesService.getScriptProperties().setProperty('siempre', JSON.stringify(siempre));
+  // Direcciones vetadas: sus correos no se apuntan, no avisan y no se mandan a la app.
+  var vetados = leerVetados(datos.vetados);
+  if (vetados) PropertiesService.getScriptProperties().setProperty('vetados', JSON.stringify(vetados));
   var supabase = datos.supabase;
   if (
     supabase &&
@@ -128,7 +132,9 @@ function doPost(e) {
     ok: true,
     version: 1,
     ultimaRevision: ultima ? new Date(ultima).toISOString() : null,
-    correos: leerCorreos_(),
+    correos: leerCorreos_().filter(function (c) {
+      return !vetado(c.direccion || '', vetados || leerJson_('vetados', []));
+    }),
   });
 }
 
@@ -183,6 +189,7 @@ function revisar_(desde, avisar) {
 
     var guardados = [];
     var siempre = leerJson_('siempre', []);
+    var vetados = leerJson_('vetados', []);
     nuevos.forEach(function (m) {
       var correo = {
         asunto: m.getSubject() || '',
@@ -190,15 +197,22 @@ function revisar_(desde, avisar) {
         cuerpo: (m.getPlainBody() || '').slice(0, 20000),
         recibido: m.getDate(),
       };
+      // De una dirección vetada: se da por visto y no se guarda ni avisa.
+      if (vetado(correo.de, vetados)) {
+        vistos.push(m.getId());
+        return;
+      }
       var analisis = analizarConIA_(correo) || analizarCorreo(correo);
       var guardado = {
         id: m.getId(),
         recibido: m.getDate().toISOString(),
         de: nombreRemitente(correo.de),
+        direccion: direccionRemitente(correo.de),
         asunto: correo.asunto.slice(0, 200),
         titulo: analisis.titulo,
         resumen: analisis.resumen,
         fechaLimite: analisis.fechaLimite,
+        hora: analisis.hora || null,
         tarea: analisis.tarea,
         importante: analisis.importante || siempreAvisar(correo.de, siempre),
         via: analisis.via,
@@ -426,6 +440,14 @@ var NOMBRES_MES = ['ene', 'feb', 'mar', 'abr', 'may', 'jun', 'jul', 'ago', 'sept
 var PLAZO_FUERTE =
   /(fecha limite|fecha tope|limite|plazo|vence|vencimiento|caduca|expira|a mas tardar|no mas tarde|ultimo dia|tienes hasta|tiene hasta|teneis hasta|tienen hasta|deadline|antes del?|entregar|entrega|presentar|enviar antes|renovar)/g;
 var PLAZO_DEBIL = /(hasta el|hasta)/g;
+// Palabras de cita (27/10/2026, lo pidió el usuario: lo que tenga fecha, al calendario).
+// Valen como las fuertes de plazo; "el día" solo con una fecha escrita ("el día 11/11").
+var CITA_FUERTE =
+  /\b(cita|reunion|reunirnos|examen|consulta|quedamos|quedada|nos vemos|evento|cena|comida|almuerzo|entrevista|reserva|visita|clase|partido|cumpleanos|cumple|boda|viaje|vuelo|revision|sesion|celebracion|fiesta|tutoria|convocatoria)(s|es)?\b/g;
+var CITA_DEBIL = /\bel dia\b/g;
+
+// Direcciones vetadas que se guardan como mucho.
+var MAX_VETADOS = 100;
 
 // "Gestoría López <info@gl.es>" -> "Gestoría López"
 function nombreRemitente(de) {
@@ -433,6 +455,38 @@ function nombreRemitente(de) {
   var m = texto.match(/^\s*"?([^"<]*?)"?\s*<([^>]+)>\s*$/);
   if (m) return (m[1] || m[2]).trim() || m[2].trim();
   return texto;
+}
+
+// "Gestoría López <Info@GL.es>" -> "info@gl.es" (o "" si no lleva dirección).
+function direccionRemitente(de) {
+  var texto = String(de || '');
+  var m = texto.match(/<([^<>\s]+@[^<>\s]+)>/) || texto.match(/([^\s<>"',;:]+@[^\s<>"',;:]+\.[a-z]{2,})/i);
+  return m ? m[1].trim().toLowerCase().slice(0, 320) : '';
+}
+
+// ¿Es una dirección de correo? ("ana@gl.es")
+function esDireccion(texto) {
+  return typeof texto === 'string' && texto.length <= 320 && /^[^\s@<>"',;:]+@[^\s@<>"',;:]+\.[a-z]{2,}$/i.test(texto.trim());
+}
+
+// La lista de direcciones vetadas que manda la app, limpia (o null si no vale).
+function leerVetados(valor) {
+  if (!Array.isArray(valor)) return null;
+  var lista = [];
+  valor.forEach(function (v) {
+    if (!esDireccion(v)) return;
+    var d = v.trim().toLowerCase();
+    if (lista.indexOf(d) === -1) lista.push(d);
+  });
+  return lista.slice(0, MAX_VETADOS);
+}
+
+// ¿Viene de una dirección vetada? Los vetados no salen en Rusko: ni en la pestaña Correo,
+// ni avisos, ni tareas ni citas (en Gmail siguen igual).
+function vetado(de, lista) {
+  if (!Array.isArray(lista) || !lista.length) return false;
+  var direccion = direccionRemitente(de) || String(de || '').trim().toLowerCase();
+  return !!direccion && lista.indexOf(direccion) !== -1;
 }
 
 // Quita "RE:", "RV:", "Fwd:", "[EXTERNO]"... del principio del asunto.
@@ -585,7 +639,7 @@ function fechasEnTexto(norm, hoy) {
     if (m[3] !== '/' && !m[5]) continue;
     var anio = m[5] ? Number(m[5].length === 2 ? '20' + m[5] : m[5]) : null;
     var dia = anio ? (diaValido(anio, mes, d) ? clave(anio, mes, d) : null) : conAnio(mes, d, hoy);
-    if (dia) fechas.push({ dia: dia, pos: m.index + m[1].length, escrita: true });
+    if (dia) fechas.push({ dia: dia, pos: m.index + m[1].length, fin: m.index + m[0].length, escrita: true, anio: !!anio });
   }
   var nombresMes = Object.keys(MESES)
     .sort(function (a, b) {
@@ -598,7 +652,7 @@ function fechasEnTexto(norm, hoy) {
     var mes2 = MESES[m[3]];
     var anio2 = m[4] ? Number(m[4]) : null;
     var dia2 = anio2 ? (diaValido(anio2, mes2, d2) ? clave(anio2, mes2, d2) : null) : conAnio(mes2, d2, hoy);
-    if (dia2) fechas.push({ dia: dia2, pos: m.index + m[1].length, escrita: true });
+    if (dia2) fechas.push({ dia: dia2, pos: m.index + m[1].length, fin: m.index + m[0].length, escrita: true, anio: !!anio2 });
   }
   var relativas = /(^|[^a-z])(pasado manana|manana|hoy)(?![a-z])/g;
   while ((m = relativas.exec(norm))) {
@@ -606,37 +660,46 @@ function fechasEnTexto(norm, hoy) {
     // "por la mañana", "esta mañana": es la parte del día, no mañana.
     if (m[2] === 'manana' && /(la|esta|cada|de)\s*$/.test(antes)) continue;
     var n = m[2] === 'hoy' ? 0 : m[2] === 'manana' ? 1 : 2;
-    fechas.push({ dia: sumarDias(hoy, n), pos: m.index + m[1].length, escrita: false });
+    fechas.push({ dia: sumarDias(hoy, n), pos: m.index + m[1].length, fin: m.index + m[0].length, escrita: false });
   }
   var semana = /(^|[^a-z])(el|este|esta|proximo|el proximo|el dia)\s+(lunes|martes|miercoles|jueves|viernes|sabado|domingo)(?![a-z])/g;
   while ((m = semana.exec(norm))) {
     var falta = (DIAS_SEMANA[m[3]] - diaSemana(hoy) + 7) % 7 || 7;
-    fechas.push({ dia: sumarDias(hoy, falta), pos: m.index + m[1].length, escrita: false });
+    fechas.push({ dia: sumarDias(hoy, falta), pos: m.index + m[1].length, fin: m.index + m[0].length, escrita: false });
   }
   var finMes = /(^|[^a-z])(a |al |antes de |antes del )?(fin|final|finales) de(l)? mes(?![a-z])/g;
   while ((m = finMes.exec(norm))) {
     var p = hoy.split('-').map(Number);
     var ultimo = new Date(Date.UTC(p[0], p[1], 0)).getUTCDate();
-    fechas.push({ dia: clave(p[0], p[1], ultimo), pos: m.index + m[1].length, escrita: false });
+    fechas.push({ dia: clave(p[0], p[1], ultimo), pos: m.index + m[1].length, fin: m.index + m[0].length, escrita: false });
   }
   return fechas;
 }
 
-// La fecha límite de un texto, o null. Tiene que haber una palabra de plazo cerca:
-// justo antes de la fecha (hasta 60 letras) o justo después (hasta 25).
-function fechaLimiteEn(texto, hoy) {
-  var norm = normalizar(texto);
+function buscarPalabras(patron, norm, fuerte, lista) {
+  var m;
+  patron.lastIndex = 0;
+  while ((m = patron.exec(norm))) lista.push({ ini: m.index, fin: m.index + m[0].length, fuerte: fuerte });
+}
+
+// La fecha que importa de un texto (ya normalizado) y dónde está, o null. Vale si:
+//   - hay una palabra de plazo o de cita cerca: justo antes de la fecha (hasta 60
+//     letras) o justo después (hasta 25), en la misma frase;
+//   - o es una fecha escrita con año ("11/11/2026", "11 de noviembre de 2026") de
+//     mañana en adelante, aunque no haya ninguna palabra (27/10/2026: lo que tenga fecha,
+//     al calendario; si no le afecta, "¿Eliminar cita?" en la pestaña Correo).
+function fechaElegida(norm, hoy) {
   var fechas = fechasEnTexto(norm, hoy).filter(function (f) {
     return f.dia >= hoy && f.dia <= sumarDias(hoy, 366);
   });
   if (!fechas.length) return null;
   var palabras = [];
-  var m;
-  PLAZO_FUERTE.lastIndex = 0;
-  while ((m = PLAZO_FUERTE.exec(norm))) palabras.push({ ini: m.index, fin: m.index + m[0].length, fuerte: true });
-  PLAZO_DEBIL.lastIndex = 0;
-  while ((m = PLAZO_DEBIL.exec(norm))) palabras.push({ ini: m.index, fin: m.index + m[0].length, fuerte: false });
+  buscarPalabras(PLAZO_FUERTE, norm, true, palabras);
+  buscarPalabras(PLAZO_DEBIL, norm, false, palabras);
+  buscarPalabras(CITA_FUERTE, norm, true, palabras);
+  buscarPalabras(CITA_DEBIL, norm, false, palabras);
   var elegidas = fechas.filter(function (f) {
+    if (f.anio && f.dia > hoy) return true;
     return palabras.some(function (p) {
       if (!p.fuerte && !f.escrita) return false;
       var despues = f.pos >= p.fin && f.pos - p.fin <= 60;
@@ -647,24 +710,57 @@ function fechaLimiteEn(texto, hoy) {
     });
   });
   if (!elegidas.length) return null;
-  return elegidas
-    .map(function (f) {
-      return f.dia;
-    })
-    .sort()[0];
+  return elegidas.sort(function (a, b) {
+    return a.dia < b.dia ? -1 : a.dia > b.dia ? 1 : a.pos - b.pos;
+  })[0];
 }
 
-// Qué es un correo sin IA: el asunto y, si pide algo con plazo, la fecha límite. Sin
-// resumen y sin saber si es importante (eso solo lo sabe la IA o "Avisarme siempre").
+// La fecha límite (o de la cita) de un texto, o null.
+function fechaLimiteEn(texto, hoy) {
+  var f = fechaElegida(normalizar(texto), hoy);
+  return f ? f.dia : null;
+}
+
+// La hora que va justo detrás de esa fecha ("11/11 a las 10", "el jueves a las 17:30",
+// "5 de nov, 9:00"), como "HH:MM", o null. "A las 5" sin más es por la tarde (17:00).
+function horaEn(texto, hoy) {
+  var norm = normalizar(texto);
+  var f = fechaElegida(norm, hoy);
+  if (!f) return null;
+  var detras = norm.slice(f.fin, f.fin + 40).split(/[.!?\n]/)[0];
+  var m =
+    detras.match(/^[^\d]{0,25}?\b(?:a las|a la|sobre las|hacia las|desde las|de|,)\s*(\d{1,2})(?:[:.h](\d{2}))?\s*(h\b|horas?\b|de la manana|de la tarde|de la noche|am\b|pm\b)?/) ||
+    detras.match(/^[^\d]{0,12}?(\d{1,2})[:h](\d{2})\s*(h\b|horas?\b|de la manana|de la tarde|de la noche|am\b|pm\b)?/);
+  if (!m) return null;
+  var h = Number(m[1]);
+  var min = m[2] ? Number(m[2]) : 0;
+  var parte = m[3] || '';
+  // "de 5" sin minutos ni "h" podría ser cualquier cosa ("de 2 personas"): solo con "a las".
+  if (!m[2] && !parte && !/(a las|a la|sobre las|hacia las|desde las)\s*\d+$/.test(m[0])) return null;
+  if (h > 23 || min > 59) return null;
+  if ((/tarde|noche|pm/.test(parte) && h < 12) || (!parte && h >= 1 && h <= 7)) h += 12;
+  if (h > 23) return null;
+  return dosCifras(h) + ':' + dosCifras(min);
+}
+
+// Qué es un correo sin IA: el asunto y, si tiene un plazo o una cita, el día (y la hora,
+// si va justo detrás). Sin resumen y sin saber si es importante (eso solo lo sabe la IA
+// o "Avisarme siempre").
 function analizarCorreo(correo) {
   var hoy = diaDe(correo.recibido);
   var titulo = limpiarAsunto(correo.asunto);
   var cuerpo = limpiarCuerpo(correo.cuerpo).slice(0, 4000);
-  var fecha = fechaLimiteEn(correo.asunto || '', hoy) || fechaLimiteEn(cuerpo, hoy);
+  var asunto = correo.asunto || '';
+  var enAsunto = fechaLimiteEn(asunto, hoy);
+  var fecha = enAsunto || fechaLimiteEn(cuerpo, hoy);
+  var hora = fecha ? (enAsunto ? horaEn(asunto, hoy) : horaEn(cuerpo, hoy)) : null;
+  // Si la hora está en el cuerpo y el día en el asunto ("Reunión 11/11" / "a las 10").
+  if (fecha && !hora && enAsunto && fechaLimiteEn(cuerpo, hoy) === fecha) hora = horaEn(cuerpo, hoy);
   return {
     titulo: titulo.slice(0, 120),
     resumen: '',
     fechaLimite: fecha,
+    hora: hora,
     tarea: fecha ? titulo.slice(0, 80) : null,
     importante: false,
     via: 'reglas',
@@ -683,6 +779,7 @@ function resultadoDeIA(a, correo) {
     titulo: titulo,
     resumen: importante ? String(a.resumen || '').trim().slice(0, 160) : '',
     fechaLimite: fecha,
+    hora: null, // la IA no dice la hora (todavía)
     tarea: fecha ? String(a.tarea || titulo).trim().slice(0, 80) : null,
     importante: importante,
     via: 'ia',
@@ -742,8 +839,8 @@ function avisosDeCorreos(correos, ahora) {
   correos.forEach(function (c) {
     if (c.fechaLimite) {
       avisos.push({
-        titulo: recortar(textoCuando(c.fechaLimite, hoy) + ': ' + (c.tarea || c.titulo), 90),
-        cuerpo: 'Te lo he apuntado en las tareas. Correo de ' + c.de + '.',
+        titulo: recortar(textoCuando(c.fechaLimite, hoy) + (c.hora ? ' a las ' + c.hora : '') + ': ' + (c.tarea || c.titulo), 90),
+        cuerpo: (c.hora ? 'Te lo he apuntado en el calendario.' : 'Te lo he apuntado en las tareas.') + ' Correo de ' + c.de + '.',
       });
     } else if (c.importante) {
       importantes.push(c);

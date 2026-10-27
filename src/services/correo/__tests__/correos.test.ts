@@ -6,12 +6,15 @@ import { avisosDePlazos } from '@/services/avisos/correos';
 
 import {
   avisaSiempre,
+  bandejasCorreo,
   cambiarSiempre,
+  cambiarVetados,
   correosSinTarea,
+  deVetado,
+  iaEncendida,
   leerEnlace,
   mezclarCorreos,
   sinCuenta,
-  ordenarCorreos,
   tareaDeCorreo,
   textoGrupo,
   textoParaDia,
@@ -64,7 +67,7 @@ describe('leerEnlace', () => {
 
 describe('validarRemoto', () => {
   it('se queda con lo válido', () => {
-    expect(validarRemoto(remoto())).toEqual({ ...remoto(), importante: false });
+    expect(validarRemoto(remoto())).toEqual({ ...remoto(), hora: null, importante: false });
     expect(validarRemoto({ ...remoto(), importante: true })?.importante).toBe(true);
     expect(validarRemoto({ ...remoto(), fechaLimite: '5 oct', tarea: 'Algo' })).toMatchObject({ fechaLimite: null, tarea: null });
     expect(validarRemoto({ ...remoto(), enlace: 'https://otro.com' })?.enlace).toBe('');
@@ -128,7 +131,14 @@ describe('plazos y tareas', () => {
     expect(tarea.notas).toContain('https://mail.google.com/');
   });
 
+  it('con hora es una cita de 1 h en el calendario', () => {
+    const cita = tareaDeCorreo(local({ fechaLimite: '2026-10-05', hora: '10:00', tarea: 'Dentista' }), 'e8');
+    expect(cita).toMatchObject({ fecha: '2026-10-05', horaInicio: '10:00', horaFin: '11:00', flexible: false, duracionMin: null });
+    expect(tareaDeCorreo(local({ fechaLimite: '2026-10-05', hora: '23:30' }), 'e7').horaFin).toBe('23:59');
+  });
+
   it('textos del día y de grupo', () => {
+    expect(textoParaDia('2026-09-28', HOY, '10:00')).toBe('Para mañana a las 10:00');
     expect(textoParaDia('2026-09-27', HOY)).toBe('Para hoy');
     expect(textoParaDia('2026-09-28', HOY)).toBe('Para mañana');
     expect(textoParaDia('2026-10-05', HOY)).toBe('Para el lun 5 oct');
@@ -138,23 +148,60 @@ describe('plazos y tareas', () => {
     expect(textoGrupo('2026-09-24', HOY)).toBe('jue 24 sept');
   });
 
-  it('ordena: plazos arriba (el más cercano primero) y el resto por día', () => {
+  it('bandejas: todo por día (también lo apuntado), con fecha y resúmenes', () => {
     const diaDe = (iso: string) => iso.slice(0, 10);
-    const { plazos, grupos } = ordenarCorreos(
+    const b = bandejasCorreo(
       [
         local({ id: 'normal-hoy', recibido: '2026-09-27T09:00:00.000Z' }),
-        local({ id: 'plazo-lejos', fechaLimite: '2026-10-20' }),
-        local({ id: 'plazo-cerca', fechaLimite: '2026-10-01' }),
+        local({ id: 'plazo-lejos', fechaLimite: '2026-10-20', recibido: '2026-09-27T08:00:00.000Z' }),
+        local({ id: 'plazo-cerca', fechaLimite: '2026-10-01', recibido: '2026-09-27T07:00:00.000Z' }),
+        local({ id: 'plazo-pasado', fechaLimite: '2026-09-25', recibido: '2026-09-24T07:00:00.000Z' }),
         local({ id: 'plazo-descartado', fechaLimite: '2026-10-01', noEsPlazo: true, recibido: '2026-09-26T09:00:00.000Z' }),
+        local({ id: 'importante', importante: true, recibido: '2026-09-26T08:00:00.000Z' }),
       ],
       HOY,
       diaDe,
     );
-    expect(plazos.map((c) => c.id)).toEqual(['plazo-cerca', 'plazo-lejos']);
-    expect(grupos.map((g) => [g.dia, g.correos.map((c) => c.id)])).toEqual([
-      ['2026-09-27', ['normal-hoy']],
-      ['2026-09-26', ['plazo-descartado']],
+    expect(b.todos.map((g) => [g.dia, g.correos.map((c) => c.id)])).toEqual([
+      ['2026-09-27', ['normal-hoy', 'plazo-lejos', 'plazo-cerca']],
+      ['2026-09-26', ['plazo-descartado', 'importante']],
+      ['2026-09-24', ['plazo-pasado']],
     ]);
+    expect(b.conFecha.map((c) => c.id)).toEqual(['plazo-cerca', 'plazo-lejos']);
+    expect(b.pasados.map((c) => c.id)).toEqual(['plazo-pasado']);
+    expect(b.resumenes.map((c) => c.id)).toEqual(['importante']);
+    expect(iaEncendida([local()])).toBe(false);
+    expect(iaEncendida([local({ via: 'ia' })])).toBe(true);
+  });
+});
+
+describe('remitentes vetados', () => {
+  it('se vetan direcciones, en minúsculas y sin repetir', () => {
+    expect(cambiarVetados([], ' Ofertas@Tienda.es ', true)).toEqual(['ofertas@tienda.es']);
+    expect(cambiarVetados(['ofertas@tienda.es'], 'ofertas@tienda.es', true)).toEqual(['ofertas@tienda.es']);
+    expect(cambiarVetados(['ofertas@tienda.es'], 'ofertas@tienda.es', false)).toEqual([]);
+    expect(cambiarVetados([], 'Tienda', true)).toBeNull();
+  });
+
+  it('lo vetado no entra ni se queda en el móvil', () => {
+    const vetados = ['spam@x.es'];
+    expect(deVetado({ de: 'Spam', direccion: 'spam@x.es' }, vetados)).toBe(true);
+    expect(deVetado({ de: 'spam@x.es' }, vetados)).toBe(true);
+    expect(deVetado({ de: 'Ana', direccion: 'ana@x.es' }, vetados)).toBe(false);
+    const mezcla = mezclarCorreos(
+      [local({ id: 'viejo', direccion: 'spam@x.es' })],
+      [remoto({ id: 'nuevo', direccion: 'spam@x.es' }), remoto({ id: 'bueno' })],
+      AHORA,
+      vetados,
+    );
+    expect(mezcla.map((c) => c.id)).toEqual(['bueno']);
+  });
+
+  it('del servidor llegan la dirección y la hora, comprobadas', () => {
+    const c = validarRemoto({ ...remoto(), direccion: 'Info@GL.es', fechaLimite: '2026-10-05', hora: '10:30' });
+    expect(c).toMatchObject({ direccion: 'info@gl.es', hora: '10:30' });
+    expect(validarRemoto({ ...remoto(), direccion: 'nada', hora: '25:00', fechaLimite: '2026-10-05' })).toMatchObject({ hora: null });
+    expect(validarRemoto({ ...remoto(), direccion: 'nada' })?.direccion).toBeUndefined();
   });
 });
 

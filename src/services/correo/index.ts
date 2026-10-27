@@ -7,6 +7,7 @@ import {
   guardarCorreos,
   guardarCuentas,
   guardarSiempre,
+  guardarVetados,
   leerCorreos,
   type CorreoRemoto,
   type CorreoResumido,
@@ -18,7 +19,17 @@ import { datosPublicosSupabase } from '@/data/supabase';
 import { claveDia } from '@/services/fechas';
 import { escucharPush, tokenDeAvisos } from '@/services/planes/push';
 
-import { cambiarSiempre, correosSinTarea, leerEnlace, mezclarCorreos, sinCuenta, tareaDeCorreo, validarRemoto } from './correos';
+import {
+  cambiarSiempre,
+  cambiarVetados,
+  correosSinTarea,
+  deVetado,
+  leerEnlace,
+  mezclarCorreos,
+  sinCuenta,
+  tareaDeCorreo,
+  validarRemoto,
+} from './correos';
 import { empezarEnServidor, estadoEnServidor, quitarEnServidor, type FalloServidor } from './servidor';
 
 // Resúmenes de correo (fase 11). Dos vías, que se juntan en la misma lista:
@@ -40,6 +51,10 @@ type Respuesta =
   | { ok: true; correos: ReturnType<typeof validarRemoto>[]; ultimaRevision: string | null }
   | { ok: false; motivo: 'sin-conexion' | 'no-responde' };
 
+// "Avisarme siempre de…" y los vetados: se mandan con cada petición, al ayudante y al
+// servidor, que los guardan para la revisión siguiente.
+const listas = ({ siempre, vetados }: { siempre: string[]; vetados: string[] }) => ({ siempre, vetados });
+
 async function pedirAlAyudante(enlace: string): Promise<Respuesta> {
   const token = await tokenDeAvisos().catch(() => null);
   const control = new AbortController();
@@ -50,7 +65,7 @@ async function pedirAlAyudante(enlace: string): Promise<Respuesta> {
     const respuesta = await fetch(enlace, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain;charset=utf-8' },
-      body: JSON.stringify({ token, supabase: datosPublicosSupabase, siempre: (await leerCorreos()).siempre }),
+      body: JSON.stringify({ token, supabase: datosPublicosSupabase, ...listas(await leerCorreos()) }),
       signal: control.signal,
     });
     const datos = (await respuesta.json().catch(() => null)) as {
@@ -113,7 +128,7 @@ async function traerDelAyudante(): Promise<CorreoRemoto[]> {
 async function traerDelServidor(siempre: boolean): Promise<CorreoRemoto[]> {
   const { cuentas } = await leerCorreos();
   if (!siempre && cuentas.length === 0) return [];
-  const respuesta = await estadoEnServidor(await tokenDeAvisos().catch(() => null), (await leerCorreos()).siempre);
+  const respuesta = await estadoEnServidor(await tokenDeAvisos().catch(() => null), listas(await leerCorreos()));
   if (!respuesta.ok) return [];
   await guardarCuentas(respuesta.datos.cuentas, respuesta.datos.proveedores);
   return respuesta.datos.correos;
@@ -132,7 +147,8 @@ export function actualizarCorreos(opciones: { servidor?: boolean } = {}): Promis
       ]);
       const remotos = [...delServidor, ...delAyudante];
       if (remotos.length === 0) return;
-      const mezclados = await crearTareas(mezclarCorreos((await leerCorreos()).correos, remotos, new Date()));
+      const { correos, vetados } = await leerCorreos();
+      const mezclados = await crearTareas(mezclarCorreos(correos, remotos, new Date(), vetados));
       await guardarCorreos(mezclados);
     })().finally(() => {
       trayendo = null;
@@ -222,16 +238,52 @@ export async function marcarCorreosVistos(): Promise<void> {
   if (correos.some((c) => !c.visto)) await guardarCorreos(correos.map((c) => (c.visto ? c : { ...c, visto: true })));
 }
 
-// "No es un plazo": quita su tarea (si sigue sin hacer) y lo deja como resumen.
+// Borra la tarea o cita que se creó de un correo, si sigue en el calendario sin hacer.
+async function borrarLoApuntado(correo: CorreoResumido): Promise<void> {
+  if (!correo.eventoId) return;
+  const tarea = (await leerEventos()).find((e) => e.id === correo.eventoId);
+  if (tarea && !tarea.hecha) await borrarEvento(tarea.id);
+}
+
+// "¿Eliminar cita?" → sí (antes "Quitar de las tareas"): borra la tarea o cita (si
+// sigue sin hacer) y no se vuelve a crear. El correo se queda en la pestaña.
 export async function quitarPlazo(id: string): Promise<void> {
   const { correos } = await leerCorreos();
   const correo = correos.find((c) => c.id === id);
   if (!correo) return;
-  if (correo.eventoId) {
-    const tarea = (await leerEventos()).find((e) => e.id === correo.eventoId);
-    if (tarea && !tarea.hecha) await borrarEvento(tarea.id);
-  }
+  await borrarLoApuntado(correo);
   await guardarCorreos(correos.map((c) => (c.id === id ? { ...c, noEsPlazo: true } : c)));
+}
+
+// Deshace "¿Eliminar cita?": la vuelve a apuntar (si su día no ha pasado).
+export async function volverAApuntar(id: string): Promise<void> {
+  const { correos } = await leerCorreos();
+  const cambiados = correos.map((c) => (c.id === id ? { ...c, noEsPlazo: false, eventoId: null } : c));
+  await guardarCorreos(await crearTareas(cambiados));
+}
+
+// Vetar una dirección: sus correos dejan de salir (también lo ya guardado, y se borran
+// las tareas y citas sin hacer que crearon) y se avisa al servidor y al ayudante para
+// que no los guarden ni avisen. Devuelve false si no es una dirección.
+export async function vetarDireccion(direccion: string): Promise<boolean> {
+  const { vetados, correos, cuentas } = await leerCorreos();
+  const nuevos = cambiarVetados(vetados, direccion, true);
+  if (!nuevos) return false;
+  await guardarVetados(nuevos);
+  const fuera = correos.filter((c) => deVetado(c, nuevos));
+  for (const correo of fuera) await borrarLoApuntado(correo);
+  if (fuera.length) await guardarCorreos(correos.filter((c) => !fuera.includes(c)));
+  await actualizarCorreos({ servidor: cuentas.length > 0 }).catch(() => {});
+  return true;
+}
+
+// Quita el veto: sus correos vuelven a salir desde la próxima vez que se traigan (los
+// que el servidor o el ayudante ya dieron por vistos mientras estaba vetada, no).
+export async function quitarVeto(direccion: string): Promise<void> {
+  const { vetados, cuentas } = await leerCorreos();
+  const nuevos = cambiarVetados(vetados, direccion, false) ?? vetados.filter((v) => v !== direccion);
+  await guardarVetados(nuevos);
+  await actualizarCorreos({ servidor: cuentas.length > 0 }).catch(() => {});
 }
 
 // Se llama una vez al arrancar la app: trae los correos al abrirla, al volver a ella

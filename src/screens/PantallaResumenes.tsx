@@ -1,15 +1,17 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
-import { useCallback, useEffect, useState } from 'react';
+import { useCallback, useEffect, useState, type ComponentProps } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
-import { Pantalla, Plegable, Tarjeta, Texto, Titulo } from '@/components';
-import { useCorreos } from '@/data/correos';
+import { Pantalla, Plegable, Selector, Tarjeta, Texto, Titulo } from '@/components';
+import { useCorreos, type CorreoResumido } from '@/data/correos';
+import { useEventos } from '@/data/eventos';
 import {
   actualizarCorreos,
+  bandejasCorreo,
   conectarCorreo,
+  iaEncendida,
   marcarCorreosVistos,
-  ordenarCorreos,
   textoGrupo,
   textoVuelta,
 } from '@/services/correo';
@@ -18,14 +20,17 @@ import { colores, espacio, radio } from '@/theme';
 
 import { CuentasCorreo } from './correo/CuentasCorreo';
 import { FilaCorreo } from './correo/FilaCorreo';
+import { VetadosCorreo } from './correo/VetadosCorreo';
 import { VincularAyudante, VincularCorreo } from './correo/VincularCorreo';
 
 // Pestaña Correo (fase 11): /resumenes, desde la barra inferior o al tocar un aviso de
 // correo. Sin resúmenes (26/10/2026): de cada correo, de qué va y el día que importa.
 // - Sin nada vinculado: "Vincular con Gmail / Outlook" (solo iniciar sesión), cómo
 //   meter iCloud y, plegado, el ayudante de Gmail (QR o enlace).
-// - Con algo vinculado: tus cuentas, lo que tiene fecha (ya en las tareas) y el
-//   resto de correos, por día; "Vincular otra cuenta" plegado.
+// - Con algo vinculado (27/10/2026): tus cuentas y tres bandejas: "Todo" (todo el
+//   correo por día, también lo que se apuntó), "Con fecha" (lo que está en tu
+//   calendario, con "¿Eliminar cita?") y "Resúmenes" (lo importante sin fecha; se llena
+//   sola al encender la IA). Plegados, "Remitentes vetados" y "Vincular otra cuenta".
 // Llegan aquí también la vuelta del inicio de sesión en la web (?correo=ok&cuenta=…) y
 // el QR del ayudante (#ayudante=<enlace>, detrás de "#" para que no llegue a ningún
 // servidor).
@@ -33,6 +38,7 @@ import { VincularAyudante, VincularCorreo } from './correo/VincularCorreo';
 const diaDe = (iso: string) => claveDia(new Date(iso));
 
 type Mensaje = { bien: boolean; texto: string };
+type Bandeja = 'todo' | 'fecha' | 'resumenes';
 
 // Quita de la dirección de la web el resultado o el enlace del QR (si no, al recargar
 // saldría otra vez). Con un momento de espera: al abrir, el enrutador la reescribe.
@@ -50,6 +56,8 @@ function enlaceDelQR(parametro: string | undefined): string | null {
 
 export function PantallaResumenes() {
   const { cargado, conexion, cuentas, proveedores, correos } = useCorreos();
+  const { eventos } = useEventos();
+  const [bandeja, setBandeja] = useState<Bandeja>('todo');
   const params = useLocalSearchParams<{ correo?: string; cuenta?: string; motivo?: string; ayudante?: string }>();
   const [actualizando, setActualizando] = useState(false);
   // El QR del ayudante de Gmail (se conecta solo, abajo).
@@ -101,8 +109,14 @@ export function PantallaResumenes() {
   }, [ayudante]);
 
   const hoy = claveDia(new Date());
-  const { plazos, grupos } = ordenarCorreos(correos, hoy, diaDe);
+  const { todos, conFecha, pasados, resumenes } = bandejasCorreo(correos, hoy, diaDe);
   const vinculado = conexion !== null || cuentas.length > 0;
+  // Lo apuntado que sigue en el calendario sin hacer: ahí sale "¿Eliminar cita?".
+  const pendientes = new Set(eventos.filter((e) => !e.hecha).map((e) => e.id));
+  const fila = (c: CorreoResumido) => (
+    <FilaCorreo key={c.id} correo={c} hoy={hoy} nuevo={!c.visto} apuntado={!!c.eventoId && pendientes.has(c.eventoId)} />
+  );
+  const conCuenta = (n: number) => (n > 0 ? ` · ${n}` : '');
 
   return (
     <Pantalla>
@@ -124,7 +138,7 @@ export function PantallaResumenes() {
             </View>
             <Titulo nivel={2}>Vincula tu correo</Titulo>
             <Texto secundario>
-              Te aviso de cada correo nuevo con un resumen, y lo que tenga fecha límite te lo apunto en las tareas. Solo
+              Te aviso de lo que importa, y lo que tenga fecha (un plazo o una cita) te lo apunto en el calendario. Solo
               tienes que iniciar sesión.
             </Texto>
           </View>
@@ -135,35 +149,64 @@ export function PantallaResumenes() {
         <>
           <CuentasCorreo cuentas={cuentas} conexion={conexion} actualizando={actualizando} alTerminar={setMensaje} />
 
-          {correos.length === 0 ? (
-            <View style={estilos.vacio}>
-              <Ionicons name="mail-open-outline" size={48} color={colores.textoSecundario} />
-              <Texto secundario style={estilos.centrado}>
-                Nada nuevo en tu correo. Cuando llegue algo a Principal, lo verás aquí.
-              </Texto>
-            </View>
+          <Selector
+            opciones={[
+              { valor: 'todo', etiqueta: 'Todo' },
+              { valor: 'fecha', etiqueta: `Con fecha${conCuenta(conFecha.length)}` },
+              { valor: 'resumenes', etiqueta: `Resúmenes${conCuenta(resumenes.length)}` },
+            ]}
+            valor={bandeja}
+            alCambiar={setBandeja}
+          />
+
+          {bandeja === 'todo' ? (
+            correos.length === 0 ? (
+              <Vacio icono="mail-open-outline" texto="Nada nuevo en tu correo. Cuando llegue algo a Principal, lo verás aquí." />
+            ) : (
+              todos.map((grupo) => (
+                <View key={grupo.dia} style={estilos.seccion}>
+                  <Titulo nivel={3}>{textoGrupo(grupo.dia, hoy)}</Titulo>
+                  {grupo.correos.map(fila)}
+                </View>
+              ))
+            )
           ) : null}
 
-          {plazos.length > 0 ? (
+          {bandeja === 'fecha' ? (
             <View style={estilos.seccion}>
-              <Titulo nivel={3}>Con fecha</Titulo>
               <Texto pequeno secundario>
-                Ya están en tus tareas, ese día.
+                Lo que traía un plazo o una cita: ya está en tu calendario ese día. Si no te afecta, «Eliminar» y no vuelve.
               </Texto>
-              {plazos.map((c) => (
-                <FilaCorreo key={c.id} correo={c} hoy={hoy} nuevo={!c.visto} />
-              ))}
+              {conFecha.length === 0 ? (
+                <Vacio icono="calendar-outline" texto="Ningún correo con fecha por delante." />
+              ) : (
+                conFecha.map(fila)
+              )}
+              {pasados.length > 0 ? (
+                <>
+                  <Titulo nivel={3}>Ya pasados</Titulo>
+                  {pasados.map(fila)}
+                </>
+              ) : null}
             </View>
           ) : null}
 
-          {grupos.map((grupo) => (
-            <View key={grupo.dia} style={estilos.seccion}>
-              <Titulo nivel={3}>{textoGrupo(grupo.dia, hoy)}</Titulo>
-              {grupo.correos.map((c) => (
-                <FilaCorreo key={c.id} correo={c} hoy={hoy} nuevo={!c.visto} />
-              ))}
+          {bandeja === 'resumenes' ? (
+            <View style={estilos.seccion}>
+              <Texto pequeno secundario>
+                {iaEncendida(correos)
+                  ? 'Los correos importantes que no tienen fecha, con una línea de qué va.'
+                  : 'Aquí saldrán los correos importantes que no tienen fecha, con una línea de qué van. Se llenará sola cuando se encienda la IA; mientras, solo los de «Avisarme siempre de…».'}
+              </Texto>
+              {resumenes.length === 0 ? (
+                <Vacio icono="sparkles-outline" texto="Nada importante por ahora." />
+              ) : (
+                resumenes.map(fila)
+              )}
             </View>
-          ))}
+          ) : null}
+
+          <VetadosCorreo />
 
           <Plegable titulo="Vincular otra cuenta" resumen="Gmail, Outlook, iCloud…">
             <VincularCorreo proveedores={proveedores} alTerminar={setMensaje} />
@@ -172,6 +215,17 @@ export function PantallaResumenes() {
         </>
       )}
     </Pantalla>
+  );
+}
+
+function Vacio({ icono, texto }: { icono: ComponentProps<typeof Ionicons>['name']; texto: string }) {
+  return (
+    <View style={estilos.vacio}>
+      <Ionicons name={icono} size={48} color={colores.textoSecundario} />
+      <Texto secundario style={estilos.centrado}>
+        {texto}
+      </Texto>
+    </View>
   );
 }
 
