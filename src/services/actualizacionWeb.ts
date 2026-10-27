@@ -11,7 +11,7 @@ const MIN_FUERA_MS = 30_000; // al volver tras 30 s fuera, se vuelve a comprobar
 const CLAVE_INTENTO = 'organizy:recargaPorVersion'; // evita recargar en bucle
 
 // Nombre del archivo principal que está usando esta página, por ejemplo
-// "/organizy/_expo/static/js/web/entry-209db….js". null en desarrollo.
+// "/rusko/_expo/static/js/web/entry-209db….js". null en desarrollo.
 function archivoActual(): string | null {
   const scripts = Array.from(document.querySelectorAll<HTMLScriptElement>('script[src]'));
   const principal = scripts.find((s) => /\/_expo\/static\/js\/web\/entry-[^/]+\.js$/.test(s.src));
@@ -19,7 +19,7 @@ function archivoActual(): string | null {
 }
 
 async function comprobar(actual: string) {
-  const raiz = actual.slice(0, actual.indexOf('_expo/')); // "/organizy/"
+  const raiz = actual.slice(0, actual.indexOf('_expo/')); // "/rusko/"
   try {
     const respuesta = await fetch(raiz, { cache: 'no-store' });
     if (!respuesta.ok) return;

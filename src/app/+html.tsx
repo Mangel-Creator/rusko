@@ -23,9 +23,9 @@ export default function Root({ children }: PropsWithChildren) {
         <meta name="mobile-web-app-capable" content="yes" />
         <meta name="apple-mobile-web-app-status-bar-style" content="black" />
         <meta name="apple-mobile-web-app-title" content="Rusko" />
-        <link rel="apple-touch-icon" href="/organizy/icono-app.png" />
+        <link rel="apple-touch-icon" href="/rusko/icono-app.png" />
         {/* Manifiesto de la web instalada (public/manifest.json): los avisos web del iPhone lo necesitan. */}
-        <link rel="manifest" href="/organizy/manifest.json" />
+        <link rel="manifest" href="/rusko/manifest.json" />
         <ScrollViewStyleReset />
         <style dangerouslySetInnerHTML={{ __html: 'body{background-color:#0F0D0C;color-scheme:dark;}' }} />
         {headNodes}

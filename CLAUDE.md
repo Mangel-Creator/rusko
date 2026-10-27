@@ -14,12 +14,12 @@ alarmas. En español de España.
   el número de invitados) y los nombres que escriben al votar están en Supabase y se
   borran solos 7 días después (ver "Fase 8").
 - **Un solo código, dos versiones:**
-  - **Web** para el resto de la gente: https://mangel-creator.github.io/organizy/
+  - **Web** para el resto de la gente: https://mangel-creator.github.io/rusko/
     Se publica sola con GitHub Actions (`.github/workflows/pages.yml`) al subir a
     `main`. Se añade a la pantalla de inicio como app web (`src/app/+html.tsx`).
     **Desde el SDK 58, `+html.tsx` tiene que pintar `headNodes` y `bodyNodes` de
     `useServerDocumentContext()`**: sin ellos la web publicada sale en blanco (pasó el 26/10).
-    `baseUrl` es `/organizy` (en `app.json`); en desarrollo la web está en
+    `baseUrl` es `/rusko` (en `app.json`); en desarrollo la web está en
     `http://localhost:8081/`.
     La web **se actualiza sola** (`src/services/actualizacionWeb.ts`): al abrirla, o al
     volver tras 30 s fuera, compara el archivo principal publicado con el que usa y,
@@ -188,7 +188,7 @@ sesión que fuera**:
   prueba el usuario en el iPhone".
 - 26/09/2026 — Fase 8 (Planes), elegido por el usuario:
   - La **página de votación va dentro de la propia web de GitHub Pages**
-    (`/organizy/votar#código`), sin Vercel ni Netlify ni cuentas nuevas. Funciona sin la
+    (`/rusko/votar#código`), sin Vercel ni Netlify ni cuentas nuevas. Funciona sin la
     bienvenida y sin guardar nada en el móvil del invitado.
   - **Aviso cuando alguien vota**: push en Expo Go (iPhone) y en la app propia; en la web
     no hay avisos, pero al abrir Planes (o volver a la web) los votos nuevos salen
@@ -453,9 +453,16 @@ sesión que fuera**:
   y colores en `OneDrive\PERSONAL\Organizy\Diseño\Logo Rusko - Galaxia`).
   - Todo texto que vea el usuario dice **Rusko**, no Organizy (pantallas, permisos de
     `app.json`, título y manifiesto de la web, avisos). Lo nuevo se escribe ya con Rusko.
-  - **No se ha cambiado** (por ahora, hasta que el usuario lo diga): repositorio y URL de
-    la web (`/organizy/`), `slug`, `scheme`, bundle id, proyecto de Expo, tablas y
-    funciones de Supabase, el nombre de archivo de las copias, ni la etiqueta
+  - **Repositorio y web (mismo día, lo pidió el usuario)**: el repositorio es
+    `Mangel-Creator/rusko` y la web `https://mangel-creator.github.io/rusko/` (`baseUrl`
+    `/rusko`). El repositorio `Mangel-Creator/organizy` es ahora **solo una redirección**:
+    cualquier dirección `/organizy/…` (con su `?` y `#`) salta a `/rusko/…`, para que sigan
+    valiendo el icono antiguo de la pantalla de inicio, los enlaces de votar ya mandados, los
+    QR y el ayudante de Gmail. No borrarlo. Los datos de la web son del dominio
+    (`mangel-creator.github.io`), no de la ruta, así que no se pierden.
+  - **No se ha cambiado** (por ahora, hasta que el usuario lo diga): la carpeta
+    `C:\proyectos\organizy`, `slug`, `scheme`, bundle id, proyecto de Expo, tablas de
+    Supabase, el nombre de archivo de las copias, ni la etiqueta
     "Organizy" de las alarmas del reloj y su atajo "Organizy alarmas" (cambiarla obliga a
     tocar el servidor y a que el usuario rehaga el atajo). Los textos de Supabase que
     salen en avisos y correos siguen diciendo Organizy hasta el próximo despliegue.
@@ -1827,7 +1834,7 @@ borran solos a los 7 días.
   ("@gl.es"). Columna `correo_resumenes.importante` (migración
   `20261026000000_correo_importante.sql`, ya aplicada).
 - **QR del ayudante** (28/09): al abrir su URL `/exec` en el navegador (`doGet`), el ayudante
-  enseña un QR (qrcodejs de cdnjs) a `https://mangel-creator.github.io/organizy/resumenes#ayudante=<url>`;
+  enseña un QR (qrcodejs de cdnjs) a `https://mangel-creator.github.io/rusko/resumenes#ayudante=<url>`;
   Resúmenes lo lee (también `?ayudante=`), se conecta solo y limpia la dirección. Abre la
   web: Expo Go no garantiza abrirse desde un enlace con una publicación de EAS Update
   (`Linking.createURL` no es estable ahí), así que en Expo Go se pega el enlace.
@@ -1843,7 +1850,7 @@ borran solos a los 7 días.
     `offline_access`, `User.Read`, endpoint `common`). La vuelta (GET con `code` y `state`)
     canjea el código, cifra y guarda la llave, recoge el último día sin avisar y redirige a
     la vuelta con `?correo=ok&cuenta=…` (o `cancelado`/`error`). Vueltas permitidas
-    (`vueltaValida`): `organizy://…`, `https://mangel-creator.github.io/organizy/…` y
+    (`vueltaValida`): `organizy://…`, `https://mangel-creator.github.io/rusko/…` (y la antigua `/organizy/…`) y
     `http://localhost:*`. En el móvil (también Expo Go) se abre con
     `WebBrowser.openAuthSessionAsync(url, 'organizy://correo-vinculado')`: la ventana del
     sistema se cierra sola al ver ese esquema. En la web, la página se va a Google y vuelve a
@@ -2039,7 +2046,7 @@ borran solos a los 7 días.
   solo con `openid email profile` publicado "En producción" (no necesita la verificación de pago),
   app de Microsoft Entra aparte (multiempresa y cuentas personales, solo User.Read, reclamos
   opcionales `email` y `xms_edov`), activar los dos en Supabase y añadir en URL Configuration
-  `organizy://**`, `https://mangel-creator.github.io/organizy/**` y `http://localhost:8081/**`.
+  `organizy://**`, `https://mangel-creator.github.io/rusko/**` (y la antigua `/organizy/**`) y `http://localhost:8081/**`.
 - **Dar de alta sin lío** (lo pidió el usuario): dominio propio ("Que entre cualquiera con un
   correo @suempresa.com": salen en "Esperan que les aceptes" y se aceptan con un toque; o
   "Aprobar solo"), lista de correos (entran directamente) o enlace de invitación con QR

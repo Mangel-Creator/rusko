@@ -28,7 +28,7 @@ import {
   type SuscripcionPush,
 } from '../_shared/webPush.ts';
 
-const CONTACTO = 'https://mangel-creator.github.io/organizy/';
+const CONTACTO = 'https://mangel-creator.github.io/rusko/';
 const MAX_AVISOS = 120;
 const MAX_SUSCRIPCIONES = 5;
 // Un aviso que llega más de 30 min tarde ya no sirve ("Sal ya", "En 10 min…"): no se manda.

@@ -22,7 +22,7 @@ import { BaldosaTipo, FilaVotos, textoDia } from './planes/piezas';
 // sin cuenta, sin app y sin pasar por la bienvenida. Escriben su nombre, marcan las
 // horas que les van bien y ven cómo va la votación. No se guarda nada en su móvil:
 // si vuelven a votar con el mismo nombre, se cambia su voto.
-// Dirección: /organizy/votar#código (el código va detrás de "#").
+// Dirección: /rusko/votar#código (el código va detrás de "#").
 
 const MENSAJES_ERROR: Record<ErrorVotacion, string> = {
   'no-existe': 'Este plan ya no existe o el enlace está mal copiado.',

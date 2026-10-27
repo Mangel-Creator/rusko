@@ -59,7 +59,8 @@ export function urlAutorizacion(proveedor: Proveedor, clienteId: string, redirec
 export function vueltaValida(url: unknown): url is string {
   if (typeof url !== 'string' || url.length > 300) return false;
   if (/^organizy:\/\/[\w\-/]*$/.test(url)) return true;
-  if (/^https:\/\/mangel-creator\.github\.io\/organizy\/[\w\-/]*$/.test(url)) return true;
+  // "/organizy/" era la dirección antigua de la web (ahora redirige a "/rusko/").
+  if (/^https:\/\/mangel-creator\.github\.io\/(rusko|organizy)\/[\w\-/]*$/.test(url)) return true;
   return /^http:\/\/(localhost|127\.0\.0\.1)(:\d{2,5})?\/[\w\-/]*$/.test(url);
 }
 

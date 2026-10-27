@@ -12,7 +12,7 @@ export { enlaceWhatsapp };
 
 // Página de votación: una ruta de la propia web de GitHub Pages. El código va detrás
 // de "#", así no sale en los registros de ningún servidor.
-export const URL_VOTACION = 'https://mangel-creator.github.io/organizy/votar';
+export const URL_VOTACION = 'https://mangel-creator.github.io/rusko/votar';
 
 export function enlaceVotacion(codigo: string): string {
   return `${URL_VOTACION}#${codigo}`;

@@ -154,7 +154,7 @@ export type ResultadoVincular =
 
 export async function vincularCuenta(proveedor: ProveedorCorreo): Promise<ResultadoVincular> {
   const web = Platform.OS === 'web';
-  // En la web se vuelve a la misma pantalla (github.io/organizy/resumenes o localhost).
+  // En la web se vuelve a la misma pantalla (github.io/rusko/resumenes o localhost).
   const vuelta = web ? `${window.location.origin}${window.location.pathname}` : VUELTA_APP;
   const inicio = await empezarEnServidor(proveedor, vuelta, await tokenDeAvisos().catch(() => null));
   if (!inicio.ok) return inicio;

@@ -23,9 +23,9 @@ export function soportePush(): SoportePush {
   return esWebDeIphone() ? 'instalar' : 'no';
 }
 
-// "/organizy/" en la web publicada y "/" en el ordenador (localhost).
+// "/rusko/" en la web publicada y "/" en el ordenador (localhost).
 function raiz(): string {
-  return location.pathname.startsWith('/organizy') ? '/organizy/' : '/';
+  return location.pathname.startsWith('/rusko') ? '/rusko/' : '/';
 }
 
 let registro: Promise<ServiceWorkerRegistration | null> | null = null;

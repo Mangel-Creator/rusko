@@ -1,4 +1,4 @@
-# Compila la versión web de Organizy y la publica en GitHub Pages
+# Compila la versión web de Rusko y la publica en GitHub Pages
 # cada vez que se sube algo a la rama main.
 name: Publicar web
 

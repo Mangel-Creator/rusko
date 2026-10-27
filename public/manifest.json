@@ -2,10 +2,10 @@
   "name": "Rusko",
   "short_name": "Rusko",
   "lang": "es",
-  "start_url": "/organizy/",
-  "scope": "/organizy/",
+  "start_url": "/rusko/",
+  "scope": "/rusko/",
   "display": "standalone",
   "background_color": "#0F0D0C",
   "theme_color": "#0F0D0C",
-  "icons": [{ "src": "/organizy/icono-app.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" }]
+  "icons": [{ "src": "/rusko/icono-app.png", "sizes": "1024x1024", "type": "image/png", "purpose": "any" }]
 }

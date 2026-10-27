@@ -81,7 +81,7 @@
     "experiments": {
       "typedRoutes": true,
       "reactCompiler": true,
-      "baseUrl": "/organizy"
+      "baseUrl": "/rusko"
     },
     "backgroundColor": "#0F0D0C",
     "extra": {

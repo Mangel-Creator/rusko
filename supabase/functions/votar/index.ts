@@ -1,6 +1,6 @@
 // Organizy · Votación de planes (fase 8).
 //
-// La usa la página de votación (mangel-creator.github.io/organizy/votar#código), que
+// La usa la página de votación (mangel-creator.github.io/rusko/votar#código), que
 // abren los invitados sin cuenta ni app. Por eso no pide sesión: lo que deja entrar
 // es el código del enlace (32 letras y números al azar). Dos acciones:
 //   - "ver": el plan, sus horas y los votos que lleva cada una.

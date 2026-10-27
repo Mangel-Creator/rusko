@@ -25,7 +25,7 @@ export type ErrorVotacion = 'no-existe' | 'cerrado' | 'lleno' | 'limite' | 'sin-
 
 export type RespuestaVotacion = { ok: true; datos: PlanVotacion } | { ok: false; error: ErrorVotacion };
 
-// El código va en la dirección detrás de "#": /organizy/votar#3f9c...
+// El código va en la dirección detrás de "#": /rusko/votar#3f9c...
 export function codigoDeLaDireccion(hash: string): string | null {
   const codigo = hash.replace(/^#/, '').trim().toLowerCase();
   return /^[0-9a-f]{32}$/.test(codigo) ? codigo : null;

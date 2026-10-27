@@ -40,7 +40,7 @@ var AJUSTES = {
   diasGuardados: 7,
   maxPorVuelta: 25,
   // Dónde está Organizy en la web: el QR abre aquí la pantalla de Resúmenes.
-  web: 'https://mangel-creator.github.io/organizy/resumenes',
+  web: 'https://mangel-creator.github.io/rusko/resumenes',
 };
 
 // ---------------------------------------------------------------------------

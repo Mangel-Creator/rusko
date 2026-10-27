@@ -16,7 +16,7 @@ self.addEventListener('push', (evento) => {
   } catch {
     datos = { titulo: evento.data ? evento.data.text() : 'Rusko' };
   }
-  const raiz = self.registration.scope; // "https://…/organizy/"
+  const raiz = self.registration.scope; // "https://…/rusko/"
   const url = new URL(String(datos.url || '/').replace(/^\//, ''), raiz).href;
   // Siempre se enseña un aviso: Safari deja de mandarlos si llega alguno sin enseñar.
   evento.waitUntil(

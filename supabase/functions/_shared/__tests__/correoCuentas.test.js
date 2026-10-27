@@ -36,6 +36,7 @@ describe('urlAutorizacion', () => {
 describe('vueltaValida', () => {
   it('acepta la web, el desarrollo y la app', () => {
     expect(vueltaValida('https://mangel-creator.github.io/organizy/resumenes')).toBe(true);
+    expect(vueltaValida('https://mangel-creator.github.io/rusko/resumenes')).toBe(true);
     expect(vueltaValida('http://localhost:8081/resumenes')).toBe(true);
     expect(vueltaValida('organizy://correo-vinculado')).toBe(true);
   });
