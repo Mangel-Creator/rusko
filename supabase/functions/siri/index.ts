@@ -35,15 +35,33 @@ function nuevaLlave(): string {
   return btoa(String.fromCharCode(...bytes)).replace(/\+/g, '-').replace(/\//g, '_').replace(/=+$/, '');
 }
 
-async function leerCuerpo(req: Request): Promise<Record<string, unknown>> {
-  const texto = await req.text().catch(() => '');
+// Lo que manda el Atajo, con las claves en minúsculas y sin espacios. Se perdona que la
+// clave esté mal o vacía (es fácil equivocarse al montar el Atajo): si no hay "texto" ni
+// "cuando", vale el primer valor de texto que llegue, o el cuerpo entero si es texto suelto.
+async function leerCuerpo(req: Request): Promise<{ texto: string | null; cuando: string | null; claves: string[] }> {
+  const crudo = (await req.text().catch(() => '')).trim();
+  let datos: Record<string, unknown> | null = null;
   try {
-    const datos = JSON.parse(texto);
-    if (datos && typeof datos === 'object') return datos as Record<string, unknown>;
+    const leido = JSON.parse(crudo);
+    if (leido && typeof leido === 'object' && !Array.isArray(leido)) datos = leido as Record<string, unknown>;
+    else if (typeof leido === 'string') return { texto: leido, cuando: null, claves: ['(texto)'] };
   } catch {
-    // No es JSON: puede ser un formulario.
+    // No es JSON: puede ser un formulario o texto suelto.
+    datos = crudo.includes('=') ? Object.fromEntries(new URLSearchParams(crudo)) : null;
+    if (!datos && crudo) return { texto: crudo, cuando: null, claves: ['(texto)'] };
   }
-  return Object.fromEntries(new URLSearchParams(texto));
+  const campos = Object.entries(datos ?? {}).map(([clave, valor]) => [clave.trim().toLowerCase(), valor] as const);
+  const valor = (clave: string) => {
+    const v = campos.find(([c]) => c === clave)?.[1];
+    return typeof v === 'string' && v.trim() ? v : null;
+  };
+  let texto = valor('texto');
+  const cuando = valor('cuando');
+  if (!texto && !cuando) {
+    const primero = campos.map(([, v]) => v).find((v): v is string => typeof v === 'string' && v.trim() !== '');
+    if (primero) texto = primero;
+  }
+  return { texto, cuando, claves: campos.map(([c, v]) => `${c || '(vacía)'}:${typeof v}`) };
 }
 
 async function desdeElAtajo(req: Request, llave: string): Promise<Response> {
@@ -67,12 +85,13 @@ async function desdeElAtajo(req: Request, llave: string): Promise<Response> {
 
   const cuerpo = await leerCuerpo(req);
   const ahora = Date.now();
-  const texto = typeof cuerpo.texto === 'string' ? cuerpo.texto.replace(/\s+/g, ' ').trim().slice(0, MAX_TEXTO) : '';
-  const alarma = typeof cuerpo.cuando === 'string' ? leerCuando(cuerpo.cuando, ahora) : null;
+  // Un texto con forma de fecha y hora es una alarma (por si la clave venía mal).
+  const alarma = leerCuando(cuerpo.cuando ?? '', ahora) ?? leerCuando(cuerpo.texto ?? '', ahora);
+  const texto = alarma ? '' : (cuerpo.texto ?? '').replace(/\s+/g, ' ').trim().slice(0, MAX_TEXTO);
   if (!texto && !alarma) {
-    return decir(
-      typeof cuerpo.cuando === 'string' ? 'No he entendido la hora. Prueba otra vez.' : 'No te he oído bien. Prueba otra vez.',
-    );
+    // Solo los nombres de los campos y su tipo, nunca lo dicho: para ver qué manda el Atajo.
+    console.log('siri: sin texto ni hora', req.headers.get('content-type'), cuerpo.claves.join(','));
+    return decir(cuerpo.cuando ? 'No he entendido la hora. Prueba otra vez.' : 'No te he oído bien. Prueba otra vez.');
   }
 
   const uso = await sumarUso(
