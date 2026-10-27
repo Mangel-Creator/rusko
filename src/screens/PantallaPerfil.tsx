@@ -32,6 +32,7 @@ import { TarjetaPermiso } from './formulario-perfil/permisos';
 import { SeccionAvisos } from './perfil/SeccionAvisos';
 import { SeccionCalendarios } from './perfil/SeccionCalendarios';
 import { SeccionCopia } from './perfil/SeccionCopia';
+import { SeccionCuenta } from './perfil/SeccionCuenta';
 import { SeccionEpocas } from './perfil/SeccionEpocas';
 import { SeccionIA } from './perfil/SeccionIA';
 
@@ -119,6 +120,8 @@ export function PantallaPerfil() {
       <BotonAtras texto="Hoy" etiqueta="Volver" onPress={() => (router.canGoBack() ? router.back() : router.replace('/'))} />
 
       <Titulo>Perfil</Titulo>
+
+      <SeccionCuenta />
 
       <Plegable
         titulo="Sobre ti y tu ritmo"

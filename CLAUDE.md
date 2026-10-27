@@ -462,6 +462,14 @@ sesión que fuera**:
   - Iconos: `icon.png` (1024, sin transparencia), adaptativo de Android con fondo
     `#0B2547`, `splash-icon.png`, `favicon.png` y `public/icono-app.png`. iOS usa
     `icon.png` (se quitó el `expo.icon` de la plantilla).
+- 27/10/2026 — **Cuenta con correo y contraseña para entrar desde cualquier dispositivo**
+  (sesión "Iniciar sesión"; lo pidió el usuario). Eligió: **correo y contraseña** (ni Google
+  ni enlace mágico), **copia en la nube** (la copia de seguridad entera se sube y se trae;
+  no se sincroniza cosa a cosa: si cambia lo mismo en dos sitios a la vez, gana lo último) y
+  aceptó la **séptima excepción** a "los datos solo en el dispositivo": todo lo suyo se
+  guarda en Supabase (`copias_nube`), solo lo lee su cuenta. Ver "Tu cuenta y copia en la
+  nube". **Pendiente del usuario**: en Supabase > Authentication > URL Configuration, poner
+  la web en Site URL y Redirect URLs (si no, "He olvidado la contraseña" no lleva a la web).
 
 ## Cómo prueba el usuario en el iPhone
 
@@ -1705,6 +1713,55 @@ borran solos a los 7 días.
 - Probado el 27/09 en la web a tamaño móvil: guardar, recuperar una copia modificada (se
   reinicia con el nombre y el evento de la copia) y rechazar un archivo que no es copia.
   **Falta probarla en el iPhone** (Expo Go): el menú de compartir y el selector de Archivos.
+
+## Tu cuenta y copia en la nube (27/10/2026)
+
+- **Cuenta** (`services/cuenta/`, `useCuenta()`): correo y contraseña con Supabase Auth.
+  **Crear la cuenta convierte la sesión anónima del dispositivo** (`updateUser({ email })`):
+  el usuario es el mismo, así que planes, avisos de la web, Atajo del Reloj y límites de IA
+  siguen igual. Supabase pide confirmar el correo antes de poner la contraseña: (1) correo
+  → llega un enlace; (2) al volver ("Ya lo he confirmado" o al volver a la app,
+  `comprobarConfirmacion` renueva la sesión) se pone la contraseña, que se guardó **solo en
+  memoria**; si la app se reinició, se pide otra vez. La contraseña se apunta en
+  `user_metadata.contrasena` (Supabase no dice si hay una). Si pide código (cambio de
+  contraseña seguro), `reauthenticate()` y campo "Código del correo". Estados: `sin-cuenta`,
+  `confirmando`, `sin-contrasena`, `dentro`. "Cerrar sesión" (`scope: 'local'`) deja los
+  datos en el dispositivo y la nube olvidada (`olvidarNube`).
+- **Dónde**: Perfil > "Tu cuenta" (`SeccionCuenta`, primer apartado) y la página `/cuenta`
+  (`PantallaCuenta`, fuera de las rutas protegidas): "Ya tengo cuenta: entrar" en la
+  bienvenida y destino de los enlaces de los correos (`paginaCuenta()`: la web publicada, o
+  la de este navegador en desarrollo). `atenderEnlace()` lee el "#" y lo borra de la
+  dirección (con `history.state`, si no expo-router lo vuelve a poner): `type=recovery` →
+  `setSession` y "Elige tu nueva contraseña"; confirmar correo → solo "Vuelve a Rusko donde
+  estabas" (puede ser otro navegador, no se entra); `error` → "Ese enlace ya no vale". El
+  cliente de Supabase va en flujo `implicit` (el de siempre): el enlace funciona aunque se
+  abra en Safari y no en la web de la pantalla de inicio.
+- **Copia en la nube** (`services/nube/`): tabla `copias_nube` (migración
+  `20261027000000_copias_nube.sql`, ya aplicada; pruebas en `supabase/tests/copias_nube_rls.sql`,
+  acaban en "todo bien"): una fila por cuenta con la copia (`montarCopia` de la copia de
+  seguridad), su huella, el dispositivo y `actualizada` (la pone el servidor). Al cambiarla,
+  la anterior queda en `anterior` (rescate a mano desde el panel). RLS: solo la propia fila
+  y nunca con sesión anónima.
+  - **Cuándo**: 4 s después de cada cambio (`suscribirseEventos`, `suscribirseEpocas` y
+    `suscribirseAjustes`, nuevo en `data/ajustes.ts`, solo claves que viajan), al abrir, al
+    volver o irse de la app y cada 5 min. Una vuelta cada vez (`sincronizar`).
+  - **Qué hace** (`decidir`, puro, con pruebas): compara la huella de lo de aquí con la
+    `base` (lo último subido o traído) y la `actualizada` de la nube con la `version` que
+    tiene. Cambios aquí → sube; la nube más nueva → la trae (`recuperarCopia` y reinicia la
+    app; en `/cuenta` va a Hoy); los dos → gana lo último (`cambioEl`). Recién traída
+    (`rebase`), lo de aquí al arrancar pasa a ser la base. **Un dispositivo que nunca ha
+    hablado con la nube no la pisa**: vacío (sin bienvenida ni eventos) la trae sin
+    preguntar; con datos distintos, "Tu cuenta ya tiene cosas guardadas" con "Traer lo de
+    mi cuenta" o "Subir lo de aquí" (con confirmación).
+  - `organizy:nube` y `organizy:dispositivo` están en `NO_VIAJAN`.
+- **Correos**: los manda el SMTP por defecto de Supabase (pocos por hora y **solo a los
+  correos del equipo del proyecto en Supabase**; vale para el dueño). Para más gente hará
+  falta un SMTP propio (Resend, Brevo...). Las plantillas están en inglés.
+- Probado el 27/10 en la web a tamaño móvil con respuestas simuladas: entrar en un navegador
+  vacío (trae la copia y salta a Hoy), "Tu cuenta ya tiene cosas" y "Subir lo de aquí", un
+  cambio que se sube solo, traer lo subido por "otro dispositivo", cerrar sesión, crear la
+  cuenta (confirmar, contraseña puesta sola y primera subida) y los enlaces confirmado y
+  caducado. **Falta**: probarlo con su correo de verdad y en Expo Go.
 
 ## Fase 11: correo, plazos y resúmenes (27/09/2026)
 

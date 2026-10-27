@@ -21,6 +21,7 @@ import { iniciarCalendarios } from '@/services/calendarios';
 import { formatearHora } from '@/services/fechas';
 import { completarCoordenadasPendientes } from '@/services/lugares';
 import { iniciarCorreo } from '@/services/correo';
+import { iniciarNube } from '@/services/nube';
 import { iniciarPlanes } from '@/services/planes';
 import { irACita } from '@/services/rutas/abrir';
 import { iniciarTrafico } from '@/services/rutas/actualizar';
@@ -79,6 +80,8 @@ export default function LayoutRaiz() {
   useEffect(() => iniciarCorreo(), []);
   // Otros calendarios (Google, iCloud...): lo nuevo de fuera, al abrir y al volver.
   useEffect(() => iniciarCalendarios(), []);
+  // Tu cuenta (27/10/2026): sube lo de aquí a la nube y trae lo de tus otros dispositivos.
+  useEffect(() => iniciarNube(), []);
 
   useEffect(() => {
     if (listo) {
@@ -164,6 +167,8 @@ export default function LayoutRaiz() {
         {/* Página de votación de un plan (fase 8): la abren los invitados desde el enlace
             de WhatsApp, sin cuenta ni bienvenida. Fuera de las rutas protegidas. */}
         <Stack.Screen name="votar" />
+        {/* Tu cuenta: entrar desde la bienvenida y los enlaces de los correos. */}
+        <Stack.Screen name="cuenta" />
       </Stack>
     </ThemeProvider>
   );

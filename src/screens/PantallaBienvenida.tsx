@@ -1,8 +1,10 @@
+import { router } from 'expo-router';
 import { useRef, useState } from 'react';
 import { type ScrollViewInstance, StyleSheet, View } from 'react-native';
 
 import { BarraProgreso, Boton, Pantalla, Texto, Titulo } from '@/components';
 import { completarBienvenida, usePerfil } from '@/data/perfil';
+import { supabaseConfigurado } from '@/data/supabase';
 import { PERMISOS_DISPONIBLES, pedirPermiso } from '@/services/permisos';
 import { espacio } from '@/theme';
 
@@ -89,6 +91,10 @@ export function PantallaBienvenida() {
             disabled={ocupado}
             onPress={siguiente}
           />
+          {/* Ya usa Rusko en otro dispositivo: entra y se trae todo (sin rellenar esto). */}
+          {supabaseConfigurado ? (
+            <Boton variante="secundario" titulo="Ya tengo cuenta: entrar" onPress={() => router.push('/cuenta')} />
+          ) : null}
         </>
       ) : null}
 
@@ -108,8 +114,8 @@ export function PantallaBienvenida() {
           <Titulo>{PERMISOS_DISPONIBLES.length === 1 ? 'Un permiso' : 'Dos permisos'}</Titulo>
           <Texto secundario>
             {PERMISOS_DISPONIBLES.length === 1
-              ? 'Te lo pido ahora para que Organizy funcione del todo. Si dices que no, la app sigue funcionando y puedes activarlo más tarde desde Perfil.'
-              : 'Te los pido ahora para que Organizy funcione del todo. Si dices que no, la app sigue funcionando y puedes activarlos más tarde desde Perfil.'}
+              ? 'Te lo pido ahora para que Rusko funcione del todo. Si dices que no, la app sigue funcionando y puedes activarlo más tarde desde Perfil.'
+              : 'Te los pido ahora para que Rusko funcione del todo. Si dices que no, la app sigue funcionando y puedes activarlos más tarde desde Perfil.'}
           </Texto>
           {PERMISOS_DISPONIBLES.map((permiso) => (
             <TarjetaPermiso key={permiso} permiso={permiso} />

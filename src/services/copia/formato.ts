@@ -61,6 +61,9 @@ const NO_VIAJAN = new Set([
   'empresaCopia',
   'empresaInvitacion',
   'empresaOcupado',
+  // Copia en la nube (27/10/2026): lo que este dispositivo sabe de la nube y su nombre.
+  'nube',
+  'dispositivo',
 ]);
 
 // Cachés que se borran al recuperar una copia (se vuelven a calcular solas).
@@ -99,7 +102,7 @@ export function nombreArchivoCopia(ahora: Date): string {
 
 export type LecturaCopia = { ok: true; copia: CopiaSeguridad } | { ok: false; error: string };
 
-const DANADO = 'Este archivo no es una copia de Organizy o está dañado. Elige el archivo «organizy-copia-…».';
+const DANADO = 'Este archivo no es una copia de Rusko o está dañado. Elige el archivo «organizy-copia-…».';
 
 const esObjeto = (v: unknown): v is Record<string, unknown> =>
   typeof v === 'object' && v !== null && !Array.isArray(v);
@@ -139,7 +142,7 @@ export function leerCopia(texto: string): LecturaCopia {
   if (datos.formato > FORMATO_COPIA) {
     return {
       ok: false,
-      error: 'Esta copia es de una versión más nueva de Organizy. Actualiza la app (o recarga la web) y vuelve a probar.',
+      error: 'Esta copia es de una versión más nueva de Rusko. Actualiza la app (o recarga la web) y vuelve a probar.',
     };
   }
   const { eventos, epocas, registroBloques, ajustes, creadaEl } = datos;
