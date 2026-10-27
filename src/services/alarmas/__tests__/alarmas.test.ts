@@ -16,8 +16,10 @@ import {
   minutoDormir,
   motivoAdelanto,
   proximaVez,
+  textoCuando,
   textoDias,
   unaVezPasadas,
+  unaVezPendiente,
   vecesDeAlarma,
 } from '@/services/alarmas/calculo';
 import { definicionesNativas, diferencias, firma } from '@/services/alarmas/definiciones';
@@ -126,6 +128,24 @@ describe('próxima alarma por días', () => {
     expect(vecesDeAlarma(unaVez, ahora, 7).map((v) => v.dia)).toEqual(['2026-09-25']);
     expect(unaVezPasadas([unaVez], ahora)).toEqual([]);
     expect(unaVezPasadas([unaVez], new Date(2026, 8, 25, 7, 31))).toEqual(['a1']);
+  });
+
+  it('un día concreto, aunque sea dentro de semanas', () => {
+    const lejos = alarma({ dias: [], unaVezEl: '2026-10-15', hora: '08:00' });
+    expect(unaVezPendiente(lejos, ahora)).toBe(true);
+    expect(unaVezPendiente(lejos, new Date(2026, 9, 15, 8, 0))).toBe(false);
+    expect(unaVezPasadas([lejos], ahora)).toEqual([]);
+    // Entra en los avisos cuando le quedan menos de 7 días.
+    expect(vecesDeAlarma(lejos, ahora, 7)).toEqual([]);
+    expect(vecesDeAlarma(lejos, new Date(2026, 9, 10, 9, 0), 7).map((v) => v.dia)).toEqual(['2026-10-15']);
+  });
+
+  it('cuándo suena, en la lista', () => {
+    expect(textoCuando(alarma({}), ahora)).toBe('De lunes a viernes');
+    expect(textoCuando(alarma({ dias: [], unaVezEl: '2026-09-24' }), ahora)).toBe('Hoy');
+    expect(textoCuando(alarma({ dias: [], unaVezEl: '2026-09-25' }), ahora)).toBe('Mañana');
+    expect(textoCuando(alarma({ dias: [], unaVezEl: '2026-09-27' }), ahora)).toBe('Domingo 27 sept');
+    expect(textoCuando(alarma({ dias: [], unaVezEl: '2026-09-20' }), ahora)).toBe('Una vez');
   });
 
   it('textos de los días', () => {
@@ -314,6 +334,14 @@ describe('alarmas de verdad (app propia)', () => {
     const viernes = defs.find((d) => d.clave === 'alarma:a1:4');
     expect([jueves?.hora, jueves?.minuto, jueves?.diasIso]).toEqual([7, 15, [4]]);
     expect([viernes?.hora, viernes?.minuto]).toEqual([7, 30]);
+  });
+
+  it('un día concreto: semanal de ese día solo cuando falta menos de una semana', () => {
+    // Jueves 24 a las 06:00. El miércoles 30 a las 08:00: semanal de los miércoles (3).
+    const pronto = definicionesNativas(ctxNativo([alarma({ dias: [], unaVezEl: '2026-09-30', hora: '08:00' })]));
+    expect(pronto[0]).toMatchObject({ clave: 'alarma:a1:una-vez', hora: 8, minuto: 0, diasIso: [3] });
+    // El jueves 1 a las 07:00 (7 días y 1 hora): aún no, sonaría hoy antes de tiempo.
+    expect(definicionesNativas(ctxNativo([alarma({ dias: [], unaVezEl: '2026-10-01', hora: '07:00' })]))).toEqual([]);
   });
 
   it('salida: de una vez, a la hora de salir', () => {

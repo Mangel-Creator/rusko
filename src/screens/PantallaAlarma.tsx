@@ -10,6 +10,7 @@ import {
   Plegable,
   Selector,
   SelectorDias,
+  SelectorFecha,
   SelectorHora,
   SelectorVisual,
   Tarjeta,
@@ -29,7 +30,8 @@ import {
   type TipoAlarma,
 } from '@/data/alarmas';
 import type { DiaSemana } from '@/data/perfil';
-import { diaDeUnaVez, permisoAlarmas, textoDias } from '@/services/alarmas';
+import { diaDeUnaVez, permisoAlarmas, textoDias, unaVezPendiente } from '@/services/alarmas';
+import type { ClaveDia } from '@/services/fechas';
 import { colores, espacio } from '@/theme';
 
 // Nueva alarma (/alarma) o editar una (/alarma?id=...). Corta: tipo, hora y días a la
@@ -46,6 +48,17 @@ const SONIDOS: OpcionVisual<SonidoAlarma>[] = [
 ];
 
 const ADELANTOS: Opcion<string>[] = ADELANTOS_MAXIMOS.map((m) => ({ valor: String(m), etiqueta: `${m} min` }));
+
+type Cuando = 'repite' | 'dia';
+
+// Se repite por días de la semana, o suena una sola vez el día que elijas, aunque sea
+// dentro de semanas (27/10/2026).
+const CUANDO: Opcion<Cuando>[] = [
+  { valor: 'repite', etiqueta: 'Se repite' },
+  { valor: 'dia', etiqueta: 'Un día concreto' },
+];
+
+const DIAS_LABORABLES: DiaSemana[] = [0, 1, 2, 3, 4];
 
 function volver() {
   if (router.canGoBack()) router.back();
@@ -69,19 +82,37 @@ export function PantallaAlarma() {
 function Formulario({ inicial }: { inicial: Alarma | null }) {
   const [tipo, setTipo] = useState<TipoAlarma>(inicial?.tipo ?? 'despertador');
   const [hora, setHora] = useState(inicial?.hora ?? '07:30');
-  const [dias, setDias] = useState<DiaSemana[]>(inicial?.dias ?? [0, 1, 2, 3, 4]);
+  const [dias, setDias] = useState<DiaSemana[]>(inicial?.dias ?? DIAS_LABORABLES);
+  // Los últimos días marcados, para volver a ellos al pasar de "Un día concreto" a "Se repite".
+  const [diasRepite, setDiasRepite] = useState<DiaSemana[]>(
+    inicial?.dias.length ? inicial.dias : DIAS_LABORABLES,
+  );
+  const [dia, setDia] = useState<ClaveDia>(() =>
+    inicial && unaVezPendiente(inicial, new Date()) ? inicial.unaVezEl! : diaDeUnaVez(hora, new Date()),
+  );
   const [etiqueta, setEtiqueta] = useState(inicial?.etiqueta ?? '');
   const [sonido, setSonido] = useState<SonidoAlarma>(inicial?.sonido ?? 'alarma');
   const [adelantoMax, setAdelantoMax] = useState(inicial?.adelantoMaxMin ?? 20);
   const [ocupado, setOcupado] = useState(false);
   const [confirmarBorrar, setConfirmarBorrar] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const cuando: Cuando = dias.length === 0 ? 'dia' : 'repite';
+  const cambiarCuando = (nuevo: Cuando) => {
+    setError(null);
+    setDias(nuevo === 'dia' ? [] : diasRepite);
+  };
+  const cambiarDias = (nuevos: DiaSemana[]) => {
+    setDias(nuevos);
+    if (nuevos.length > 0) setDiasRepite(nuevos);
+  };
 
   const alarma = (): Alarma => ({
     id: inicial?.id ?? nuevoIdAlarma(),
     tipo,
     hora,
     dias,
-    unaVezEl: dias.length === 0 ? diaDeUnaVez(hora, new Date()) : null,
+    unaVezEl: dias.length === 0 ? dia : null,
     etiqueta: etiqueta.trim(),
     sonido,
     activada: true,
@@ -89,6 +120,10 @@ function Formulario({ inicial }: { inicial: Alarma | null }) {
   });
 
   const guardar = async () => {
+    if (dias.length === 0 && !unaVezPendiente({ hora, unaVezEl: dia }, new Date())) {
+      setError('Esa hora ya ha pasado. Elige otro día u otra hora.');
+      return;
+    }
     setOcupado(true);
     await guardarAlarma(alarma());
     // En la app propia, la primera vez pide el permiso de alarmas (AlarmKit / exactas).
@@ -124,8 +159,33 @@ function Formulario({ inicial }: { inicial: Alarma | null }) {
         </Texto>
       ) : null}
 
-      <SelectorHora etiqueta="Hora" valor={hora} alCambiar={setHora} pasoMinutos={5} />
-      <SelectorDias etiqueta={`Días · ${textoDias(dias)}`} valor={dias} alCambiar={setDias} />
+      <SelectorHora
+        etiqueta="Hora"
+        valor={hora}
+        alCambiar={(h) => {
+          setHora(h);
+          setError(null);
+        }}
+        pasoMinutos={5}
+      />
+      <Selector etiqueta="Cuándo" opciones={CUANDO} valor={cuando} alCambiar={cambiarCuando} />
+      {cuando === 'repite' ? (
+        <SelectorDias etiqueta={`Días · ${textoDias(dias)}`} valor={dias} alCambiar={cambiarDias} />
+      ) : (
+        <SelectorFecha
+          etiqueta="Qué día (suena solo ese día)"
+          valor={dia}
+          alCambiar={(d) => {
+            setDia(d);
+            setError(null);
+          }}
+        />
+      )}
+      {error ? (
+        <Texto pequeno style={estilos.error} accessibilityLiveRegion="polite">
+          {error}
+        </Texto>
+      ) : null}
 
       <Plegable titulo="Más ajustes" resumen={resumen}>
         <CampoTexto
@@ -168,4 +228,5 @@ const estilos = StyleSheet.create({
   pulsado: { transform: [{ scale: 0.97 }] },
   botones: { gap: espacio.s, marginTop: espacio.s },
   confirmar: { gap: espacio.m, borderColor: colores.aviso, borderWidth: 2 },
+  error: { color: colores.aviso },
 });

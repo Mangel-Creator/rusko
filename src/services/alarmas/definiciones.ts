@@ -56,7 +56,8 @@ function definicionesDeAlarma(alarma: Alarma, ctx: ContextoNativo): DefinicionNa
 
   if (alarma.dias.length === 0) {
     const vez = proximaVez(alarma, ctx.ahora, ctx.adelantos);
-    if (!vez) return [];
+    // A una semana o más, la semanal sonaría antes de tiempo: se programa al acercarse.
+    if (!vez || vez.cuando.getTime() - ctx.ahora.getTime() >= 7 * DIA_MS) return [];
     const cerca = vez.cuando.getTime() - ctx.ahora.getTime() <= DIA_MS;
     return [
       {

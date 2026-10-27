@@ -43,12 +43,21 @@ type Props = {
 
 // Perfil > Avisos: activar o desactivar cada tipo de aviso.
 // En la web (26/10/2026) llegan con Web Push: primero hay que activarlos en este navegador.
-export function SeccionAvisos({ permiso, alActivarPermiso }: Props) {
+export function SeccionAvisos({ permiso: permisoMovil, alActivarPermiso }: Props) {
   const ajustes = useAjustesAvisos();
   const { perfil } = usePerfil();
   const [programados, setProgramados] = useState<number | null>(null);
   const [mensajePrueba, setMensajePrueba] = useState<string | null>(null);
   const [push, setPush] = useState<EstadoPush | null>(null);
+  // En la web manda el permiso del navegador, que se acaba de pedir con "Activar avisos";
+  // el que trae Perfil se leyó antes y se quedaba en "sin preguntar" (avisos "apagados").
+  const permiso: EstadoPermiso | undefined = esWeb
+    ? push
+      ? push.permiso === 'granted'
+        ? 'concedido'
+        : 'bloqueado'
+      : undefined
+    : permisoMovil;
 
   useEffect(() => {
     leerAjustesAvisos();
@@ -107,7 +116,8 @@ export function SeccionAvisos({ permiso, alActivarPermiso }: Props) {
   }
 
   if (esWeb && !push) return null;
-  if (esWeb && push && !push.suscrito) {
+  // Sin suscripción, o con el permiso quitado después en los Ajustes: la tarjeta de activar.
+  if (esWeb && push && (!push.suscrito || push.permiso !== 'granted')) {
     return <ActivarAvisosWeb bloqueado={push.permiso === 'denied'} alActivar={() => estadoPush().then(setPush)} />;
   }
 

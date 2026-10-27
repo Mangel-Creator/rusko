@@ -4,7 +4,7 @@ import { Pressable, StyleSheet, Text, View } from 'react-native';
 
 import { Texto } from '@/components';
 import { activarAlarma, type Alarma } from '@/data/alarmas';
-import { diaDeUnaVez, textoDias, tituloAlarma } from '@/services/alarmas';
+import { diaDeUnaVez, textoCuando, tituloAlarma, unaVezPendiente } from '@/services/alarmas';
 import { alturaTactil, cifras, colores, espacio, fuentes, radio } from '@/theme';
 
 // Interruptor sí/no pequeño, para poner al lado de otra cosa (el de components va en
@@ -38,15 +38,23 @@ export function InterruptorPequeno({
 export function FilaAlarma({ alarma }: { alarma: Alarma }) {
   const encendida = alarma.activada;
   const cambiar = (activada: boolean) => {
-    // Una de "una vez" que se vuelve a encender suena la próxima vez que llegue su hora.
-    const unaVezEl = activada && alarma.dias.length === 0 ? diaDeUnaVez(alarma.hora, new Date()) : undefined;
+    // Una de "una vez" que se vuelve a encender: su día si aún no ha llegado; si ya
+    // pasó, la próxima vez que llegue su hora.
+    const ahora = new Date();
+    const unaVezEl =
+      activada && alarma.dias.length === 0
+        ? unaVezPendiente(alarma, ahora)
+          ? alarma.unaVezEl
+          : diaDeUnaVez(alarma.hora, ahora)
+        : undefined;
     activarAlarma(alarma.id, activada, unaVezEl);
   };
+  const cuando = textoCuando(alarma, new Date());
   return (
     <View style={[estilos.fila, !encendida && estilos.filaApagada]}>
       <Pressable
         accessibilityRole="button"
-        accessibilityLabel={`${tituloAlarma(alarma)}, ${alarma.hora}, ${textoDias(alarma.dias)}. Editar`}
+        accessibilityLabel={`${tituloAlarma(alarma)}, ${alarma.hora}, ${cuando}. Editar`}
         onPress={() => router.push({ pathname: '/alarma', params: { id: alarma.id } })}
         style={({ pressed }) => [estilos.textos, pressed && estilos.pulsado]}>
         <Text style={[estilos.hora, !encendida && estilos.apagado]}>{alarma.hora}</Text>
@@ -55,7 +63,7 @@ export function FilaAlarma({ alarma }: { alarma: Alarma }) {
             <Ionicons name="car-outline" size={16} color={colores.textoSecundario} />
           ) : null}
           <Texto pequeno secundario numberOfLines={1} style={estilos.flexible}>
-            {textoDias(alarma.dias)} · {tituloAlarma(alarma)}
+            {cuando} · {tituloAlarma(alarma)}
           </Texto>
         </View>
       </Pressable>

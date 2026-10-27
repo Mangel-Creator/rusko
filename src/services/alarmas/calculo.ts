@@ -7,6 +7,7 @@ import {
   claveDia,
   diaSemanaDesdeLunes,
   fechaDesdeClave,
+  formatearDiaCorto,
   minutosDesdeHora,
   sumarDias,
   type ClaveDia,
@@ -134,6 +135,11 @@ export function proximaVez(alarma: Alarma, ahora: Date, adelantos?: Adelantos): 
   return vecesDeAlarma(alarma, ahora, 7, adelantos)[0] ?? null;
 }
 
+// ¿Una de "una sola vez" que aún no ha sonado? (su día y su hora están por llegar)
+export function unaVezPendiente(alarma: Pick<Alarma, 'hora' | 'unaVezEl'>, ahora: Date): boolean {
+  return Boolean(alarma.unaVezEl) && momento(alarma.unaVezEl!, minutosDesdeHora(alarma.hora)) > ahora;
+}
+
 // Las de "una sola vez" encendidas que ya sonaron: se apagan solas, como en el Reloj.
 export function unaVezPasadas(alarmas: Alarma[], ahora: Date): string[] {
   return alarmas
@@ -209,4 +215,14 @@ export function textoDias(dias: readonly number[]): string {
   const nombres = ordenados.map((d) => NOMBRES[d]);
   if (nombres.length === 1) return `Los ${NOMBRES_LARGOS[ordenados[0]]}`;
   return `${nombres.slice(0, -1).join(', ')} y ${nombres[nombres.length - 1]}`;
+}
+
+// Cuándo suena, para la lista: los días si se repite; si es de una vez y aún no ha
+// pasado su día, "Hoy", "Mañana" o "Viernes 30 oct" (27/10/2026).
+export function textoCuando(alarma: Pick<Alarma, 'dias' | 'unaVezEl'>, ahora: Date): string {
+  const hoy = claveDia(ahora);
+  if (alarma.dias.length > 0 || !alarma.unaVezEl || alarma.unaVezEl < hoy) return textoDias(alarma.dias);
+  if (alarma.unaVezEl === hoy) return 'Hoy';
+  if (alarma.unaVezEl === sumarDias(hoy, 1)) return 'Mañana';
+  return formatearDiaCorto(fechaDesdeClave(alarma.unaVezEl));
 }
