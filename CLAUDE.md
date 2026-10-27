@@ -732,6 +732,20 @@ azules (ver "Fase 6"). Es la única parte clara de la app.
   Luego la captura rápida abierta y la lista del día. El cuadro naranja lleva el texto en
   `textoOscuro` y "Cómo llegar" en píldora oscura. Sin `BotonFlotante`. El aviso de "añádela a la pantalla de inicio" va
   al final de Hoy, no arriba.
+- **Correo por recuadros** (27/10/2026, lo pidió el usuario): cada correo es un recuadro
+  (`screens/correo/RecuadroCorreo.tsx`) del color de su importancia (`coloresNivel` en el
+  tema, otra excepción a "cada color significa una sola cosa", solo en la bandeja de
+  Correo). **Rojo** muy importante (3) y **naranja** importante (2) van rellenos con texto
+  oscuro (5,9:1 y 6,8:1); **azul** medio (1) y **blanco** poco (0) van en tinte oscuro con
+  borde de su color y texto claro (14:1), para que lo poco importante no deslumbre en modo
+  oscuro. Orden: fijados arriba, luego por nivel y dentro de cada nivel lo más nuevo
+  (`porImportancia`). El recuadro enseña remitente, hora, asunto acortado (2 líneas) y, si
+  hay fecha, «Tienes X el día Y» (`textoTienes`, **sin el nombre del usuario**). Al tocarlo
+  dice de qué trata en una o dos frases. Siempre a la vista, tres botones redondos:
+  quitar (de Rusko, con «¿Lo quito de Rusko? En tu correo sigue igual»), fijar y
+  recordatorio. **La cuenta vinculada es un chip pequeño junto al título** (`ChipCuentas`:
+  logo, dirección acortada, punto rojo si hay que volver a entrar); al tocarlo se abre
+  "Tus cuentas". Sin la tarjeta grande de «ya está vinculado».
 - **Todo lo que se pulsa se parece**: botones y chips en píldora; botones de solo icono,
   redondos (micrófono, enviar, "+", − y +); iconos de contenido dentro de un círculo.
   **Para volver, siempre `BotonAtras`** (píldora gris con flecha arriba a la izquierda); no

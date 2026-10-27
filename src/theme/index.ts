@@ -64,6 +64,21 @@ export const degradados = {
   teja: ['#FF6B1A', '#C2361B'], // naranja → rojo teja
 } as const;
 
+// Recuadros de la pestaña Correo por importancia (27/10/2026, a petición del usuario):
+// rojo muy importante, naranja importante, azul medio y blanco poco. Otra excepción a
+// 'cada color significa una sola cosa', solo dentro de la bandeja de Correo. Los dos de
+// arriba van rellenos con texto oscuro (5,9:1 y 6,8:1) para que salten a la vista; azul y
+// blanco van en tinte oscuro con borde de su color y el texto claro de siempre (14:1),
+// para que lo poco importante no deslumbre.
+export const coloresNivel = {
+  3: { fondo: '#FF4D4F', borde: '#FF4D4F', texto: colores.textoOscuro, secundario: '#2A0E0E', boton: 'rgba(15,13,12,0.14)' },
+  2: { fondo: '#FF6B1A', borde: '#FF6B1A', texto: colores.textoOscuro, secundario: '#2A1206', boton: 'rgba(15,13,12,0.14)' },
+  1: { fondo: '#16233A', borde: '#6EA8FF', texto: colores.texto, secundario: '#A9B8D0', boton: '#22355A' },
+  0: { fondo: colores.tarjeta, borde: '#D9D1C7', texto: colores.texto, secundario: colores.textoSecundario, boton: colores.elevado },
+} as const;
+
+export type NivelCorreo = keyof typeof coloresNivel;
+
 // Color de cada tipo de evento (Cliente, Amigos, Yo)
 export const colorTipo = {
   cliente: colores.clientes,
