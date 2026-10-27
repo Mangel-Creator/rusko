@@ -1406,7 +1406,7 @@ borran solos a los 7 días.
   y `expo config --type introspect` (el proyecto de iPhone no se puede generar desde
   Windows; lo hace EAS). Si sale una versión de la librería que lo arregle, se puede
   volver a su plugin.
-- **Tipos** (`Alarma`): despertador e inteligente (hora, días —vacío = una vez, con
+- **Tipos** (`Alarma`): despertador e inteligente (hora, días —vacío = un día concreto,
   `unaVezEl`; se apaga sola al pasar—, nombre, sonido "alarma" o "vibrar", encendida,
   y en la inteligente `adelantoMaxMin` 10/20/30/45). **Hora de dormir**: aviso suave (no
   alarma, en todos los niveles menos la web) 15/30/45/60 min antes de acostarse
@@ -1434,7 +1434,7 @@ borran solos a los 7 días.
   solo sabe "una vez, la próxima vez que llegue esa hora" o "cada semana": la inteligente
   va en una semanal por día y solo cambia la de su próxima vez (si no se abre la app en
   una semana, suena antes, nunca tarde); una de "una vez" a más de 24 h va como semanal
-  de ese día y se quita cuando pasa. AlarmKit solo deja un botón además de "Parar":
+  de ese día y se quita cuando pasa (a una semana o más, aún no se programa). AlarmKit solo deja un botón además de "Parar":
   "Posponer 5 min" o "Cómo llegar"; los dos **abren la app** (hay que desbloquear), que
   pospone (otra alarma dentro de 5-6 min) o abre el Mapa (`atenderAlarmasNativas()` al
   abrir y al volver a la app). Posponer sin abrir la app necesitaría una extensión de
@@ -1444,8 +1444,16 @@ borran solos a los 7 días.
   tachada, motivo "Hoy suena 15 min antes: hay atasco camino del trabajo"; sin barra de
   acento), lista (`FilaAlarma`: hora grande, días y nombre, interruptor; apagada sin fondo
   blanco), salidas y hora de dormir; "+" abre `/alarma`. Formulario corto: tipo con
-  casillas de icono, hora de 5 en 5 min y días; en "Más ajustes", nombre, sonido y
+  casillas de icono, hora de 5 en 5 min y "Cuándo"; en "Más ajustes", nombre, sonido y
   adelanto máximo. Tras "Posponer" se abre `/alarmas?pospuesta=HH:MM`.
+- **Un día concreto** (27/10/2026, lo pidió el usuario: "quiero que sean programables para
+  más de 24 h"): "Cuándo" tiene **"Se repite"** (días de la semana) o **"Un día concreto"**
+  (`SelectorFecha`, cualquier día, aunque sea dentro de semanas; se guarda en `unaVezEl`).
+  Si ese día y hora ya han pasado, no deja guardar. La lista dice "Hoy", "Mañana" o
+  "Viernes 30 oct" (`textoCuando`); `unaVezPendiente` dice si aún no ha sonado. Llega a cada
+  nivel cuando se acerca: avisos (7 días, al abrir la app), Reloj del iPhone (se sube con 14
+  días y el Atajo la crea la noche antes) y AlarmKit (semanal de ese día solo a menos de una
+  semana; antes, nada, porque sonaría antes de tiempo).
 - **Preparado para las tiendas** (28/09/2026, lo pidió el usuario): en `app.json`,
   `ios.bundleIdentifier` y `android.package` = **`com.mangelcreator.organizy`** (no se
   puede cambiar después de publicar la primera versión) e
