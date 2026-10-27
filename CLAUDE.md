@@ -477,6 +477,16 @@ sesión que fuera**:
   guarda en Supabase (`copias_nube`), solo lo lee su cuenta. Ver "Tu cuenta y copia en la
   nube". **Pendiente del usuario**: en Supabase > Authentication > URL Configuration, poner
   la web en Site URL y Redirect URLs (si no, "He olvidado la contraseña" no lleva a la web).
+- 27/10/2026 — **Siri apunta en Rusko y pone alarmas** (lo pidió el usuario: "si le dices
+  algo a Siri que se agende directamente en Rusko, o poner una alarma"). Sin app propia
+  Siri no habla con Rusko, así que son **dos Atajos del iPhone** que Siri ejecuta por su
+  nombre: "**Apunta en Rusko**" (pregunta "¿Qué apunto?") y "**Alarma en Rusko**" (pregunta
+  la hora, la pone al momento en el Reloj y también en Rusko). "Oye Siri, pon una alarma"
+  a secas siempre va al Reloj: Apple no deja quedársela. Aceptada la **octava excepción** a
+  "los datos solo en el dispositivo": lo dicho a Siri (la frase, o el día y la hora de la
+  alarma) espera en Supabase hasta que Rusko lo recoge al abrirse y se borra entonces (si
+  no, a los 7 días). Ver "Fase 9" > "Siri con Atajos". Con app propia, en el futuro, App
+  Intents (Siri directo, sin servidor).
 
 ## Cómo prueba el usuario en el iPhone
 
@@ -605,7 +615,8 @@ src/
                        salidas.ts y horasPunta.ts (tráfico calculado), navegador.ts
                        (app de navegación elegida), parkings.ts (parkings llenos),
                        alarmas.ts (alarmas, ajustes y adelantos de la inteligente),
-                       alarmasReloj.ts (enlace del Atajo del Reloj, web),
+                       alarmasReloj.ts (enlace del Atajo del Reloj, web), siri.ts
+                       (enlace de los Atajos de Siri),
                        planes.ts (planes con votación y sus votos),
                        copia.ts (reunir y recuperar la copia de seguridad),
                        correos.ts (resúmenes de correo y enlace del ayudante de Gmail),
@@ -635,7 +646,8 @@ src/
                        correo/ (resúmenes de correo: traerlos del servidor y del ayudante,
                        vincular y quitar cuentas, plazos como tareas; con pruebas),
                        ia/ (límites de IA de 5 horas y semana: porcentajes y mensajes;
-                       con pruebas).
+                       con pruebas), siri/ (recoger lo dicho a Siri con los Atajos y
+                       apuntarlo; con pruebas).
 supabase/              Servidor propio: Edge Functions (Deno) y SQL. Ver "Servidor propio".
                        tests/: pruebas SQL de las reglas (se deshacen solas al acabar).
 gmail/                 Ayudante de Gmail (Google Apps Script): ayudante.js (lo de Google) y
@@ -1636,6 +1648,38 @@ borran solos a los 7 días.
   - Probado en la web a tamaño móvil con un reconocimiento simulado (el navegador de
     pruebas no tiene micro): explicación, "Te escucho…", texto en el campo y ficha con la
     frase como título (sin la clave de Anthropic, como en la fase 5).
+- **Siri con Atajos (hecho el 27/10/2026, para la web y Expo Go; ver la decisión de ese día):**
+  - **Servidor**: función `siri` (`verify_jwt = false`) y migración
+    `20261027010000_siri.sql` (ya aplicada): `siri_enlaces` (resumen SHA-256 de la llave
+    personal) y `siri_buzon` (lo dicho sin recoger; `pg_cron` borra lo de más de 7 días;
+    RLS sin políticas). El Atajo hace POST a `.../functions/v1/siri?t=<llave>` con JSON
+    `{ texto }` o `{ cuando: "2026-10-28 07:30 +01:00" }` (formato personalizado
+    `yyyy-MM-dd HH:mm xxx`; también ISO 8601; hace falta la zona) y la función **siempre
+    contesta 200 con texto**, que Siri lee ("Apuntado: «…». Lo verás en Rusko al abrirla." /
+    "Hecho: alarma mañana a las 07:30…"). Una hora ya pasada es la de mañana
+    (`_shared/siriHora.ts`, con pruebas). Límites: 60 al día por persona
+    (`SIRI_LIMITE_USUARIO`), 5000 en total y 50 sin recoger. Acciones con la sesión de la
+    app: `estado`, `crear-enlace`, `quitar`, `recoger` (no borra) y `confirmar { ids }`.
+  - **El Atajo de la noche** (`alarmas-reloj`) añade las alarmas de Siri aún sin recoger
+    (etiqueta "Alarma de Siri"): si no, borraría del Reloj la recién puesta sin volver a
+    crearla. El Atajo "Alarma en Rusko" la crea con la etiqueta "Organizy · Alarma de
+    Siri" para que la gestione igual que las demás.
+  - **App** (`services/siri/`, `iniciarSiri()` en `_layout`): al abrir y al volver, si ya
+    hay sesión (no crea usuarios) y la bienvenida está hecha, `recogerSiri` trae lo
+    pendiente, lo apunta con `procesarPendientes` (puro, con pruebas) y después lo confirma.
+    Las frases se leen con `interpretarLocal` de la captura (sin IA) tomando como "ahora"
+    el momento en que se dijeron; lo que no entiende va como tarea de ese día con la frase de
+    título. Las alarmas son despertadores de una vez (las pasadas no se añaden). Ids del buzón
+    (`siri-<id>` en eventos, el mismo UUID en alarmas): recoger dos veces no duplica. Hoy
+    enseña "He apuntado N cosas de Siri" (`screens/siri/DesdeSiri.tsx`, en memoria).
+  - **Perfil > Siri** (`screens/siri/SeccionSiri.tsx`): crear, copiar, cambiar o quitar el
+    enlace (`organizy:siri`, en `NO_VIAJAN`) y los pasos de los dos Atajos
+    (`services/siri/atajos.ts`; guía del usuario "Fase 09 - Siri con Atajos.md").
+  - Probado el 27/10: la función contra Supabase (apuntar, alarma, hora pasada, formulario,
+    enlace malo, recoger, confirmar, quitar y el Atajo de la noche) y la app en la web a
+    tamaño móvil (crear enlace, recoger 2 frases y 1 alarma, sin duplicar al recargar).
+    **Falta**: que el usuario cree los Atajos y lo pruebe con Siri en su iPhone (si los
+    nombres de las acciones de Atajos no coinciden, ajustar `atajos.ts` y la guía).
 - **Pendiente (27/09/2026)**: el usuario aún no ha probado el micro con su voz en el iPhone.
   Faltan la parte 2 (Siri y Atajos con App Intents: módulo propio en `modules/` con su
   plugin; "apunta en Organizy" pide la frase después, llama a la Edge Function `captura` con
@@ -2157,7 +2201,7 @@ borran solos a los 7 días.
 - [x] 6. Mapa, tráfico y rutas (funcionando con TomTom desde el 27/09/2026; desde el 26/10/2026 sin radares ni guía: abre Waze, Google Maps o Mapas, con parkings cercanos. Ver "Fase 6").
 - [x] 7. Alarmas (en Expo Go son avisos con sonido; las alarmas de verdad están programadas pero sin probar hasta que haya build de EAS: ver "Fase 7").
 - [x] 8. Planes con WhatsApp y votación (servidor y función `votar` ya desplegados: ver "Fase 8").
-- [ ] 9. Voz sin abrir la app y widget.
+- [ ] 9. Voz sin abrir la app y widget (micro en la captura hecho; Siri con Atajos hecho el 27/10/2026; falta lo de la app propia).
 - [x] 10. Recordatorios a clientes por WhatsApp (hecha el 27/09/2026 y **quitada el 26/10/2026**: ver "Fase 10").
 - [x] 11. Correo: plazos al calendario y resúmenes con aviso (27/09/2026; "Vincular con Gmail / Outlook" y QR del ayudante el 28/09; falta que el usuario registre Organizy en Google y Microsoft y lo pruebe: ver "Fase 11").
 - [x] 15. Organizy grupal como plan extra ("Plan empresa", 29/09/2026; **quitado el 26/10/2026**: ver "Fase 15").

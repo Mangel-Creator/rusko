@@ -25,6 +25,7 @@ import { iniciarNube } from '@/services/nube';
 import { iniciarPlanes } from '@/services/planes';
 import { irACita } from '@/services/rutas/abrir';
 import { iniciarTrafico } from '@/services/rutas/actualizar';
+import { iniciarSiri } from '@/services/siri';
 // Registra la tarea de navegación con el móvil bloqueado (solo en la app propia).
 import { colores } from '@/theme';
 
@@ -82,6 +83,8 @@ export default function LayoutRaiz() {
   useEffect(() => iniciarCalendarios(), []);
   // Tu cuenta (27/10/2026): sube lo de aquí a la nube y trae lo de tus otros dispositivos.
   useEffect(() => iniciarNube(), []);
+  // Siri con Atajos (27/10/2026): apunta lo que se le dijo a Siri, al abrir y al volver.
+  useEffect(() => iniciarSiri(), []);
 
   useEffect(() => {
     if (listo) {

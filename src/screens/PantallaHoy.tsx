@@ -38,6 +38,7 @@ import { colores, colorEvento, espacio, fuentes, radio } from '@/theme';
 
 import { CapturaRapida } from './captura/CapturaRapida';
 import { ConfirmacionMovidas } from './calendario/ConfirmacionMovidas';
+import { DesdeSiri } from './siri/DesdeSiri';
 import { FilaEvento } from './calendario/FilaEvento';
 import { SalidaSiguiente } from './calendario/SalidaSiguiente';
 import { abrirEvento, nuevoEvento, rangoHoras } from './calendario/textos';
@@ -174,6 +175,7 @@ export function PantallaHoy() {
         ) : (
           <>
             <ConfirmacionMovidas />
+            <DesdeSiri />
 
             {nada ? (
               <View style={estilos.vacio}>

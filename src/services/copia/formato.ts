@@ -55,6 +55,8 @@ const NO_VIAJAN = new Set([
   // Enlace del Atajo que pasa las alarmas al Reloj (26/10/2026): otra llave, atada a la
   // sesión de este dispositivo. En otro móvil se crea uno nuevo.
   'alarmasReloj',
+  // Enlace de los Atajos de Siri (27/10/2026): también es una llave de este dispositivo.
+  'siri',
   // Plan empresa (fase 15): lo de la empresa es de la sesión de empresa de cada
   // dispositivo (y está en el servidor). En otro móvil se vuelve a entrar.
   'empresaModo',

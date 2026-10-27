@@ -464,3 +464,6 @@ verify_jwt = false
 # que deja entrar es su llave personal (solo lectura). La app sube las alarmas con su sesión.
 [functions.alarmas-reloj]
 verify_jwt = false
+
+[functions.siri]
+verify_jwt = false

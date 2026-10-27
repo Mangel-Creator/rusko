@@ -35,6 +35,7 @@ import { SeccionCopia } from './perfil/SeccionCopia';
 import { SeccionCuenta } from './perfil/SeccionCuenta';
 import { SeccionEpocas } from './perfil/SeccionEpocas';
 import { SeccionIA } from './perfil/SeccionIA';
+import { SeccionSiri } from './siri/SeccionSiri';
 
 type EstadosPermisos = Record<Permiso, EstadoPermiso | undefined>;
 
@@ -192,6 +193,10 @@ export function PantallaPerfil() {
 
       <Plegable titulo="Tus otros calendarios" icono="calendar-outline">
         <SeccionCalendarios />
+      </Plegable>
+
+      <Plegable titulo="Siri" icono="mic-outline">
+        <SeccionSiri />
       </Plegable>
 
       <Plegable titulo="Copia de seguridad" icono="cloud-upload-outline">

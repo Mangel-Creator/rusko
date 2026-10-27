@@ -23,6 +23,8 @@ import { clienteAdmin, usuarioDeLaPeticion } from '../_shared/usuario.ts';
 
 const VENTANA_MS = 24 * 3600 * 1000;
 const MAX_ALARMAS = 200;
+// La misma que pone la app a las alarmas pedidas a Siri (services/siri).
+const ETIQUETA_SIRI = 'Alarma de Siri';
 
 type AlarmaReloj = { cuando: string; hora: string; etiqueta: string };
 
@@ -81,7 +83,15 @@ async function paraElAtajo(req: Request): Promise<Response> {
   }
   if (!data) return texto('Enlace no válido', 404);
   await admin.from('alarmas_reloj').update({ ultima_lectura: new Date().toISOString() }).eq('usuario', data.usuario);
-  return texto(textoParaAtajo((data.alarmas ?? []) as AlarmaReloj[], Date.now()));
+  // Las que se pidieron a Siri (función siri) y Rusko aún no ha recogido: si no, el Atajo
+  // de la noche las borraría del Reloj sin volver a crearlas.
+  const { data: deSiri } = await admin
+    .from('siri_buzon')
+    .select('cuando, hora')
+    .eq('usuario', data.usuario)
+    .eq('tipo', 'alarma');
+  const pendientes = (deSiri ?? []).map((a) => ({ cuando: a.cuando, hora: a.hora, etiqueta: ETIQUETA_SIRI }));
+  return texto(textoParaAtajo([...((data.alarmas ?? []) as AlarmaReloj[]), ...pendientes], Date.now()));
 }
 
 Deno.serve(async (req) => {
