@@ -70,7 +70,13 @@ export function eleccionDesdeLugar(lugar: LugarEvento | null | undefined): Elecc
   return 'otro';
 }
 
-export function borradorDesdeEpoca(epoca: Epoca | null, perfil: Perfil | null, hoy: ClaveDia): BorradorEpoca {
+// `dorada` solo cuenta al crear: "Crear un plan" la empieza en false y "Crear Época Dorada" en true.
+export function borradorDesdeEpoca(
+  epoca: Epoca | null,
+  perfil: Perfil | null,
+  hoy: ClaveDia,
+  dorada = true,
+): BorradorEpoca {
   if (!epoca) {
     return {
       id: null,
@@ -79,7 +85,7 @@ export function borradorDesdeEpoca(epoca: Epoca | null, perfil: Perfil | null, h
       inicio: hoy,
       cuandoEmpezar: 'recomendado',
       fin: sumarDias(hoy, 14),
-      dorada: true,
+      dorada,
       levantarse: perfil?.horario.levantarse ?? '07:30',
       acostarse: perfil?.horario.acostarse ?? '23:30',
       lugar: 'casa',

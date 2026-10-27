@@ -108,7 +108,15 @@ export function SeccionEpocas() {
       {grupo('Programadas', programadas)}
       {grupo('Pasadas', pasadas)}
 
-      <Boton titulo="Nuevo plan de estudio" onPress={() => router.push('/epoca-editar')} />
+      <Boton
+        titulo="Nuevo plan de estudio"
+        onPress={() => router.push({ pathname: '/epoca-editar', params: { modo: 'plan' } })}
+      />
+      <Boton
+        variante="secundario"
+        titulo="Nueva Época dorada"
+        onPress={() => router.push({ pathname: '/epoca-editar', params: { modo: 'dorada' } })}
+      />
 
       <Texto secundario style={estilos.separado}>
         Una época de ejemplo con tres exámenes, para probar el modo sin rellenar nada.

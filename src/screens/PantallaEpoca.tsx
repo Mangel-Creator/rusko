@@ -110,10 +110,18 @@ function SinEpoca({ epocas, hoy }: { epocas: Epoca[]; hoy: string }) {
         día a día, con descansos, que respeta lo que ya tienes en el calendario. Te digo cuándo conviene empezar.
       </Texto>
       <Texto secundario>
-        Si quieres, ese día pasas a Época dorada: tu horario, tu sitio y la hora de dormir cambian mientras dure. Si
-        no, el plan va dentro de tu día normal.
+        Un plan va dentro de tu día normal. Una Época dorada, además, cambia tu horario, tu sitio y la hora de dormir
+        mientras dure. Puedes cambiar de idea al final del formulario.
       </Texto>
-      <Boton titulo="Crear un plan" onPress={() => router.push('/epoca-editar')} />
+      <Boton
+        titulo="Crear un plan"
+        onPress={() => router.push({ pathname: '/epoca-editar', params: { modo: 'plan' } })}
+      />
+      <Boton
+        variante="secundario"
+        titulo="Crear Época Dorada"
+        onPress={() => router.push({ pathname: '/epoca-editar', params: { modo: 'dorada' } })}
+      />
       {programadas.length > 0 ? (
         <>
           <Titulo nivel={2} style={estilos.seccion}>

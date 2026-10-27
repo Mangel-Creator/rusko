@@ -76,7 +76,8 @@ function volver() {
 }
 
 export function PantallaEpocaFormulario() {
-  const { id, paso } = useLocalSearchParams<{ id?: string; paso?: string }>();
+  // modo=plan (solo plan de estudio) o modo=dorada: con qué empieza una nueva. Por defecto, dorada.
+  const { id, paso, modo } = useLocalSearchParams<{ id?: string; paso?: string; modo?: string }>();
   const { cargado, epocas, registro } = useEpocas();
   const { perfil } = usePerfil();
 
@@ -98,12 +99,13 @@ export function PantallaEpocaFormulario() {
   }
   return (
     <Formulario
-      key={id ?? 'nueva'}
+      key={id ?? `nueva-${modo ?? 'dorada'}`}
       epoca={epoca}
       epocas={epocas}
       registro={registro}
       perfil={perfil}
       pasoInicial={paso === '3' ? 3 : paso === '2' ? 2 : 1}
+      dorada={modo !== 'plan'}
     />
   );
 }
@@ -114,12 +116,13 @@ type Props = {
   registro: RegistroBloque[];
   perfil: Perfil | null;
   pasoInicial: Paso;
+  dorada: boolean;
 };
 
-function Formulario({ epoca, epocas, registro, perfil, pasoInicial }: Props) {
+function Formulario({ epoca, epocas, registro, perfil, pasoInicial, dorada }: Props) {
   const hoy = claveDia(new Date());
   const { eventos } = useEventos();
-  const [borrador, setBorrador] = useState<BorradorEpoca>(() => borradorDesdeEpoca(epoca, perfil, hoy));
+  const [borrador, setBorrador] = useState<BorradorEpoca>(() => borradorDesdeEpoca(epoca, perfil, hoy, dorada));
   const [errores, setErrores] = useState<Errores>({});
   const [paso, setPaso] = useState<Paso>(pasoInicial);
   const [ocupado, setOcupado] = useState(false);
@@ -205,6 +208,9 @@ function Formulario({ epoca, epocas, registro, perfil, pasoInicial }: Props) {
 
       {paso === 1 ? (
         <>
+          {!epoca ? (
+            <Texto secundario fuerte>{b.dorada ? 'Nueva Época dorada' : 'Nuevo plan de estudio'}</Texto>
+          ) : null}
           <Titulo>¿Qué se viene?</Titulo>
           {!epoca ? (
             <CuentameloIA
