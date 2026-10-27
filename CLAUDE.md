@@ -84,7 +84,7 @@ sesión que fuera**:
   principal; después de subir a `main`, haz `git pull` y `npm install` en
   `C:\proyectos\organizy` (lo comprueba `scripts\comprobar-expo-go.ps1`).
 - 24/09/2026 — Carpeta del usuario ordenada en subcarpetas:
-  `C:\Users\usuario\OneDrive\PERSONAL\Organizy` (índice en su `LEEME.md`). Todo lo
+  `C:\Users\usuario\OneDrive\PERSONAL\RUSKO` (índice en su `LEEME.md`). Todo lo
   que no sea código y sea para el usuario va a su subcarpeta, nunca suelto en la raíz:
   `Prompts` (PDF originales y prompts añadidos), `Guías de prueba`
   (`Fase NN - Nombre.md`, una por fase), `Diseño`, `Capturas` (subcarpeta `Fase NN`),
@@ -270,7 +270,7 @@ sesión que fuera**:
   lío para el jefe** (dominio propio con aprobación, o lista de correos / enlace). Lo de la
   empresa se guarda en Supabase: será una **excepción más** a "datos solo en el
   dispositivo" (la apunta la sesión 15 con el detalle). Prompt en
-  `C:\Users\usuario\OneDrive\PERSONAL\Organizy\Prompts\Organizy-15-organizy-grupal.md`.
+  `C:\Users\usuario\OneDrive\PERSONAL\RUSKO\Prompts\Organizy-15-organizy-grupal.md`.
 - 29/09/2026 (ajusta la anterior) — **Organizy grupal es un PLAN EXTRA, el "Plan empresa"**, no
   parte de la app de siempre: se elige en Perfil > "Tu plan" > **"Cambiar de plan"** (Plan
   personal / Plan empresa), con un momento de **"Cambiando de plan…"**. **Por ahora solo se
@@ -310,7 +310,7 @@ sesión que fuera**:
   26/10/2026 de otra forma** (ver esa fecha): sin resúmenes ni elegir qué correos; tope de 100
   correos al día con IA por persona.
 - 29/09/2026 — **Precios: propuesta, sin decidir.** Está en el Word del usuario
-  `OneDrive\PERSONAL\Organizy yo\PLAN DE PRECIOS TEMPORAL.docx` (sesión "Monetización y
+  `OneDrive\PERSONAL\RUSKO yo\PLAN DE PRECIOS TEMPORAL.docx` (sesión "Monetización y
   planes"): Base gratis, Pro, Completo, De por vida Pro y Completo (con mejora pagando la
   diferencia), Familia, recargas de IA y tres planes de empresa. No lo programes ni lo des por
   bueno hasta que el usuario lo confirme.
@@ -450,7 +450,7 @@ sesión que fuera**:
     hice"** con el motivo ("me fui a…"); al saltar un bloque también se puede decir por qué.
 - 27/10/2026 — **La app pasa a llamarse Rusko** (lo decidió el usuario). Logo: galaxia de
   dos brazos naranja y ámbar sobre azul noche, en `assets/images/icono-rusko.svg` (original
-  y colores en `OneDrive\PERSONAL\Organizy\Diseño\Logo Rusko - Galaxia`).
+  y colores en `OneDrive\PERSONAL\RUSKO\Diseño\Logo Rusko - Galaxia`).
   - Todo texto que vea el usuario dice **Rusko**, no Organizy (pantallas, permisos de
     `app.json`, título y manifiesto de la web, avisos). Lo nuevo se escribe ya con Rusko.
   - **Repositorio y web (mismo día, lo pidió el usuario)**: el repositorio es
@@ -2144,7 +2144,7 @@ borran solos a los 7 días.
 - [x] 2. Formulario de bienvenida y perfil.
 - [x] 3. Calendario: pantallas Hoy y Semana.
 - [x] 4. Avisos (notificaciones).
-- [x] 4b. Época dorada: modo para exámenes o épocas de trabajo intenso (prompt en C:\Users\usuario\OneDrive\PERSONAL\Organizy\Prompts\Organizy-04b-epoca-dorada.md)
+- [x] 4b. Época dorada: modo para exámenes o épocas de trabajo intenso (prompt en C:\Users\usuario\OneDrive\PERSONAL\RUSKO\Prompts\Organizy-04b-epoca-dorada.md)
 - [x] 5. Captura rápida con IA. Supabase montado y funciones desplegadas (proyecto `hwemrpexabisyueyizjz`). Falta solo la clave de Anthropic: el usuario la pondrá cuando la app esté terminada (ver "Decisiones del usuario", 26/09/2026).
 - [x] 6. Mapa, tráfico y rutas (funcionando con TomTom desde el 27/09/2026; desde el 26/10/2026 sin radares ni guía: abre Waze, Google Maps o Mapas, con parkings cercanos. Ver "Fase 6").
 - [x] 7. Alarmas (en Expo Go son avisos con sonido; las alarmas de verdad están programadas pero sin probar hasta que haya build de EAS: ver "Fase 7").
