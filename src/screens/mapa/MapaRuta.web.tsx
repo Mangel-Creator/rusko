@@ -4,7 +4,7 @@ import type * as L from 'leaflet';
 import { useEffect, useRef, useState } from 'react';
 import { StyleSheet, View, type HostInstance } from 'react-native';
 
-import { colores, coloresMapa, fuentes } from '@/theme';
+import { coloresMapa, fuentes } from '@/theme';
 
 import { CENTRO_POR_DEFECTO, puntosDeTramo, puntosVisibles, type PropsMapa } from './tipos';
 
@@ -19,41 +19,35 @@ import { CENTRO_POR_DEFECTO, puntosDeTramo, puntosVisibles, type PropsMapa } fro
 
 const CLAVE_MAPA = process.env.EXPO_PUBLIC_TOMTOM_MAPA_KEY ?? '';
 
-// Estilo "navegador" (27/10/2026, el usuario lo quería así, con una imagen de ejemplo):
-// fondo azul marino con las calles en azul claro, ruta blanca con halo cian y marcas
-// cian. Con la clave, el estilo nocturno de TomTom y su tráfico para fondos oscuros;
-// sin ella, el mapa de OpenStreetMap pasado a azul con un filtro (CARTO y Stadia, que
-// dan fondos oscuros hechos, piden cuenta y clave).
+// Estilo "navegador" en modo claro (27/10/2026, el usuario lo quería así): fondo claro y
+// apagado, ruta en azul vivo con borde azul oscuro y marcas en el mismo azul. Con la
+// clave, el estilo normal de TomTom y su tráfico; sin ella, el mapa de OpenStreetMap
+// apagado con un filtro (CARTO y Stadia, que dan fondos así hechos, piden cuenta y clave).
 const ATRIBUCION_OSM = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 const ATRIBUCION_TOMTOM = '© <a href="https://www.tomtom.com">TomTom</a>';
 
-// Los botones + y − y la atribución de Leaflet vienen blancos y cuadrados: se pasan al
-// estilo de la app (redondos y oscuros). Se añade una vez al documento.
+// Los botones + y − y la atribución de Leaflet vienen cuadrados: se pasan al estilo de
+// la app (redondos, blancos y sin sombra). Se añade una vez al documento.
 const CSS_MAPA = `
 .organizy-mapa { background: ${coloresMapa.fondo}; font-family: ${fuentes.texto}, sans-serif; }
-.organizy-fondo-osm { filter: grayscale(1) invert(1) sepia(1) hue-rotate(180deg) saturate(2.5) brightness(0.7) contrast(1.4); }
-.organizy-fondo-tomtom { filter: saturate(1.3); }
+.organizy-fondo-osm { filter: grayscale(0.85) sepia(0.15) hue-rotate(180deg) brightness(1.06) contrast(0.92); }
 .organizy-mapa .leaflet-bar { border: none; box-shadow: none; }
 .organizy-mapa .leaflet-bar a, .organizy-mapa .leaflet-bar a:first-child, .organizy-mapa .leaflet-bar a:last-child {
   width: 40px; height: 40px; line-height: 40px; margin-bottom: 8px;
-  border: 1px solid rgba(56, 211, 255, 0.35); border-radius: 20px; background: rgba(7, 22, 49, 0.85); color: ${colores.texto};
+  border: 1px solid rgba(27, 36, 51, 0.12); border-radius: 20px; background: ${coloresMapa.blanco}; color: ${coloresMapa.texto};
   font: 400 22px ${fuentes.texto}, sans-serif;
 }
-.organizy-mapa .leaflet-bar a:hover { background: ${coloresMapa.fondo}; color: ${coloresMapa.halo}; }
-.organizy-mapa .leaflet-bar a.leaflet-disabled { color: ${colores.textoSecundario}; }
+.organizy-mapa .leaflet-bar a:hover { background: ${coloresMapa.fondo}; color: ${coloresMapa.ruta}; }
+.organizy-mapa .leaflet-bar a.leaflet-disabled { color: ${coloresMapa.textoSecundario}; }
 .organizy-mapa .leaflet-control-attribution {
-  background: rgba(7, 22, 49, 0.75); color: ${colores.textoSecundario};
+  background: rgba(255, 255, 255, 0.85); color: ${coloresMapa.textoSecundario};
   border-radius: 8px 0 0 0; font-size: 10px;
 }
-.organizy-mapa .leaflet-control-attribution a { color: ${colores.texto}; }
+.organizy-mapa .leaflet-control-attribution a { color: ${coloresMapa.texto}; }
 .organizy-mapa .leaflet-tooltip {
-  background: ${colores.elevado}; color: ${colores.texto}; border: none; border-radius: 10px;
-  box-shadow: none; font: 500 13px ${fuentes.texto}, sans-serif;
+  background: ${coloresMapa.blanco}; color: ${coloresMapa.texto}; border: none; border-radius: 10px;
+  box-shadow: 0 1px 4px rgba(27, 36, 51, 0.18); font: 500 13px ${fuentes.texto}, sans-serif;
 }
-.organizy-mapa .leaflet-tooltip-top:before { border-top-color: ${colores.elevado}; }
-.organizy-mapa .leaflet-tooltip-bottom:before { border-bottom-color: ${colores.elevado}; }
-.organizy-mapa .leaflet-tooltip-left:before { border-left-color: ${colores.elevado}; }
-.organizy-mapa .leaflet-tooltip-right:before { border-right-color: ${colores.elevado}; }
 `;
 
 function ponerEstilos() {
@@ -64,13 +58,13 @@ function ponerEstilos() {
   document.head.appendChild(estilo);
 }
 
-// Marcas en cian: tu posición (punto con aro), la salida (aro) y el destino (chincheta
+// Marcas en azul: tu posición (punto con aro), la salida (aro) y el destino (chincheta
 // con aros en la base).
 function iconoPosicion(Lf: typeof L) {
   return Lf.divIcon({
     className: '',
     iconSize: [30, 30],
-    html: `<div style="width:30px;height:30px;border-radius:15px;box-sizing:border-box;border:2px solid ${coloresMapa.halo};background:rgba(56,211,255,.18);display:flex;align-items:center;justify-content:center"><div style="width:12px;height:12px;border-radius:6px;background:${coloresMapa.halo};border:2px solid ${coloresMapa.ruta}"></div></div>`,
+    html: `<div style="width:30px;height:30px;border-radius:15px;background:rgba(47,107,255,.18);display:flex;align-items:center;justify-content:center"><div style="width:16px;height:16px;border-radius:8px;box-sizing:border-box;background:${coloresMapa.ruta};border:3px solid ${coloresMapa.blanco};box-shadow:0 1px 3px rgba(0,0,0,.3)"></div></div>`,
   });
 }
 
@@ -78,7 +72,7 @@ function iconoSalida(Lf: typeof L) {
   return Lf.divIcon({
     className: '',
     iconSize: [18, 18],
-    html: `<div style="width:18px;height:18px;border-radius:9px;box-sizing:border-box;border:3px solid ${coloresMapa.halo};background:${coloresMapa.fondo}"></div>`,
+    html: `<div style="width:18px;height:18px;border-radius:9px;box-sizing:border-box;border:4px solid ${coloresMapa.ruta};background:${coloresMapa.blanco}"></div>`,
   });
 }
 
@@ -87,7 +81,7 @@ function iconoDestino(Lf: typeof L) {
     className: '',
     iconSize: [40, 52],
     iconAnchor: [20, 44],
-    html: `<svg width="40" height="52" viewBox="0 0 40 52" xmlns="http://www.w3.org/2000/svg"><ellipse cx="20" cy="44" rx="15" ry="6" fill="none" stroke="${coloresMapa.halo}" stroke-opacity=".45" stroke-width="1.5"/><ellipse cx="20" cy="44" rx="8" ry="3.2" fill="none" stroke="${coloresMapa.halo}" stroke-width="1.5"/><path d="M20 4c-6.6 0-12 5.2-12 11.7C8 24.5 20 40 20 40s12-15.5 12-24.3C32 9.2 26.6 4 20 4z" fill="${coloresMapa.halo}"/><circle cx="20" cy="15.5" r="4.5" fill="${coloresMapa.fondo}"/></svg>`,
+    html: `<svg width="40" height="52" viewBox="0 0 40 52" xmlns="http://www.w3.org/2000/svg"><ellipse cx="20" cy="44" rx="15" ry="6" fill="none" stroke="${coloresMapa.ruta}" stroke-opacity=".35" stroke-width="1.5"/><ellipse cx="20" cy="44" rx="8" ry="3.2" fill="none" stroke="${coloresMapa.ruta}" stroke-width="1.5"/><path d="M20 4c-6.6 0-12 5.2-12 11.7C8 24.5 20 40 20 40s12-15.5 12-24.3C32 9.2 26.6 4 20 4z" fill="${coloresMapa.ruta}" stroke="${coloresMapa.bordeRuta}" stroke-width="1"/><circle cx="20" cy="15.5" r="4.5" fill="${coloresMapa.blanco}"/></svg>`,
   });
 }
 
@@ -126,12 +120,11 @@ export function MapaRuta({
       nodo.classList.add('organizy-mapa');
       m.attributionControl.setPrefix(false);
       if (CLAVE_MAPA) {
-        Lf.tileLayer(`https://api.tomtom.com/map/1/tile/basic/night/{z}/{x}/{y}.png?key=${CLAVE_MAPA}&language=es-ES`, {
+        Lf.tileLayer(`https://api.tomtom.com/map/1/tile/basic/main/{z}/{x}/{y}.png?key=${CLAVE_MAPA}&language=es-ES`, {
           maxZoom: 19,
-          className: 'organizy-fondo-tomtom',
           attribution: ATRIBUCION_TOMTOM,
         }).addTo(m);
-        Lf.tileLayer(`https://api.tomtom.com/traffic/map/4/tile/flow/relative0-dark/{z}/{x}/{y}.png?key=${CLAVE_MAPA}`, {
+        Lf.tileLayer(`https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=${CLAVE_MAPA}`, {
           maxZoom: 19,
           opacity: 0.9,
         }).addTo(m);
@@ -181,16 +174,16 @@ export function MapaRuta({
     });
     const ruta = rutas[elegida];
     if (ruta) {
-      // Ruta blanca con un halo cian por debajo, como en los navegadores.
-      Lf.polyline(ruta.puntos, { color: coloresMapa.halo, weight: 14, opacity: 0.25 }).addTo(c.rutas);
-      Lf.polyline(ruta.puntos, { color: coloresMapa.ruta, weight: 5 }).addTo(c.rutas);
+      // Ruta azul con un borde más oscuro por debajo, como en los navegadores.
+      Lf.polyline(ruta.puntos, { color: coloresMapa.bordeRuta, weight: 9 }).addTo(c.rutas);
+      Lf.polyline(ruta.puntos, { color: coloresMapa.ruta, weight: 6 }).addTo(c.rutas);
       for (const t of ruta.tramos) {
         Lf.polyline(puntosDeTramo(ruta, t.desde, t.hasta), {
           color: t.nivel === 'atasco' ? coloresMapa.atasco : coloresMapa.denso,
-          weight: 5,
+          weight: 6,
         }).addTo(c.rutas);
       }
-      // Salida: un aro cian (si no se sabe dónde estás, la ruta sale de casa).
+      // Salida: un aro azul (si no se sabe dónde estás, la ruta sale de casa).
       if (!ubicacion) Lf.marker(ruta.puntos[0], { icon: iconoSalida(Lf), keyboard: false }).addTo(c.marcas);
     }
     // Parkings: "P" blanca en un cuadrado azul, como las señales; el elegido, más grande.

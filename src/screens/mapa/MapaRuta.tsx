@@ -14,14 +14,10 @@ import { CENTRO_POR_DEFECTO, puntosDeTramo, puntosVisibles, type PropsMapa } fro
 // tráfico, las alternativas en gris y, si los has pedido, los parkings ("P").
 // En la web se usa MapaRuta.web.tsx.
 //
-// Estilo "navegador" (27/10/2026, el usuario lo quería así, con una imagen de ejemplo):
-// ruta blanca con halo cian y marcas cian. El mapa de Apple no deja cambiar sus colores
-// (la web sí lo pinta de azul marino): aquí va oscuro y "apagado" (mutedStandard), que
-// quita colores y detalles para que destaquen la ruta y el tráfico. Sin brújula ni
-// sitios de interés.
-
-// Halo de la ruta: el cian de las marcas al 25 %.
-const HALO_RUTA = `${coloresMapa.halo}40`;
+// Estilo "navegador" en modo claro (27/10/2026, a petición del usuario): ruta azul con
+// borde azul oscuro y marcas en el mismo azul. El mapa de Apple no deja cambiar sus
+// colores: va claro y "apagado" (mutedStandard), que quita colores y detalles para que
+// destaquen la ruta y el tráfico. Sin brújula ni sitios de interés.
 
 function aLatLng([latitude, longitude]: Punto): LatLng {
   return { latitude, longitude };
@@ -70,7 +66,7 @@ export function MapaRuta({
           latitudeDelta: ubicacion || destino || centroInicial ? 0.08 : 6,
           longitudeDelta: ubicacion || destino || centroInicial ? 0.08 : 6,
         }}
-        userInterfaceStyle="dark"
+        userInterfaceStyle="light"
         mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
         showsUserLocation
         showsTraffic
@@ -93,20 +89,20 @@ export function MapaRuta({
         {ruta ? (
           <Polyline
             coordinates={ruta.puntos.map(aLatLng)}
-            strokeColor={HALO_RUTA}
-            strokeWidth={14}
+            strokeColor={coloresMapa.bordeRuta}
+            strokeWidth={9}
             zIndex={2}
           />
         ) : null}
         {ruta ? (
-          <Polyline coordinates={ruta.puntos.map(aLatLng)} strokeColor={coloresMapa.ruta} strokeWidth={5} zIndex={2} />
+          <Polyline coordinates={ruta.puntos.map(aLatLng)} strokeColor={coloresMapa.ruta} strokeWidth={6} zIndex={2} />
         ) : null}
         {ruta?.tramos.map((t, i) => (
           <Polyline
             key={`tramo-${i}`}
             coordinates={puntosDeTramo(ruta, t.desde, t.hasta).map(aLatLng)}
             strokeColor={t.nivel === 'atasco' ? coloresMapa.atasco : coloresMapa.denso}
-            strokeWidth={5}
+            strokeWidth={6}
             zIndex={3}
           />
         ))}
@@ -125,20 +121,20 @@ export function MapaRuta({
           </Marker>
         ))}
         {ruta && !ubicacion ? (
-          // Salida (si no se sabe dónde estás, la ruta sale de casa): un aro cian.
+          // Salida (si no se sabe dónde estás, la ruta sale de casa): un aro azul.
           <Marker coordinate={aLatLng(ruta.puntos[0])} anchor={{ x: 0.5, y: 0.5 }} tracksViewChanges={false}>
             <View style={estilos.salida} />
           </Marker>
         ) : null}
         {destino ? (
-          // Destino: chincheta cian con un aro en la base.
+          // Destino: chincheta azul con un aro en la base.
           <Marker
             coordinate={aLatLng(destino)}
             anchor={{ x: 0.5, y: 0.9 }}
             tracksViewChanges={false}
             title="Destino">
             <View style={estilos.destino}>
-              <Ionicons name="location" size={36} color={coloresMapa.halo} />
+              <Ionicons name="location" size={36} color={coloresMapa.ruta} />
               <View style={estilos.destinoAro} />
             </View>
           </Marker>
@@ -167,9 +163,9 @@ const estilos = StyleSheet.create({
     width: 18,
     height: 18,
     borderRadius: 9,
-    borderWidth: 3,
-    borderColor: coloresMapa.halo,
-    backgroundColor: coloresMapa.fondo,
+    borderWidth: 4,
+    borderColor: coloresMapa.ruta,
+    backgroundColor: coloresMapa.blanco,
   },
   destino: { width: 40, height: 46, alignItems: 'center' },
   destinoAro: {
@@ -178,6 +174,6 @@ const estilos = StyleSheet.create({
     marginTop: -6,
     borderRadius: 11,
     borderWidth: 1.5,
-    borderColor: coloresMapa.halo,
+    borderColor: coloresMapa.ruta,
   },
 });
