@@ -34,7 +34,7 @@ import {
   saludoSegunHora,
   sumarDias,
 } from '@/services/fechas';
-import { cifras, colores, colorEvento, espacio, fuentes, radio, tamanos } from '@/theme';
+import { colores, colorEvento, espacio, fuentes, radio } from '@/theme';
 
 import { CapturaRapida } from './captura/CapturaRapida';
 import { ConfirmacionMovidas } from './calendario/ConfirmacionMovidas';
@@ -56,7 +56,7 @@ type FilaTareaLista = { tarea: Evento; detalle: string; apagada?: boolean };
 
 // Hoy (26/10/2026, lo pidió el usuario: "quita todo y que solo aparezcan las cosas que
 // tienes ese día"): la fecha, la captura rápida siempre a mano y, debajo, lo de hoy por
-// orden de hora. Lo siguiente sale en su sitio como la tarjeta naranja. Luego las tareas
+// orden de hora. Arriba, el cuadro naranja con el día y lo siguiente. Luego las tareas
 // del día y, si hay época dorada, su estudio. Arriba, la fecha, el saludo y las acciones
 // rápidas (Apuntar, Dictar, Planes y Alarmas), como antes (lo pidió el usuario el 27/10).
 export function PantallaHoy() {
@@ -105,7 +105,6 @@ export function PantallaHoy() {
   const reparto = repartirTareas(pendientes, duracionTarea, calcularHuecos(ocupados, quedan, 15), energia, rindeMas);
   const hechasHoy = eventos.filter((e) => e.flexible && e.hecha && e.fecha === hoy);
   const siguiente = siguienteEvento(eventos, ahora);
-  const siguienteHoy = siguiente && siguiente.dia === hoy ? siguiente : null;
   const minutoActual = minutosDelDia(ahora);
 
   const filasTareas: FilaTareaLista[] = [
@@ -129,15 +128,15 @@ export function PantallaHoy() {
   return (
     <View style={estilos.contenedor}>
       <Pantalla contentContainerStyle={estilos.contenido}>
-        {/* Cabecera: la fecha y el Perfil, y el saludo gigante. */}
+        {/* Cabecera: el saludo y el Perfil, y debajo el cuadro naranja con el día. */}
         <View style={estilos.cabecera}>
           <View style={estilos.cabeceraFila}>
             <Texto secundario style={estilos.fecha}>
-              {formatearDiaCorto(ahora)}
+              {saludoSegunHora(ahora, nombre)}
             </Texto>
             <BotonInicial nombre={nombre} onPress={() => router.push('/perfil')} />
           </View>
-          <Titulo style={estilos.saludo}>{saludoSegunHora(ahora, nombre)}</Titulo>
+          <TarjetaDia siguiente={cargado ? siguiente : null} hoy={hoy} perfil={perfil} ahora={ahora} />
         </View>
 
         {/* Acciones rápidas, como en una app de banco: lo que más se hace, a un toque. */}
@@ -190,11 +189,7 @@ export function PantallaHoy() {
                 <View style={separacion}>
                   {delDia.map((evento) => (
                     <Animated.View key={evento.id} layout={RECOLOCAR} entering={APARECER} exiting={DESAPARECER}>
-                      {siguienteHoy && siguienteHoy.evento.id === evento.id ? (
-                        <TarjetaSiguiente siguiente={siguienteHoy} hoy={hoy} perfil={perfil} ahora={ahora} />
-                      ) : (
-                        <FilaEvento evento={evento} pasado={intervaloDe(evento).fin <= minutoActual} />
-                      )}
+                      <FilaEvento evento={evento} pasado={intervaloDe(evento).fin <= minutoActual} />
                     </Animated.View>
                   ))}
                 </View>
@@ -252,16 +247,32 @@ export function PantallaHoy() {
   );
 }
 
-// Lo siguiente (o lo que está en curso): la tarjeta destacada de Hoy, con degradado
-// naranja y la hora en grande, como el saldo de una cuenta. Texto oscuro encima.
-type PropsSiguiente = {
-  siguiente: Siguiente;
+// El cuadro naranja de arriba (27/10/2026, lo pidió el usuario): el día en grande
+// ("Martes 27 oct"), como el saldo de una cuenta, y debajo lo siguiente que tienes
+// (aunque sea mañana), con "Cómo llegar". Texto oscuro encima del degradado.
+type PropsDia = {
+  siguiente: Siguiente | null;
   hoy: string;
   perfil: Perfil | null;
   ahora: Date;
 };
 
-function TarjetaSiguiente({ siguiente, hoy, perfil, ahora }: PropsSiguiente) {
+function TarjetaDia({ siguiente, hoy, perfil, ahora }: PropsDia) {
+  const dia = formatearDiaCorto(ahora);
+  const titular = dia.charAt(0).toLocaleUpperCase('es-ES') + dia.slice(1).toLocaleLowerCase('es-ES');
+  return (
+    <Tarjeta destacada="naranja" style={estilos.siguiente}>
+      <Titulo style={estilos.cifra}>{titular}</Titulo>
+      {siguiente ? (
+        <LoSiguiente siguiente={siguiente} hoy={hoy} perfil={perfil} ahora={ahora} />
+      ) : (
+        <Texto style={estilos.sobreDegradado}>No tienes nada más apuntado.</Texto>
+      )}
+    </Tarjeta>
+  );
+}
+
+function LoSiguiente({ siguiente, hoy, perfil, ahora }: PropsDia & { siguiente: Siguiente }) {
   const { evento, dia, enCurso } = siguiente;
   const cuando = enCurso
     ? 'Ahora mismo'
@@ -270,23 +281,19 @@ function TarjetaSiguiente({ siguiente, hoy, perfil, ahora }: PropsSiguiente) {
       : dia === sumarDias(hoy, 1)
         ? 'Mañana'
         : formatearDiaCorto(fechaDesdeClave(dia));
-  // Nombre del sitio (Casa, Trabajo...) y debajo su dirección.
+  // Nombre del sitio (Casa, Trabajo...) y su dirección.
   const lugar = resolverLugar(evento.lugar, perfil);
 
   return (
-    <Tarjeta destacada="naranja" style={estilos.siguiente}>
+    <>
       <Pressable
         accessibilityRole="button"
         accessibilityLabel={`${cuando}: ${evento.titulo}, ${rangoHoras(evento)}`}
         onPress={() => abrirEvento(evento.id)}
         style={({ pressed }) => [estilos.siguienteTextos, pressed && estilos.pulsado]}>
         <Texto pequeno style={estilos.cuando}>
-          {cuando}
+          {cuando} · {rangoHoras(evento)}
         </Texto>
-        <View style={estilos.cifraFila}>
-          <Texto style={estilos.cifra}>{evento.horaInicio}</Texto>
-          <Texto style={estilos.hasta}>hasta {evento.horaFin}</Texto>
-        </View>
         <Titulo nivel={3} style={estilos.sobreDegradado}>
           {evento.titulo}
         </Titulo>
@@ -298,7 +305,7 @@ function TarjetaSiguiente({ siguiente, hoy, perfil, ahora }: PropsSiguiente) {
       </Pressable>
       {/* "Sal a las 10:05 · 18 min en coche" y "Cómo llegar" (fase 6). */}
       <SalidaSiguiente evento={evento} dia={dia} enCurso={enCurso} ahora={ahora} />
-    </Tarjeta>
+    </>
   );
 }
 
@@ -352,13 +359,11 @@ const estilos = StyleSheet.create({
   contenido: { paddingBottom: espacio.xxl, gap: espacio.l - 4 },
   cabecera: { gap: espacio.m, paddingBottom: espacio.s },
   cabeceraFila: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between', gap: espacio.m },
-  fecha: { fontFamily: fuentes.textoMedio, textTransform: 'capitalize' },
-  // Saludo gigante y apretado, como el titular de una página.
-  saludo: { fontSize: 40, lineHeight: 44, letterSpacing: -1.6 },
+  fecha: { fontFamily: fuentes.textoMedio },
   seccion: { gap: espacio.m, marginTop: espacio.s },
   vacio: { alignItems: 'center', gap: espacio.s, paddingVertical: espacio.xl },
   centrado: { textAlign: 'center' },
-  siguiente: {},
+  siguiente: { gap: espacio.s },
   siguienteTextos: { gap: 2 },
   cuando: {
     color: colores.textoOscuro,
@@ -366,19 +371,13 @@ const estilos = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 0.6,
   },
-  cifraFila: { flexDirection: 'row', alignItems: 'baseline', gap: espacio.s },
+  // El día, en grande y apretado, como el saldo de una cuenta.
   cifra: {
-    ...cifras,
     color: colores.textoOscuro,
     fontFamily: fuentes.tituloFuerte,
-    fontSize: tamanos.cifra + 8,
-    lineHeight: tamanos.cifra + 14,
-    letterSpacing: -2,
-  },
-  hasta: {
-    ...cifras,
-    color: colores.textoOscuro,
-    fontFamily: fuentes.textoMedio,
+    fontSize: 40,
+    lineHeight: 44,
+    letterSpacing: -1.6,
   },
   sobreDegradado: { color: colores.textoOscuro },
   pulsado: { opacity: 0.85, transform: [{ scale: 0.99 }] },

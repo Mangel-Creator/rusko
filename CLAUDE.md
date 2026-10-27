@@ -401,6 +401,11 @@ sesión que fuera**:
   Revolut): **Apuntar** pone el cursor en la captura (`enfocar`), **Dictar** empieza a
   escuchar, **Planes** y **Alarmas**. La captura sigue abierta debajo, sin `autoFocus`
   (si no, sacaría el teclado cada vez que se abre Hoy).
+  Ese mismo día, también a petición suya: el día va **dentro de un cuadro naranja**
+  (`TarjetaDia`, degradado como el de antes): "Martes 27 oct" en grande y debajo lo
+  siguiente que tengas, aunque sea mañana, con "Cómo llegar". El saludo ("¿Qué toca hoy,
+  Miguel?") queda pequeño arriba, junto al Perfil. La lista del día ya no repite lo
+  siguiente en naranja: todo va en filas normales.
 - 26/10/2026 (sustituye a "elige qué correos resume" del 29/09) — **Correo sin resúmenes.**
   El usuario prefirió que la IA no resuma: de cada correo solo **de qué va y el día que
   importa** (un plazo, una cita o un cargo), y que **avise solo de lo que importa**:
@@ -666,12 +671,11 @@ con el naranja y el rojo del tráfico.
   izquierda, título y lugar en el centro, hora de inicio grande y en negrita a la derecha
   (y la de fin debajo). Cada fila es una tarjeta redondeada (radio 20); las pasadas,
   sin fondo y en gris.
-- **Hoy** (27/10/2026): arriba la fecha pequeña ("Martes 27 oct") y el botón de Perfil;
-  debajo, el saludo gigante (40 px) y las **acciones rápidas** (`AccionesRapidas`): cuatro
+- **Hoy** (27/10/2026): arriba el saludo pequeño y el botón de Perfil; debajo, el cuadro
+  naranja con el día en grande (40 px, "Martes 27 oct") y lo siguiente, y las **acciones rápidas** (`AccionesRapidas`): cuatro
   botones redondos con una palabra debajo, Apuntar (naranja), Dictar, Planes y Alarmas.
-  Luego la captura rápida abierta y la lista del día. Lo siguiente es la tarjeta con degradado naranja → ámbar:
-  "LO SIGUIENTE", la hora en grande, título y lugar en `textoOscuro` y "Cómo llegar" en
-  píldora oscura. Sin `BotonFlotante`. El aviso de "añádela a la pantalla de inicio" va
+  Luego la captura rápida abierta y la lista del día. El cuadro naranja lleva el texto en
+  `textoOscuro` y "Cómo llegar" en píldora oscura. Sin `BotonFlotante`. El aviso de "añádela a la pantalla de inicio" va
   al final de Hoy, no arriba.
 - **Todo lo que se pulsa se parece**: botones y chips en píldora; botones de solo icono,
   redondos (micrófono, enviar, "+", − y +); iconos de contenido dentro de un círculo.
