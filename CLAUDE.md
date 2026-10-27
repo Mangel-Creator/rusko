@@ -253,9 +253,13 @@ sesión que fuera**:
   "prueba" de Google: solo para los usuarios de prueba que él añada (hasta 100) y hay que
   volver a entrar cada 7 días; para abrirlo a todo el mundo haría falta la verificación de
   Google con auditoría de pago.
-  **Pendiente del usuario** (28/09/2026, lo dejó para más adelante): registrar Organizy en
-  Google y Microsoft (parte A de la guía). Es gratis. No se lo vuelvas a pedir; si pregunta,
-  los pasos están en su guía "Fase 11 - Correo.md".
+  **Gmail activado el 27/10/2026**: el usuario creó el proyecto `RUSKO` (id `rusko-512918`)
+  en Google Cloud, sin facturación, con la Gmail API, pantalla de permiso "Rusko" (Externo,
+  en prueba, él como usuario de prueba), `gmail.readonly` y un cliente web con la redirección
+  de arriba; guardó `GOOGLE_CLIENT_ID`/`_SECRET` en Supabase. Comprobado: `estado` da
+  `gmail: true` y Google acepta el enlace de `empezar`. **Outlook sigue sin registrar**
+  (parte A2 de la guía): no se lo vuelvas a pedir; si pregunta, los pasos están en su guía
+  "Fase 11 - Correo.md".
 - 28/09/2026 — **Dejar la app preparada para subirla a la App Store y a Google Play.**
   Identificador de la app en las dos tiendas: `com.mangelcreator.organizy` (en
   `app.json`; no se cambia después de publicar). Lo que pide cada tienda está en "Fase 7"
