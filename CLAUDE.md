@@ -491,6 +491,15 @@ sesión que fuera**:
   alarma) espera en Supabase hasta que Rusko lo recoge al abrirse y se borra entonces (si
   no, a los 7 días). Ver "Fase 9" > "Siri con Atajos". Con app propia, en el futuro, App
   Intents (Siri directo, sin servidor).
+- 27/10/2026 — **Pestaña Correo: todo a la vista, "¿Eliminar cita?", vetados y Resúmenes**
+  (sesión "12 Correo"; lo pidió el usuario). Todo correo sale en la pestaña aunque se haya
+  apuntado; en lo apuntado, "¿Eliminar cita?" a la vista (si no le afecta, se borra y no
+  vuelve); **vetar remitentes por dirección**: no salen **nada** en Rusko (ni pestaña, ni
+  avisos, ni tareas ni citas), en Gmail siguen igual; bandeja **Resúmenes** para lo importante
+  sin fecha, que se llenará al poner la clave de Anthropic. Y **lo que tenga fecha, al
+  calendario, también sin IA**: las reglas apuntan citas (cita, reunión, examen…) y cualquier
+  fecha escrita con año; con hora, como cita. Un falso positivo cuesta poco ("Eliminar"). Ver
+  "Fase 11" > "Pestaña Correo ampliada".
 
 ## Cómo prueba el usuario en el iPhone
 
@@ -1946,6 +1955,50 @@ borran solos a los 7 días.
   tarea creada, "Nuevo", "No es un plazo" y la casilla. La función `correo`, el alta anónima
   y su renovación, probadas contra Supabase. **Falta**: que el usuario instale el ayudante y
   lo pruebe con su Gmail y los avisos en el iPhone.
+- **Pestaña Correo ampliada** (27/10/2026, sesión "12 Correo"; ver "Decisiones del usuario"):
+  - **Tres bandejas** (`Selector` arriba, `bandejasCorreo` en `services/correo/correos.ts`):
+    **Todo** (todos los correos por día, también los que se apuntaron: nunca desaparecen de la
+    pestaña por eso), **Con fecha** (lo apuntado de hoy en adelante y, debajo, "Ya pasados") y
+    **Resúmenes** (importantes sin fecha: `importante` y la línea `resumen` de la IA o "Avisarme
+    siempre de…"). Sin ningún correo `via: 'ia'` (`iaEncendida`), Resúmenes dice que se llenará
+    sola al encender la IA.
+  - **"¿Eliminar cita?"** (o "¿Eliminar tarea?" si no tiene hora) siempre a la vista en cada
+    correo cuya cita o tarea sigue en el calendario sin hacer (`FilaCorreo`, prop `apuntado`).
+    "Eliminar" = `quitarPlazo`: borra lo creado y marca `noEsPlazo`, así no se vuelve a crear;
+    la fila dice "No está en tu calendario" y, al abrirla, "Volver a apuntar…" (`volverAApuntar`).
+  - **Remitentes vetados** (Plegable "Remitentes vetados", `screens/correo/VetadosCorreo.tsx`, y
+    "Vetar <dirección>" con confirmación al abrir un correo): solo direcciones exactas
+    (`esDireccion`), en minúsculas, como mucho 100, en `organizy:correoVetados` (viaja en la copia).
+    Lo vetado **no sale nada en Rusko**: `vetarDireccion` quita lo ya guardado de esa dirección y
+    borra sus tareas y citas sin hacer; `mezclarCorreos` lo filtra; la lista va con cada petición
+    (`vetados`, junto a `siempre`). Servidor: `correo_cuentas.vetados` (la misma lista en todas las
+    cuentas de la persona); `revisarCuenta` da por vistos los vetados sin guardarlos ni avisar y
+    `estado` no devuelve los guardados (`correo_resumenes.de_email`). Ayudante: igual con su
+    propiedad `vetados`. Quitar el veto no recupera lo que llegó mientras estaba vetado. Los
+    correos de antes del 27/10 no traen la dirección: solo se quitan si el remitente era la
+    dirección tal cual. En Gmail no cambia nada.
+  - **Citas sin IA** (lo pidió el usuario: un correo con "11/11/2026" no se apuntaba):
+    `fechaLimiteEn` ahora acepta también las palabras de cita (`CITA_FUERTE`: cita, reunión,
+    examen, consulta, quedamos, nos vemos, cena, comida, entrevista, reserva, visita, clase,
+    partido, cumpleaños, viaje, vuelo, revisión…; `el día` solo con fecha escrita) y **cualquier
+    fecha escrita con año** de mañana en adelante aunque no haya palabra (con año y de hoy no,
+    para no apuntar "Fecha del pedido: <hoy>"). `horaEn` saca la hora que va justo detrás
+    ("a las 10", "17:30", "a las 9 de la noche"; "a las 1-7" sin más = de tarde). Con hora se
+    apunta como **cita de 1 h** (tipo Yo, `flexible: false`, hasta las 23:59) y el aviso dice
+    "Te lo he apuntado en el calendario"; sin hora, tarea de 30 min como antes. Campo `hora`
+    en `CorreoRemoto` y columna `correo_resumenes.hora`. La IA aún no da la hora (`hora: null`).
+  - Lo apunta **la app** (`crearTareas` dentro de `actualizarCorreos`) cada vez que trae los
+    correos: al abrir Rusko, al volver a ella, al llegar un aviso de correo y al entrar en
+    Correo. El servidor y el ayudante solo guardan el correo y avisan.
+  - Migración `20261027020000_correo_vetados.sql` (solo añade `vetados`, `de_email` y `hora`),
+    ya aplicada; `correo-cuentas` desplegada; ayudante regenerado (**el usuario tiene que pegarlo
+    otra vez** y hacer "Nueva versión" para que el ayudante vete y saque horas).
+  - Probado el 27/10 en la web a tamaño móvil con un ayudante simulado: cita con hora creada a
+    las 10:00-11:00, tareas sin hora, "Eliminar" (tarea borrada, "No está en tu calendario"),
+    vetar una dirección (fuera de la pestaña y sus tareas borradas, y la lista llega en la
+    petición) y Resúmenes vacío con la frase de la IA. Tras desplegar, la revisión del servidor
+    siguió en marcha. **Falta**: probarlo con su Gmail de verdad (un correo **nuevo**: el de
+    11/11 ya se dio por visto y no se vuelve a mirar).
 
 ## Otros calendarios (27/09/2026)
 
