@@ -11,16 +11,58 @@ import { CENTRO_POR_DEFECTO, puntosDeTramo, puntosVisibles, type PropsMapa } fro
 // Mapa de la web con Leaflet. Leaflet necesita el navegador, así que se carga al
 // montar el componente (no al compilar la web estática).
 //
-// Fondo del mapa y capa de tráfico de todas las carreteras: TomTom, con una clave
+// Capa de tráfico de todas las carreteras: TomTom, con una clave
 // PÚBLICA restringida a la web de Organizy y solo a mapas (EXPO_PUBLIC_TOMTOM_MAPA_KEY).
 // Esa clave no sirve para calcular rutas (eso va por el servidor) y, como la cuenta de
-// TomTom no tiene tarjeta, no puede generar gasto. Sin ella, el fondo es el de
-// OpenStreetMap y no hay capa de tráfico (solo los tramos de la ruta).
+// TomTom no tiene tarjeta, no puede generar gasto. Sin ella no hay capa de tráfico
+// (solo los tramos de la ruta).
 
 const CLAVE_MAPA = process.env.EXPO_PUBLIC_TOMTOM_MAPA_KEY ?? '';
 
+// Fondo oscuro (27/10/2026, el usuario lo quería "más moderno, no de cartografía"):
+// con la clave, el estilo nocturno de TomTom y su tráfico para fondos oscuros; sin
+// ella, el mapa de OpenStreetMap pasado a oscuro con un filtro (CARTO y Stadia, que lo
+// dan ya oscuro, piden cuenta y clave). Los dos van algo apagados para que destaquen
+// la ruta y el tráfico.
 const ATRIBUCION_OSM = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>';
 const ATRIBUCION_TOMTOM = '© <a href="https://www.tomtom.com">TomTom</a>';
+
+// Los botones + y − y la atribución de Leaflet vienen blancos y cuadrados: se pasan al
+// estilo de la app (redondos y oscuros). Se añade una vez al documento.
+const CSS_MAPA = `
+.organizy-mapa { background: ${colores.fondo}; font-family: ${fuentes.texto}, sans-serif; }
+.organizy-fondo-osm { filter: invert(1) hue-rotate(180deg) grayscale(0.85) brightness(0.8) contrast(1.15); }
+.organizy-fondo-tomtom { filter: grayscale(0.7) brightness(0.9); }
+.organizy-mapa .leaflet-bar { border: none; box-shadow: none; }
+.organizy-mapa .leaflet-bar a, .organizy-mapa .leaflet-bar a:first-child, .organizy-mapa .leaflet-bar a:last-child {
+  width: 40px; height: 40px; line-height: 40px; margin-bottom: 8px;
+  border: none; border-radius: 20px; background: ${colores.elevado}; color: ${colores.texto};
+  font: 400 22px ${fuentes.texto}, sans-serif;
+}
+.organizy-mapa .leaflet-bar a:hover { background: ${colores.tintaSuave}; color: ${colores.texto}; }
+.organizy-mapa .leaflet-bar a.leaflet-disabled { background: ${colores.tarjeta}; color: ${colores.textoSecundario}; }
+.organizy-mapa .leaflet-control-attribution {
+  background: rgba(15, 13, 12, 0.7); color: ${colores.textoSecundario};
+  border-radius: 8px 0 0 0; font-size: 10px;
+}
+.organizy-mapa .leaflet-control-attribution a { color: ${colores.texto}; }
+.organizy-mapa .leaflet-tooltip {
+  background: ${colores.elevado}; color: ${colores.texto}; border: none; border-radius: 10px;
+  box-shadow: none; font: 500 13px ${fuentes.texto}, sans-serif;
+}
+.organizy-mapa .leaflet-tooltip-top:before { border-top-color: ${colores.elevado}; }
+.organizy-mapa .leaflet-tooltip-bottom:before { border-bottom-color: ${colores.elevado}; }
+.organizy-mapa .leaflet-tooltip-left:before { border-left-color: ${colores.elevado}; }
+.organizy-mapa .leaflet-tooltip-right:before { border-right-color: ${colores.elevado}; }
+`;
+
+function ponerEstilos() {
+  if (document.getElementById('organizy-mapa-css')) return;
+  const estilo = document.createElement('style');
+  estilo.id = 'organizy-mapa-css';
+  estilo.textContent = CSS_MAPA;
+  document.head.appendChild(estilo);
+}
 
 type Capas = { rutas: L.LayerGroup; parkings: L.LayerGroup; marcas: L.LayerGroup };
 
@@ -53,18 +95,23 @@ export function MapaRuta({
         centro,
         ubicacion || destino || centroInicial ? 13 : 6,
       );
+      ponerEstilos();
+      nodo.classList.add('organizy-mapa');
+      m.attributionControl.setPrefix(false);
       if (CLAVE_MAPA) {
-        Lf.tileLayer(`https://api.tomtom.com/map/1/tile/basic/main/{z}/{x}/{y}.png?key=${CLAVE_MAPA}&language=es-ES`, {
+        Lf.tileLayer(`https://api.tomtom.com/map/1/tile/basic/night/{z}/{x}/{y}.png?key=${CLAVE_MAPA}&language=es-ES`, {
           maxZoom: 19,
+          className: 'organizy-fondo-tomtom',
           attribution: ATRIBUCION_TOMTOM,
         }).addTo(m);
-        Lf.tileLayer(`https://api.tomtom.com/traffic/map/4/tile/flow/relative0/{z}/{x}/{y}.png?key=${CLAVE_MAPA}`, {
+        Lf.tileLayer(`https://api.tomtom.com/traffic/map/4/tile/flow/relative0-dark/{z}/{x}/{y}.png?key=${CLAVE_MAPA}`, {
           maxZoom: 19,
-          opacity: 0.85,
+          opacity: 0.9,
         }).addTo(m);
       } else {
         Lf.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
           maxZoom: 19,
+          className: 'organizy-fondo-osm',
           attribution: ATRIBUCION_OSM,
         }).addTo(m);
       }

@@ -1237,6 +1237,13 @@ borran solos a los 7 días.
   `TOMTOM_MAPA_KEY` → `EXPO_PUBLIC_TOMTOM_MAPA_KEY` (pages.yml); sirve para el fondo del mapa
   y la capa de tráfico de todas las carreteras. Sin ella, fondo de OpenStreetMap y solo
   los tramos de la ruta. Sin tarjeta en TomTom, un abuso no puede generar gasto.
+  **Ojo (27/10/2026): esa variable no existe todavía**; la web usa el fondo de OpenStreetMap.
+- **Estilo del mapa** (27/10/2026, el usuario lo quería "más moderno, no de cartografía"):
+  siempre oscuro. En el móvil, `userInterfaceStyle="dark"` y, en iPhone, `mutedStandard`
+  (mapa apagado de Apple), sin brújula; el destino es un aro naranja. En la web, el fondo
+  de OpenStreetMap con un filtro CSS que lo invierte y lo apaga (`organizy-fondo-osm`); con
+  la clave pública, el estilo `night` de TomTom y su tráfico `relative0-dark`. Botones + y −
+  redondos y oscuros. CARTO y Stadia (fondos oscuros hechos) piden cuenta y clave.
 - **Mapa**: `screens/mapa/MapaRuta.tsx` (móvil, `react-native-maps`, incluido en Expo Go:
   mapa de Apple en iPhone, sin clave, con `showsTraffic` para pintar el tráfico como Waze)
   y `MapaRuta.web.tsx` (web, Leaflet, cargado al montar porque necesita el navegador).

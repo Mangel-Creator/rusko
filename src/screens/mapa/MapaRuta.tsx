@@ -1,5 +1,5 @@
 import { useEffect, useRef } from 'react';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import MapView, { Marker, Polyline, type LatLng } from 'react-native-maps';
 
 import type { Punto } from '@/services/rutas';
@@ -12,6 +12,11 @@ import { CENTRO_POR_DEFECTO, puntosDeTramo, puntosVisibles, type PropsMapa } fro
 // todas las carreteras, como Waze. Encima va la ruta elegida con sus tramos de
 // tráfico, las alternativas en gris y, si los has pedido, los parkings ("P").
 // En la web se usa MapaRuta.web.tsx.
+//
+// Estilo (27/10/2026, el usuario lo quería "más moderno, no de cartografía"): siempre
+// oscuro, como la app, y en el iPhone el mapa "apagado" de Apple (mutedStandard), que
+// quita colores y detalles para que destaquen la ruta y el tráfico. Sin brújula ni
+// sitios de interés.
 
 function aLatLng([latitude, longitude]: Punto): LatLng {
   return { latitude, longitude };
@@ -60,9 +65,12 @@ export function MapaRuta({
           latitudeDelta: ubicacion || destino || centroInicial ? 0.08 : 6,
           longitudeDelta: ubicacion || destino || centroInicial ? 0.08 : 6,
         }}
+        userInterfaceStyle="dark"
+        mapType={Platform.OS === 'ios' ? 'mutedStandard' : 'standard'}
         showsUserLocation
         showsTraffic
         showsPointsOfInterests={false}
+        showsCompass={false}
         toolbarEnabled={false}>
         {rutas.map((r, i) =>
           i === elegida ? null : (
@@ -103,7 +111,17 @@ export function MapaRuta({
             </View>
           </Marker>
         ))}
-        {destino ? <Marker coordinate={aLatLng(destino)} pinColor={colores.principal} title="Destino" /> : null}
+        {destino ? (
+          <Marker
+            coordinate={aLatLng(destino)}
+            anchor={{ x: 0.5, y: 0.5 }}
+            tracksViewChanges={false}
+            title="Destino">
+            <View style={estilos.destino}>
+              <View style={estilos.destinoCentro} />
+            </View>
+          </Marker>
+        ) : null}
       </MapView>
     </View>
   );
@@ -124,4 +142,14 @@ const estilos = StyleSheet.create({
   },
   parkingElegido: { width: 34, height: 34, borderRadius: 8, borderWidth: 3 },
   letraP: { color: coloresMapa.bordeParking, fontFamily: fuentes.textoFuerte, fontSize: 14 },
+  // Destino: aro naranja con el centro claro, como en la web (en vez del alfiler clásico).
+  destino: {
+    width: 26,
+    height: 26,
+    borderRadius: 13,
+    backgroundColor: colores.principal,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
+  destinoCentro: { width: 12, height: 12, borderRadius: 6, backgroundColor: colores.texto },
 });
