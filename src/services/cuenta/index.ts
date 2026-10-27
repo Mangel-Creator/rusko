@@ -60,7 +60,7 @@ export function correoValido(email: string): boolean {
 // Adonde lleva el enlace de los correos: la página /cuenta de la web publicada (o la de
 // este navegador, en desarrollo). Tiene que estar en Supabase > Authentication > URL
 // Configuration > Redirect URLs.
-const WEB_PUBLICADA = 'https://mangel-creator.github.io/organizy/cuenta';
+const WEB_PUBLICADA = 'https://mangel-creator.github.io/rusko/cuenta';
 function paginaCuenta(): string {
   if (Platform.OS !== 'web') return WEB_PUBLICADA;
   return new URL('cuenta', window.location.href).href;
