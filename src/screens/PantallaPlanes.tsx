@@ -41,7 +41,7 @@ export function PantallaPlanes() {
       <Titulo>Planes</Titulo>
       <Boton titulo="Nuevo plan" onPress={() => router.push('/plan-nuevo')} disabled={!supabaseConfigurado} />
       {!supabaseConfigurado ? (
-        <Texto pequeno secundario>Los planes necesitan el servidor de Organizy, que aún no está conectado en esta versión.</Texto>
+        <Texto pequeno secundario>Los planes necesitan el servidor de Rusko, que aún no está conectado en esta versión.</Texto>
       ) : null}
 
       {cargado && planes.length === 0 ? (

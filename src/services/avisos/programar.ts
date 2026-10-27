@@ -139,7 +139,7 @@ export async function enviarAvisoDePrueba(aviso?: AvisoPlanificado): Promise<voi
           { tipo: aviso.tipo, dia: aviso.dia, destino: aviso.destino, mensaje: aviso.mensaje },
           aviso.categoria,
         )
-      : contenido('Aviso de prueba', 'Si ves esto, los avisos de Organizy funcionan.', {
+      : contenido('Aviso de prueba', 'Si ves esto, los avisos de Rusko funcionan.', {
           tipo: 'prueba',
           dia: claveDia(new Date()),
           destino: { pantalla: 'hoy' },

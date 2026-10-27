@@ -39,9 +39,9 @@ function textoFallo(r: Exclude<ResultadoVincular, { ok: true } | { ok: 'redirigi
     case 'cancelado':
       return 'No se ha vinculado: cancelaste el inicio de sesión.';
     case 'sin-configurar':
-      return `Aún no está activado: falta registrar Organizy en ${proveedor === 'gmail' ? 'Google' : 'Microsoft'}. Los pasos están en la guía «Fase 11 - Correo».`;
+      return `Aún no está activado: falta registrar Rusko en ${proveedor === 'gmail' ? 'Google' : 'Microsoft'}. Los pasos están en la guía «Fase 11 - Correo».`;
     case 'sin-servidor':
-      return 'Esta versión no está conectada al servidor de Organizy.';
+      return 'Esta versión no está conectada al servidor de Rusko.';
     case 'sin-conexion':
       return 'Sin conexión. Prueba otra vez cuando tengas internet.';
     case 'demasiadas':
@@ -123,14 +123,14 @@ export function VincularCorreo({ proveedores, alTerminar }: Props) {
         );
       })}
       <Texto pequeno secundario>
-        Solo inicias sesión en Google o Microsoft: Organizy nunca ve tu contraseña. Para avisarte en cuanto llega algo,
+        Solo inicias sesión en Google o Microsoft: Rusko nunca ve tu contraseña. Para avisarte en cuanto llega algo,
         guarda en su servidor, cifrado, el permiso para leer tu correo (solo leer) y 7 días de resúmenes. Si activas la
         IA, el texto de cada correo se envía a la IA (Claude, de Anthropic) para resumirlo y no se guarda. Lo quitas
         cuando quieras.
       </Texto>
       {proveedores?.gmail ? (
         <Texto pequeno secundario>
-          Con Gmail, Google te pedirá volver a entrar cada semana mientras no haya revisado Organizy. Te aviso cuando toque.
+          Con Gmail, Google te pedirá volver a entrar cada semana mientras no haya revisado Rusko. Te aviso cuando toque.
         </Texto>
       ) : null}
     </View>
@@ -167,7 +167,7 @@ export function VincularAyudante({ alTerminar }: { alTerminar: (mensaje: { bien:
     <Plegable titulo="Sin guardar nada en el servidor" resumen="Ayudante de Gmail, con QR" abierto={!!error}>
       <Texto pequeno secundario>
         Montas un ayudante en tu propia cuenta de Google (guía «Fase 11 - Correo», unos 15 minutos) y tus correos no pasan
-        por Organizy. Al terminar te enseña un QR: escanéalo con la cámara del iPhone y se vincula solo. También puedes
+        por Rusko. Al terminar te enseña un QR: escanéalo con la cámara del iPhone y se vincula solo. También puedes
         pegar aquí su enlace.
       </Texto>
       <CampoTexto

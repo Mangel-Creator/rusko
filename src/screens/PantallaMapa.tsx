@@ -451,7 +451,7 @@ function SeccionParkings({
         <FilaParking key={p.id} parking={p} alPulsar={() => alElegir(p)} />
       ))}
       <Texto pequeno secundario>
-        Toca uno y te llevo. Si al llegar está lleno, abre Organizy y pulsa «Está lleno, llévame a otro»: te mando al
+        Toca uno y te llevo. Si al llegar está lleno, abre Rusko y pulsa «Está lleno, llévame a otro»: te mando al
         siguiente y me apunto la hora, para proponerte otro la próxima vez.
       </Texto>
     </View>

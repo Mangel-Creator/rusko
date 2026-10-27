@@ -191,7 +191,7 @@ function Formulario({ perfil, eventos, propuesta }: Props) {
       setErrores({
         envio:
           resultado.motivo === 'sin-servidor'
-            ? 'Los planes necesitan el servidor de Organizy, que aún no está conectado.'
+            ? 'Los planes necesitan el servidor de Rusko, que aún no está conectado.'
             : 'No he podido crear el plan. ¿Tienes conexión? Prueba otra vez.',
       });
       return;
@@ -310,7 +310,7 @@ function Formulario({ perfil, eventos, propuesta }: Props) {
         ) : null}
         {avisoAgenda === 'bloqueado' ? (
           <Tarjeta style={estilos.explicacion}>
-            <Texto>Organizy no tiene permiso para ver la agenda. Puedes darlo en Ajustes o escribir el nombre.</Texto>
+            <Texto>Rusko no tiene permiso para ver la agenda. Puedes darlo en Ajustes o escribir el nombre.</Texto>
             <Boton titulo="Abrir Ajustes" variante="secundario" onPress={() => abrirAjustesDelTelefono()} />
           </Tarjeta>
         ) : avisoAgenda ? (

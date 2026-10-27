@@ -14,13 +14,13 @@ self.addEventListener('push', (evento) => {
   try {
     datos = evento.data ? evento.data.json() : {};
   } catch {
-    datos = { titulo: evento.data ? evento.data.text() : 'Organizy' };
+    datos = { titulo: evento.data ? evento.data.text() : 'Rusko' };
   }
   const raiz = self.registration.scope; // "https://…/organizy/"
   const url = new URL(String(datos.url || '/').replace(/^\//, ''), raiz).href;
   // Siempre se enseña un aviso: Safari deja de mandarlos si llega alguno sin enseñar.
   evento.waitUntil(
-    self.registration.showNotification(datos.titulo || 'Organizy', {
+    self.registration.showNotification(datos.titulo || 'Rusko', {
       body: datos.cuerpo || '',
       tag: datos.id || undefined,
       icon: `${raiz}icono-app.png`,

@@ -139,8 +139,8 @@ export function textoCambios(c: Cambios, primeraVez: boolean, todoElDia: number)
   if (todoElDia > 0) {
     partes.push(
       todoElDia === 1
-        ? '1 evento de todo el día no se trae: Organizy aún no los tiene.'
-        : `${todoElDia} eventos de todo el día no se traen: Organizy aún no los tiene.`,
+        ? '1 evento de todo el día no se trae: Rusko aún no los tiene.'
+        : `${todoElDia} eventos de todo el día no se traen: Rusko aún no los tiene.`,
     );
   }
   return partes.join(' ');

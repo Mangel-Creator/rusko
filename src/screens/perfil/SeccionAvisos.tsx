@@ -201,7 +201,7 @@ export function SeccionAvisos({ permiso, alActivarPermiso }: Props) {
       </Texto>
       <Texto pequeno secundario>
         {esWeb
-          ? 'Para probarlos sin esperar: llegan en unos segundos con el contenido de hoy. En la web no llevan botones: al tocarlos se abre Organizy.'
+          ? 'Para probarlos sin esperar: llegan en unos segundos con el contenido de hoy. En la web no llevan botones: al tocarlos se abre Rusko.'
           : 'Para probarlos sin esperar: llegan en 5 segundos con el contenido de hoy.'}
       </Texto>
       <Boton variante="secundario" titulo="Enviar un aviso de prueba" onPress={() => probar()} />
@@ -227,7 +227,7 @@ export function SeccionAvisos({ permiso, alActivarPermiso }: Props) {
 const TEXTOS_ACTIVAR: Record<Exclude<ResultadoActivar, 'ok'>, string> = {
   denegado: 'Sin permiso no te puedo mandar avisos. Si cambias de idea, vuelve a tocar el botón.',
   'sin-servidor': 'No he podido hablar con el servidor. Mira si tienes conexión y vuelve a probar.',
-  error: 'Algo ha fallado al activarlos. Cierra Organizy, ábrela otra vez y vuelve a probar.',
+  error: 'Algo ha fallado al activarlos. Cierra Rusko, ábrela otra vez y vuelve a probar.',
 };
 
 // Web: la tarjeta para activar los avisos (Web Push) en este navegador.
@@ -259,7 +259,7 @@ function ActivarAvisosWeb({ bloqueado, alActivar }: { bloqueado: boolean; alActi
       </View>
       <Texto secundario>
         Antes de cada evento, el resumen de la mañana, el cierre del día y el &quot;Sal ya&quot;, con el
-        sonido normal del iPhone y aunque tengas Organizy cerrada.
+        sonido normal del iPhone y aunque tengas Rusko cerrada.
       </Texto>
       <Texto pequeno secundario>
         Para mandártelos a su hora, guardo en el servidor la hora y el texto de los avisos de los
@@ -267,7 +267,7 @@ function ActivarAvisosWeb({ bloqueado, alActivar }: { bloqueado: boolean; alActi
       </Texto>
       {bloqueado ? (
         <Texto pequeno>
-          Los tienes bloqueados. En el iPhone: Ajustes &gt; Notificaciones &gt; Organizy &gt; Permitir
+          Los tienes bloqueados. En el iPhone: Ajustes &gt; Notificaciones &gt; Rusko &gt; Permitir
           notificaciones. Luego vuelve aquí.
         </Texto>
       ) : (

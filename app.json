@@ -1,6 +1,6 @@
 {
   "expo": {
-    "name": "Organizy",
+    "name": "Rusko",
     "slug": "organizy",
     "version": "1.0.0",
     "orientation": "portrait",
@@ -8,7 +8,6 @@
     "scheme": "organizy",
     "userInterfaceStyle": "dark",
     "ios": {
-      "icon": "./assets/expo.icon",
       "bundleIdentifier": "com.mangelcreator.organizy",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
@@ -17,7 +16,7 @@
     "android": {
       "package": "com.mangelcreator.organizy",
       "adaptiveIcon": {
-        "backgroundColor": "#F3EFE6",
+        "backgroundColor": "#0B2547",
         "foregroundImage": "./assets/images/android-icon-foreground.png",
         "backgroundImage": "./assets/images/android-icon-background.png",
         "monochromeImage": "./assets/images/android-icon-monochrome.png"
@@ -27,8 +26,8 @@
     "web": {
       "output": "static",
       "favicon": "./assets/images/favicon.png",
-      "name": "Organizy",
-      "shortName": "Organizy",
+      "name": "Rusko",
+      "shortName": "Rusko",
       "themeColor": "#0F0D0C",
       "backgroundColor": "#0F0D0C"
     },
@@ -39,14 +38,14 @@
         {
           "backgroundColor": "#0F0D0C",
           "image": "./assets/images/splash-icon.png",
-          "imageWidth": 76
+          "imageWidth": 140
         }
       ],
       "expo-sqlite",
       [
         "expo-location",
         {
-          "locationWhenInUsePermission": "Organizy usa tu ubicación para calcular el tráfico y avisarte de cuándo tienes que salir."
+          "locationWhenInUsePermission": "Rusko usa tu ubicación para calcular el tráfico y avisarte de cuándo tienes que salir."
         }
       ],
       "expo-notifications",
@@ -54,27 +53,27 @@
         "expo-audio",
         {
           "enableBackgroundPlayback": false,
-          "microphonePermission": "Organizy usa el micrófono solo mientras tocas el botón del micro, para apuntar lo que le dices.",
+          "microphonePermission": "Rusko usa el micrófono solo mientras tocas el botón del micro, para apuntar lo que le dices.",
           "recordAudioAndroid": false
         }
       ],
       [
         "./plugins/alarmas.js",
         {
-          "alarmKitUsageDescription": "Organizy usa alarmas para despertarte y avisarte de cuándo salir, aunque el móvil esté en silencio."
+          "alarmKitUsageDescription": "Rusko usa alarmas para despertarte y avisarte de cuándo salir, aunque el móvil esté en silencio."
         }
       ],
       [
         "expo-contacts",
         {
-          "contactsPermission": "Organizy usa tu agenda solo para poner el nombre de quien elijas en un plan. No guarda ni envía tus contactos."
+          "contactsPermission": "Rusko usa tu agenda solo para poner el nombre de quien elijas en un plan. No guarda ni envía tus contactos."
         }
       ],
       [
         "expo-speech-recognition",
         {
-          "microphonePermission": "Organizy usa el micrófono solo mientras tocas el botón del micro, para apuntar lo que le dices.",
-          "speechRecognitionPermission": "Organizy pasa a texto lo que le dices para apuntarlo en tu agenda."
+          "microphonePermission": "Rusko usa el micrófono solo mientras tocas el botón del micro, para apuntar lo que le dices.",
+          "speechRecognitionPermission": "Rusko pasa a texto lo que le dices para apuntarlo en tu agenda."
         }
       ],
       "expo-sharing"

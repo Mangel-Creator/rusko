@@ -41,7 +41,7 @@ export function SeccionIA() {
   );
 
   if (!hayServidor) {
-    return <Texto secundario>La IA no está activada en esta versión de Organizy.</Texto>;
+    return <Texto secundario>La IA no está activada en esta versión de Rusko.</Texto>;
   }
 
   const ahora = new Date();
@@ -53,7 +53,7 @@ export function SeccionIA() {
     <>
       <Texto secundario>
         Como en Claude, la IA tiene dos límites: uno cada {ia?.horas ?? 5} horas y otro por semana. Si llegas a
-        uno, Organizy sigue funcionando sin IA hasta que se libere.
+        uno, Rusko sigue funcionando sin IA hasta que se libere.
       </Texto>
 
       {carga.estado === 'cargando' ? <Texto secundario>Mirando cuánta te queda…</Texto> : null}
@@ -82,7 +82,7 @@ export function SeccionIA() {
         <Tarjeta accessibilityLiveRegion="polite">
           <Texto fuerte>Aún no se puede comprar más IA.</Texto>
           <Texto>
-            Llegará cuando Organizy esté en las tiendas: podrás recargar un poco más cuando se te acabe, sin esperar.
+            Llegará cuando Rusko esté en las tiendas: podrás recargar un poco más cuando se te acabe, sin esperar.
           </Texto>
           <Texto secundario>{textoMientras(ia, ahora)}</Texto>
         </Tarjeta>

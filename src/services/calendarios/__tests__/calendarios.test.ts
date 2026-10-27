@@ -244,7 +244,7 @@ describe('sincronizar', () => {
   it('textos', () => {
     const vacio = { guardar: [], borrar: [], nuevos: 0, cambiados: 0, borrados: 0, tuyos: 0 };
     expect(textoCambios({ ...vacio, nuevos: 45 }, true, 3)).toBe(
-      'He traído 45 eventos. 3 eventos de todo el día no se traen: Organizy aún no los tiene.',
+      'He traído 45 eventos. 3 eventos de todo el día no se traen: Rusko aún no los tiene.',
     );
     expect(textoCambios(vacio, false, 0)).toBe('Está al día.');
     expect(textoCambios({ ...vacio, nuevos: 3, cambiados: 1, borrados: 2 }, false, 0)).toBe(

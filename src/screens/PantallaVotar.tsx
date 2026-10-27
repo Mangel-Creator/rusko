@@ -206,7 +206,7 @@ export function PantallaVotar() {
       ) : null}
 
       <Texto pequeno secundario style={[estilos.centrado, estilos.pie]}>
-        Organizy · esta página no guarda nada en tu móvil
+        Rusko · esta página no guarda nada en tu móvil
       </Texto>
     </Pantalla>
   );

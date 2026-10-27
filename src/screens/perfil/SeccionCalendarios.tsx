@@ -79,7 +79,7 @@ export function SeccionCalendarios() {
     setMensaje(
       borrarEventos
         ? `He quitado ${quitando.nombre} y sus eventos.`
-        : `He quitado ${quitando.nombre}. Sus eventos se quedan en Organizy.`,
+        : `He quitado ${quitando.nombre}. Sus eventos se quedan en Rusko.`,
     );
     setQuitando(null);
   };
@@ -87,7 +87,7 @@ export function SeccionCalendarios() {
   return (
     <>
       <Texto secundario>
-        Trae a Organizy lo que tienes en Google Calendar, iCloud u Outlook. Pegas su enlace una vez
+        Trae a Rusko lo que tienes en Google Calendar, iCloud u Outlook. Pegas su enlace una vez
         y lo nuevo llega solo cada vez que abres la app. Si cambias aquí un evento traído, manda lo
         tuyo.
       </Texto>
@@ -135,9 +135,9 @@ export function SeccionCalendarios() {
         <Tarjeta accessibilityLiveRegion="polite">
           <Texto fuerte>¿Qué hago con los eventos que trajo {quitando.nombre}?</Texto>
           <Texto pequeno secundario>
-            Los que hayas cambiado en Organizy se quedan siempre.
+            Los que hayas cambiado en Rusko se quedan siempre.
           </Texto>
-          <Boton titulo="Quedármelos en Organizy" onPress={() => quitar(false)} />
+          <Boton titulo="Quedármelos en Rusko" onPress={() => quitar(false)} />
           <Boton variante="secundario" titulo="Borrarlos" onPress={() => quitar(true)} />
           <Boton variante="secundario" titulo="Cancelar" onPress={() => setQuitando(null)} />
         </Tarjeta>
@@ -184,7 +184,7 @@ export function SeccionCalendarios() {
           ))}
           <Texto pequeno secundario style={estilos.separado}>
             Se traen los eventos con hora desde hace 3 meses hasta dentro de 2 años. Los de todo el día
-            todavía no. En la web, el calendario pasa por el servidor de Organizy solo para leerlo: no se
+            todavía no. En la web, el calendario pasa por el servidor de Rusko solo para leerlo: no se
             guarda.
           </Texto>
         </View>

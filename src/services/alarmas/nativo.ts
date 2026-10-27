@@ -143,7 +143,7 @@ async function programar(uuid: string, d: Omit<DefinicionNativa, 'clave'>): Prom
       silent: d.vibrar,
     },
     android: {
-      alertBody: d.tipo === 'salida' ? 'Hora de salir' : 'Organizy',
+      alertBody: d.tipo === 'salida' ? 'Hora de salir' : 'Rusko',
       maxRingDurationSeconds: 300,
     },
   });

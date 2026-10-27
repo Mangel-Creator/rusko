@@ -448,6 +448,20 @@ sesión que fuera**:
     solo**: ese bloque va a otro hueco (hoy, a partir de ahora) y no se pierde nada.
   - Lo que se quedó sin marcar sale en la pestaña Época para decir **"Lo hice"** o **"No lo
     hice"** con el motivo ("me fui a…"); al saltar un bloque también se puede decir por qué.
+- 27/10/2026 — **La app pasa a llamarse Rusko** (lo decidió el usuario). Logo: galaxia de
+  dos brazos naranja y ámbar sobre azul noche, en `assets/images/icono-rusko.svg` (original
+  y colores en `OneDrive\PERSONAL\Organizy\Diseño\Logo Rusko - Galaxia`).
+  - Todo texto que vea el usuario dice **Rusko**, no Organizy (pantallas, permisos de
+    `app.json`, título y manifiesto de la web, avisos). Lo nuevo se escribe ya con Rusko.
+  - **No se ha cambiado** (por ahora, hasta que el usuario lo diga): repositorio y URL de
+    la web (`/organizy/`), `slug`, `scheme`, bundle id, proyecto de Expo, tablas y
+    funciones de Supabase, el nombre de archivo de las copias, ni la etiqueta
+    "Organizy" de las alarmas del reloj y su atajo "Organizy alarmas" (cambiarla obliga a
+    tocar el servidor y a que el usuario rehaga el atajo). Los textos de Supabase que
+    salen en avisos y correos siguen diciendo Organizy hasta el próximo despliegue.
+  - Iconos: `icon.png` (1024, sin transparencia), adaptativo de Android con fondo
+    `#0B2547`, `splash-icon.png`, `favicon.png` y `public/icono-app.png`. iOS usa
+    `icon.png` (se quitó el `expo.icon` de la plantilla).
 
 ## Cómo prueba el usuario en el iPhone
 
