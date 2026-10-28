@@ -24,8 +24,8 @@ alarmas. En español de España.
     La web **se actualiza sola** (`src/services/actualizacionWeb.ts`): al abrirla, o al
     volver tras 30 s fuera, compara el archivo principal publicado con el que usa y,
     si ha cambiado, recarga (una vez por versión, sin bucles).
-  - **App** para el dueño, en su iPhone con Expo Go (cuenta de Expo `mangel_creator`,
-    proyecto vinculado con `eas init`). En el futuro, app en las tiendas.
+  - **App nativa (Expo Go, EAS, tiendas): parada desde el 28/10/2026.** El dueño solo
+    usa la web; ver la primera entrada de "Decisiones del usuario".
 - **Lo que no puede hacer la web** (quedará solo para la app): alarma que suena como
   despertador con el móvil bloqueado, widget y voz sin abrir la app (en web, como
   mucho, un Atajo del iPhone). En web lo que no funcione se oculta o se avisa.
@@ -70,6 +70,19 @@ sesión que fuera**:
 
 ### Decisiones del usuario
 
+- 28/10/2026 — **Solo web. Nada de Expo Go ni de app nativa** (manda sobre todo lo que
+  diga más abajo de Expo Go, EAS, túnel, AlarmKit, widget o "app propia"). El usuario
+  solo usa la web (instalada como app en el ordenador y en el iPhone) y no quiere gastar
+  tokens en lo demás. Por tanto:
+  - No pruebes, compruebes ni arregles nada para Expo Go, iOS o Android: ni túnel, ni
+    `scripts\comprobar-expo-go.ps1`, ni mirar si el workflow `expo-go.yml` ha ido bien,
+    ni guías ni QR de Expo Go.
+  - No escribas variantes nativas nuevas (`.native.ts`, módulos que solo sirven en el
+    móvil) ni código "para cuando haya app propia". Lo nativo que ya existe se deja
+    como está, sin mantenerlo.
+  - Al terminar algo, basta con que funcione en la web (`npx tsc --noEmit` y verlo en
+    `http://localhost:8081/` o en la web publicada).
+  - Expo sigue siendo la herramienta con la que se construye la web: eso no cambia.
 - 23/09/2026 — App para todo el mundo con los datos de cada usuario privados; web
   para los demás y app para el dueño (ver "Para quién y dónde funciona").
 - 24/09/2026 — Direcciones en la web con OpenStreetMap.
