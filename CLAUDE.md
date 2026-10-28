@@ -727,6 +727,7 @@ destacadas; no lo uses para un tipo de evento, ni para errores ni para mensajes 
 | "Yo" (personal) | `yo` | `#D9D1C7` (blanco cálido) |
 | Barrita de carga normal y borde de huecos | `cargaNormal` | `#7A6F64` (gris) |
 | Solo la Época dorada (franja, bloques de estudio, días con hito) | `dorado` | `#FFB020` (ámbar; texto oscuro encima) |
+| Solo la papelera que sale al deslizar un correo (28/10) | `eliminar` | `#D90000` (texto blanco encima, `textoSobreEliminar`) |
 | Solo los botones de WhatsApp (excepción del 26/09) | `whatsapp` | `#25D366` (texto oscuro encima) |
 | Solo los botones de entrar con Google o Microsoft y sus logos (excepción del 29/09) | `coloresMarca` | los de sus normas de marca |
 | Tarjeta destacada (una por pantalla como mucho) | `degradados.naranja` / `degradados.teja` | `#FF6B1A → #FFB020` / `#FF6B1A → #C2361B` |
@@ -772,7 +773,7 @@ azules (ver "Fase 6"). Es la única parte clara de la app.
   dice de qué trata en una o dos frases. **Las acciones van deslizando** (28/10/2026, lo
   pidió el usuario para no darles sin querer; antes eran tres botones a la vista): a la
   **izquierda** salen **fijar** (ámbar, `dorado`) y **recordatorio** (blanco); a la **derecha**,
-  la **papelera** (rojo, `aviso`), que quita de Rusko al tocarla, y si se desliza más de la
+  la **papelera** (rojo intenso `eliminar`, con texto blanco; 28/10/2026, "mucho más intenso"), que quita de Rusko al tocarla, y si se desliza más de la
   mitad del ancho se quita directamente. Con `PanResponder` (sin montar gesture-handler) y
   `touchAction: pan-y` para que la lista siga bajando; con el lector de pantalla son acciones
   del recuadro. El recordatorio (las opciones de `opcionesRecordatorio` salen dentro del recuadro; el que
@@ -2087,6 +2088,13 @@ borran solos a los 7 días.
   -category:updates -category:forums -from:me`. Con pestañas es lo mismo que Principal; sin
   pestañas, toda la bandeja. Y una cuenta vinculada que aún no ha recogido nada (`vistos` vacío)
   recoge el último día sin avisar en cada revisión hasta que encuentre algo.
+- **Avisos de correo en la web** (28/10/2026, lo pidió el usuario: que le lleguen los
+  "Importantes" y "Muy importantes"): `correo-cuentas` manda los mismos avisos que antes
+  (con fecha, importantes y "Avisarme siempre de…", que son los niveles 2 y 3) **también por
+  Web Push**, al momento, a los navegadores de esa persona en `avisos_web_suscripciones`
+  (claves `VAPID_CLAVES`, como `avisos-web`; al tocarlos abren Correo). Hace falta tener los
+  avisos activados en Perfil > Avisos. Antes solo iban por Expo y en la web no llegaba nada.
+  El ayudante de Gmail (Apps Script) sigue avisando solo por Expo.
 - **Correo por importancia** (27/10/2026, sesión "12 Correo" los datos y "08 Diseño" lo que se
   ve; ver "Decisiones del usuario" y "Diseño" > "Correo por recuadros"):
   - **Datos** (`data/correos.ts`): `CorreoResumido` lleva `fijado`, `oculto` (quitado de Rusko) y

@@ -24,6 +24,7 @@ import { respuestaJson, respuestaPrevia } from '../_shared/cors.ts';
 import { cifrar, descifrar } from '../_shared/cifrado.ts';
 import { analizarConClaude, iaDisponible } from '../_shared/iaCorreo.ts';
 import { numeroDeEntorno, sumarUso } from '../_shared/limite.ts';
+import { enviarPush, type ClavesVapid } from '../_shared/webPush.ts';
 import {
   conResultado,
   emailDeCuenta,
@@ -210,7 +211,51 @@ async function analizar(cuenta: Cuenta, m: MensajeLeido): Promise<Resumen> {
   };
 }
 
+// Avisos en la web instalada (Web Push, 28/10/2026): los importantes y muy importantes
+// (con fecha, importantes o "Avisarme siempre de…") llegan también a los navegadores
+// donde la persona activó los avisos en Perfil > Avisos. Mismas claves VAPID y misma
+// tabla de suscripciones que la función avisos-web; se mandan al momento.
+function clavesVapid(): ClavesVapid | null {
+  try {
+    const claves = JSON.parse(Deno.env.get('VAPID_CLAVES') ?? '') as ClavesVapid;
+    return claves.publica && claves.privada ? claves : null;
+  } catch {
+    return null;
+  }
+}
+
+async function mandarAvisosWeb(cuenta: Cuenta, avisos: { titulo: string; cuerpo: string }[]) {
+  const claves = clavesVapid();
+  if (!claves || !avisos.length) return;
+  const admin = clienteAdmin();
+  const { data } = await admin
+    .from('avisos_web_suscripciones')
+    .select('endpoint, p256dh, auth')
+    .eq('usuario', cuenta.usuario);
+  const momento = Date.now();
+  for (const fila of (data ?? []) as { endpoint: string; p256dh: string; auth: string }[]) {
+    const suscripcion = { endpoint: fila.endpoint, keys: { p256dh: fila.p256dh, auth: fila.auth } };
+    for (const [i, a] of avisos.slice(0, 10).entries()) {
+      const contenido = { id: `correo-${momento}-${i}`, titulo: a.titulo, cuerpo: a.cuerpo, url: '/resumenes' };
+      try {
+        const { resultado, estado } = await enviarPush(suscripcion, JSON.stringify(contenido), claves, {
+          contacto: 'https://mangel-creator.github.io/rusko/',
+          ttlSeg: 6 * 3600,
+        });
+        if (resultado === 'caducada') {
+          await admin.from('avisos_web_suscripciones').delete().eq('endpoint', fila.endpoint);
+          break;
+        }
+        if (resultado === 'error') console.error(`push web ${estado} a ${new URL(fila.endpoint).hostname}`);
+      } catch (error) {
+        console.error('push web', error);
+      }
+    }
+  }
+}
+
 async function mandarAvisos(cuenta: Cuenta, avisos: { titulo: string; cuerpo: string }[]) {
+  await mandarAvisosWeb(cuenta, avisos);
   if (!cuenta.tokens_push.length || !avisos.length) return;
   const dia = new Date().toISOString().slice(0, 10);
   const mensajes = cuenta.tokens_push.flatMap((to) =>

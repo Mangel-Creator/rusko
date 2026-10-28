@@ -56,10 +56,11 @@ const NOMBRE_NIVEL: Record<NivelCorreo, string> = {
 };
 
 // Colores de lo que sale al deslizar (solo aquí, como los de los recuadros): ámbar para
-// fijar, blanco para el recordatorio y rojo para quitar; los iconos, en oscuro encima.
+// fijar, blanco para el recordatorio y rojo intenso para quitar; los iconos, en oscuro
+// encima (en blanco sobre el rojo, que es más oscuro).
 const COLOR_FIJAR = colores.dorado;
 const COLOR_RECORDAR = colores.texto;
-const COLOR_QUITAR = colores.aviso;
+const COLOR_QUITAR = colores.eliminar;
 const ANCHO_BOTON = 76;
 const ABIERTO_IZQ = -2 * ANCHO_BOTON; // se ven fijar y recordatorio
 const ABIERTO_DER = ANCHO_BOTON; // se ve la papelera
@@ -112,7 +113,13 @@ export function RecuadroCorreo({
           y fijar y recordatorio a la derecha (se ven al deslizar a la izquierda). */}
       <View style={estilos.fondoAcciones} importantForAccessibility="no-hide-descendants">
         <Animated.View style={[estilos.lado, { opacity: desliza.verQuitar }]}>
-          <BotonDeslizar icono="trash" etiqueta="Quitar" fondo={COLOR_QUITAR} onPress={desliza.quitar} />
+          <BotonDeslizar
+            icono="trash"
+            etiqueta="Quitar"
+            fondo={COLOR_QUITAR}
+            texto={colores.textoSobreEliminar}
+            onPress={desliza.quitar}
+          />
         </Animated.View>
         <Animated.View style={[estilos.lado, estilos.ladoDerecho, { opacity: desliza.verFijar }]}>
           <BotonDeslizar
@@ -308,11 +315,13 @@ function BotonDeslizar({
   icono,
   etiqueta,
   fondo,
+  texto = colores.textoOscuro,
   onPress,
 }: {
   icono: ComponentProps<typeof Ionicons>['name'];
   etiqueta: string;
   fondo: string;
+  texto?: string;
   onPress: () => void;
 }) {
   return (
@@ -321,8 +330,8 @@ function BotonDeslizar({
       accessibilityLabel={etiqueta}
       onPress={onPress}
       style={({ pressed }) => [estilos.botonDeslizar, { backgroundColor: fondo }, pressed && estilos.pulsado]}>
-      <Ionicons name={icono} size={22} color={colores.textoOscuro} />
-      <Texto pequeno fuerte style={{ color: colores.textoOscuro }}>
+      <Ionicons name={icono} size={22} color={texto} />
+      <Texto pequeno fuerte style={{ color: texto }}>
         {etiqueta}
       </Texto>
     </Pressable>
