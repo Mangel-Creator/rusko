@@ -1,5 +1,7 @@
 import { useSyncExternalStore } from 'react';
 
+import type { ZonaFestivos } from '@/services/festivos';
+
 import { guardarAjuste, leerAjuste } from './ajustes';
 
 // Perfil del usuario: lo rellena el formulario de bienvenida y se edita en "Perfil".
@@ -53,6 +55,9 @@ export type Perfil = {
   };
   rindeMas: MomentoDelDia;
   antelacionAvisoMin: AntelacionAviso;
+  // Dónde trabaja o estudia, para saber sus festivos (services/festivos). Opcional:
+  // los perfiles de antes no lo tienen.
+  festivos?: ZonaFestivos | null;
 };
 
 export type EstadoPerfil = {

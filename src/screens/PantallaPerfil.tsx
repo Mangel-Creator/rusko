@@ -14,10 +14,12 @@ import {
   type EstadoPermiso,
   type Permiso,
 } from '@/services/permisos';
+import { nombreComunidad } from '@/services/festivos';
 import { colores, espacio } from '@/theme';
 
 import {
   borradorDesdePerfil,
+  comprobarFestivos,
   comprobarPaso1,
   comprobarPaso2,
   hayErrores,
@@ -25,6 +27,7 @@ import {
   type Borrador,
   type Errores,
 } from './formulario-perfil/borrador';
+import { CamposFestivos } from './formulario-perfil/CamposFestivos';
 import { CamposRitmo } from './formulario-perfil/CamposRitmo';
 import { CamposSobreTi } from './formulario-perfil/CamposSobreTi';
 import { MensajeError } from './formulario-perfil/MensajeError';
@@ -56,6 +59,7 @@ export function PantallaPerfil() {
   const [ocupado, setOcupado] = useState(false);
   const [aviso, setAviso] = useState<string | null>(null);
   const [avisoEjemplos, setAvisoEjemplos] = useState<string | null>(null);
+  const [avisoFestivos, setAvisoFestivos] = useState<string | null>(null);
   const [permisos, setPermisos] = useState<EstadosPermisos>({
     ubicacion: undefined,
     notificaciones: undefined,
@@ -84,6 +88,7 @@ export function PantallaPerfil() {
   const cambiar = (cambios: Partial<Borrador>) => {
     setBorrador((actual) => ({ ...actual, ...cambios }));
     setAviso(null);
+    setAvisoFestivos(null);
     setErrores((actuales) => {
       const quedan = { ...actuales };
       for (const clave of Object.keys(cambios)) delete quedan[clave as keyof Borrador];
@@ -105,6 +110,15 @@ export function PantallaPerfil() {
     await guardarPerfil(perfilDesdeBorrador(paso1.borrador));
     setOcupado(false);
     setAviso('Guardado.');
+  };
+
+  // Solo los festivos: así no hace falta tener bien todo lo demás para guardarlos.
+  const guardarFestivos = async () => {
+    const nuevos = comprobarFestivos(borrador);
+    setErrores((actuales) => ({ ...actuales, festivos: nuevos.festivos }));
+    if (hayErrores(nuevos) || !perfil) return;
+    await guardarPerfil({ ...perfil, festivos: perfilDesdeBorrador(borrador).festivos });
+    setAvisoFestivos('Guardados');
   };
 
   const activar = async (permiso: Permiso) => {
@@ -152,6 +166,16 @@ export function PantallaPerfil() {
             <MensajeError texto={aviso} />
           )}
         </View>
+      </Plegable>
+
+      <Plegable
+        titulo="Tus festivos"
+        icono="flag-outline"
+        color="azul"
+        resumen={perfil?.festivos ? `${perfil.festivos.municipio} · ${nombreComunidad(perfil.festivos.comunidad)}` : 'Sin poner'}
+        abierto={!!errores.festivos}>
+        <CamposFestivos borrador={borrador} cambiar={cambiar} errores={errores} />
+        <Boton titulo={avisoFestivos ?? 'Guardar festivos'} onPress={guardarFestivos} />
       </Plegable>
 
       <Plegable titulo="Cómo se ve" icono="contrast-outline" color="blanco" resumen={OPCIONES_DENSIDAD.find((o) => o.valor === densidad)?.etiqueta}>

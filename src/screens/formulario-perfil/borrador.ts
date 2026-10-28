@@ -8,6 +8,7 @@ import type {
   Transporte,
   Uso,
 } from '@/data/perfil';
+import { SUBZONAS, type CodigoComunidad, type FiestaLocal, type Ocupacion, type ZonaFestivos } from '@/services/festivos';
 import { buscarCoordenadas } from '@/services/lugares';
 import { minutosDesdeHora } from '@/services/fechas';
 import type { Opcion } from '@/components';
@@ -28,6 +29,19 @@ export type Borrador = {
   diasTrabajo: DiaSemana[];
   rindeMas: MomentoDelDia | null;
   antelacion: `${AntelacionAviso}` | null; // texto porque Selector trabaja con textos
+  festivos: BorradorFestivos;
+};
+
+// Paso "Tus festivos": como ZonaFestivos, con lo que aún no se ha elegido a null.
+// "buscadoPara" es el municipio cuya comunidad ya se buscó (para no repetir la búsqueda).
+export type BorradorFestivos = {
+  ocupacion: Ocupacion | null;
+  donde: 'casa' | 'otro';
+  municipio: string;
+  comunidad: CodigoComunidad | null;
+  subzona: string | null;
+  locales: FiestaLocal[];
+  buscadoPara: string | null;
 };
 
 export type Errores = Partial<Record<keyof Borrador, string>>;
@@ -75,6 +89,7 @@ export function borradorDesdePerfil(perfil: Perfil | null): Borrador {
       diasTrabajo: [0, 1, 2, 3, 4], // de lunes a viernes
       rindeMas: null,
       antelacion: '30',
+      festivos: borradorFestivos(null, null),
     };
   }
   return {
@@ -90,7 +105,59 @@ export function borradorDesdePerfil(perfil: Perfil | null): Borrador {
     diasTrabajo: perfil.horario.diasTrabajo,
     rindeMas: perfil.rindeMas,
     antelacion: `${perfil.antelacionAvisoMin}`,
+    festivos: borradorFestivos(perfil.festivos, perfil.sitios),
   };
+}
+
+const OCUPACIONES: Ocupacion[] = ['trabajo', 'estudios', 'las-dos', 'ninguna'];
+
+// Sin festivos guardados, se propone el municipio del sitio "Trabajo" si lo hay.
+function borradorFestivos(zona: ZonaFestivos | null | undefined, sitios: SitioHabitual[] | null): BorradorFestivos {
+  if (zona && OCUPACIONES.includes(zona.ocupacion)) {
+    return { ...zona, municipio: zona.donde === 'otro' ? zona.municipio : '', buscadoPara: zona.municipio };
+  }
+  const trabajo = sitios?.find((s) => s.nombre.trim().toLowerCase() === 'trabajo');
+  return {
+    ocupacion: null,
+    donde: trabajo ? 'otro' : 'casa',
+    municipio: trabajo?.direccion ?? '',
+    comunidad: null,
+    subzona: null,
+    locales: [],
+    buscadoPara: null,
+  };
+}
+
+// Municipio cuyas fiestas cuentan: el del trabajo o los estudios, o si no, el de casa.
+export function municipioFestivos(b: Borrador): string {
+  const f = b.festivos;
+  const fuera = f.ocupacion && f.ocupacion !== 'ninguna' && f.donde === 'otro';
+  return (fuera ? f.municipio : b.vivienda.direccion).trim();
+}
+
+function zonaDesdeBorrador(b: Borrador): ZonaFestivos | null {
+  const f = b.festivos;
+  if (!f.ocupacion || !f.comunidad) return null;
+  return {
+    ocupacion: f.ocupacion,
+    donde: f.donde,
+    municipio: municipioFestivos(b),
+    comunidad: f.comunidad,
+    subzona: SUBZONAS[f.comunidad]?.some((s) => s.valor === f.subzona) ? f.subzona : null,
+    locales: f.locales,
+  };
+}
+
+// Paso "Tus festivos". La comunidad la busca CamposFestivos al rellenar el municipio.
+export function comprobarFestivos(b: Borrador): Errores {
+  const f = b.festivos;
+  if (!f.ocupacion) return { festivos: 'Dime si trabajas o estudias.' };
+  if (f.ocupacion !== 'ninguna' && f.donde === 'otro' && !f.municipio.trim()) {
+    return { festivos: '¿En qué municipio? Escríbelo para saber sus fiestas.' };
+  }
+  if (!f.comunidad) return { festivos: 'Elige tu comunidad autónoma.' };
+  if (f.comunidad === 'can' && !f.subzona) return { festivos: 'Elige tu isla: cada una tiene su fiesta.' };
+  return {};
 }
 
 // Solo se llama cuando el borrador ya ha pasado las dos comprobaciones.
@@ -110,6 +177,7 @@ export function perfilDesdeBorrador(b: Borrador): Perfil {
     },
     rindeMas: b.rindeMas ?? 'manana',
     antelacionAvisoMin: Number(b.antelacion ?? '30') as AntelacionAviso,
+    festivos: zonaDesdeBorrador(b),
   };
 }
 

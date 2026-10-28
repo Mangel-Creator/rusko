@@ -3,10 +3,12 @@ import { Pressable, StyleSheet, View } from 'react-native';
 import { Texto } from '@/components';
 import { useDensidad } from '@/data/densidad';
 import type { Evento } from '@/data/eventos';
+import { usePerfil } from '@/data/perfil';
 import { colocarEnCarriles, intervaloDe } from '@/services/agenda';
 import { PREFIJO_EPOCA } from '@/services/epoca';
 import { DIAS_SEMANA_LETRA, fechaDesdeClave, horaDesdeMinutos, type ClaveDia } from '@/services/fechas';
-import { cifras, colorBaldosa, colores, colorEvento, espacio, fuentes, radio } from '@/theme';
+import { festivoDelDia } from '@/services/festivos';
+import { acentos, cifras, colorBaldosa, colores, colorEvento, espacio, fuentes, radio } from '@/theme';
 
 export type DiaRejilla = {
   dia: ClaveDia;
@@ -34,6 +36,7 @@ const ANCHO_HORAS = 40;
 // suave y la hora de ahora, en una píldora a la izquierda. Tocar un hueco crea una cita.
 export function RejillaSemana({ dias, ventana, hoy, minutoAhora, alTocarDia, alTocarEvento, alTocarHueco }: Props) {
   const { medidas } = useDensidad();
+  const { perfil } = usePerfil();
   const tramos = dias.flatMap((d) => d.eventos.map(intervaloDe));
   const desde = Math.floor(Math.min(ventana.inicio, ...tramos.map((t) => t.inicio)) / 60) * 60;
   const hasta = Math.ceil(Math.max(ventana.fin, ...tramos.map((t) => t.fin)) / 60) * 60;
@@ -49,21 +52,24 @@ export function RejillaSemana({ dias, ventana, hoy, minutoAhora, alTocarDia, alT
         {dias.map(({ dia, hayHito, carga }) => {
           const fecha = fechaDesdeClave(dia);
           const esHoy = dia === hoy;
+          // Los festivos, con el número en azul (como en un calendario de papel, en rojo).
+          const festivo = festivoDelDia(dia, perfil?.festivos);
           return (
             <Pressable
               key={dia}
               accessibilityRole="button"
-              accessibilityLabel={`Ver solo el ${fecha.getDate()}`}
+              accessibilityLabel={`Ver solo el ${fecha.getDate()}${festivo ? `, festivo: ${festivo.nombre}` : ''}`}
               onPress={() => alTocarDia(dia)}
               style={({ pressed }) => [
                 estilos.cabeceraDia,
+                festivo && estilos.cabeceraFestivo,
                 esHoy && estilos.cabeceraHoy,
                 pressed && estilos.pulsado,
               ]}>
-              <Texto pequeno style={[estilos.letra, esHoy && estilos.textoHoy]}>
+              <Texto pequeno style={[estilos.letra, festivo && estilos.textoFestivo, esHoy && estilos.textoHoy]}>
                 {DIAS_SEMANA_LETRA[(fecha.getDay() + 6) % 7]}
               </Texto>
-              <Texto fuerte style={[estilos.numeroTexto, esHoy && estilos.textoHoy]}>
+              <Texto fuerte style={[estilos.numeroTexto, festivo && estilos.textoFestivo, esHoy && estilos.textoHoy]}>
                 {fecha.getDate()}
               </Texto>
               <View style={[estilos.cargaFondo, esHoy && estilos.cargaFondoHoy]}>
@@ -205,8 +211,11 @@ const estilos = StyleSheet.create({
     backgroundColor: colores.tarjeta,
   },
   cabeceraHoy: { backgroundColor: colores.principal },
+  // Los festivos, en azul (como en un calendario de papel, en rojo).
+  cabeceraFestivo: { backgroundColor: acentos.azul.suave },
   letra: { color: colores.textoSecundario, fontSize: 11 },
   numeroTexto: { ...cifras, fontFamily: fuentes.horaFuerte, fontSize: 17 },
+  textoFestivo: { color: acentos.azul.color },
   textoHoy: { color: colores.textoOscuro },
   cargaFondo: { width: '56%', height: 4, borderRadius: 2, backgroundColor: colores.elevado, overflow: 'hidden' },
   cargaFondoHoy: { backgroundColor: colores.principalPulsado },

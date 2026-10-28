@@ -2,6 +2,7 @@ import * as Location from 'expo-location';
 import { Platform } from 'react-native';
 
 import { guardarPerfil, leerPerfil, type Coordenadas, type Lugar } from '@/data/perfil';
+import { comunidadDesdeIso, type CodigoComunidad } from '@/services/festivos';
 
 // Convierte texto ("Chamberí, Madrid") en coordenadas.
 // - En el móvil (Android e iOS): con expo-location, que usa el buscador del teléfono.
@@ -78,6 +79,41 @@ async function buscarEnOpenStreetMap(texto: string): Promise<ResultadoBusqueda> 
     };
   } catch {
     // Sin conexión o el servicio no responde.
+    return { estado: 'no-disponible' };
+  }
+}
+
+// Comunidad autónoma (y Valle de Arán) de un municipio, para sus festivos. Siempre con
+// OpenStreetMap, también en el móvil: el buscador del teléfono no da la comunidad.
+export type ResultadoComunidad =
+  | { estado: 'encontrado'; comunidad: CodigoComunidad; municipio: string; subzona: string | null }
+  | { estado: 'no-encontrado' }
+  | { estado: 'no-disponible' };
+
+export async function buscarComunidad(texto: string): Promise<ResultadoComunidad> {
+  await esperarTurno();
+  const parametros = new URLSearchParams({
+    q: texto,
+    format: 'jsonv2',
+    limit: '1',
+    addressdetails: '1',
+    countrycodes: 'es',
+    'accept-language': 'es',
+  });
+  try {
+    const respuesta = await fetch(`https://nominatim.openstreetmap.org/search?${parametros}`);
+    if (!respuesta.ok) return { estado: 'no-disponible' };
+    const resultados = (await respuesta.json()) as { name?: string; address?: Record<string, string> }[];
+    const direccion = resultados[0]?.address ?? {};
+    const comunidad = comunidadDesdeIso(direccion['ISO3166-2-lvl4']);
+    if (!comunidad) return { estado: 'no-encontrado' };
+    return {
+      estado: 'encontrado',
+      comunidad,
+      municipio: direccion.city ?? direccion.town ?? direccion.village ?? resultados[0]?.name ?? texto,
+      subzona: direccion.county === 'Valle de Arán' ? 'aran' : null,
+    };
+  } catch {
     return { estado: 'no-disponible' };
   }
 }

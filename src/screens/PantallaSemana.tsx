@@ -37,6 +37,7 @@ import {
   ventanaEpoca,
   type PlanEpoca,
 } from '@/services/epoca';
+import { festivoDelDia } from '@/services/festivos';
 import {
   DIAS_SEMANA_LETRA,
   claveDia,
@@ -51,11 +52,12 @@ import {
   sumarDias,
   type ClaveDia,
 } from '@/services/fechas';
-import { alturaTactil, cifras, colores, colorEvento, colorTipo, duracion, espacio, fuentes, radio, tamanos } from '@/theme';
+import { acentos, alturaTactil, cifras, colores, colorEvento, colorTipo, duracion, espacio, fuentes, radio, tamanos } from '@/theme';
 
 import { dejarBorrador } from '@/services/captura/borrador';
 import { DURACION_POR_DEFECTO, horaParaHueco, huecosParaPlan } from '@/services/planes/sugerencias';
 
+import { MarcaFestivo } from './calendario/MarcaFestivo';
 import { MenuEvento } from './calendario/MenuEvento';
 import { RejillaSemana } from './calendario/RejillaSemana';
 import { nuevoEvento, rangoHoras } from './calendario/textos';
@@ -294,21 +296,26 @@ export function PantallaSemana() {
               const carga = cargaDelDia(ocupados, minutosTareas, conEpoca.jornada);
               const esElegido = dia === elegido;
               const fecha = fechaDesdeClave(dia);
+              const festivo = festivoDelDia(dia, perfil?.festivos);
               return (
                 <Pressable
                   key={dia}
                   accessibilityRole="button"
-                  accessibilityLabel={`${formatearDiaCorto(fecha)}, ${Math.round(carga.proporcion * 100)} % ocupado${hayHito ? ', con examen o entrega' : ''}`}
+                  accessibilityLabel={`${formatearDiaCorto(fecha)}, ${Math.round(carga.proporcion * 100)} % ocupado${hayHito ? ', con examen o entrega' : ''}${festivo ? `, festivo: ${festivo.nombre}` : ''}`}
                   accessibilityState={{ selected: esElegido }}
                   onPress={() => setElegido(dia)}
                   style={({ pressed }) => [estilos.dia, pressed && estilos.pulsado]}>
                   <Texto pequeno secundario>
                     {DIAS_SEMANA_LETRA[i]}
                   </Texto>
-                  <View style={[estilos.numero, esElegido && estilos.numeroElegido]}>
+                  <View style={[estilos.numero, festivo && estilos.numeroFestivo, esElegido && estilos.numeroElegido]}>
                     <Texto
                       fuerte
-                      style={[esElegido && estilos.numeroTextoElegido, !esElegido && dia === hoy && estilos.numeroHoy]}>
+                      style={[
+                        festivo && estilos.numeroTextoFestivo,
+                        esElegido && estilos.numeroTextoElegido,
+                        !esElegido && dia === hoy && estilos.numeroHoy,
+                      ]}>
                       {fecha.getDate()}
                     </Texto>
                   </View>
@@ -346,6 +353,7 @@ export function PantallaSemana() {
             <Titulo nivel={2} style={estilos.seccion}>
               {elegido === hoy ? `Hoy, ${formatearDiaCorto(fechaElegida)}` : formatearDiaCorto(fechaElegida)}
             </Titulo>
+            <MarcaFestivo dia={elegido} />
 
             {hitosElegido.map((h) => (
               <Texto key={h.id} fuerte style={estilos.hito}>
@@ -590,6 +598,8 @@ const estilos = StyleSheet.create({
     justifyContent: 'center',
   },
   numeroElegido: { backgroundColor: colores.principal },
+  numeroFestivo: { backgroundColor: acentos.azul.suave },
+  numeroTextoFestivo: { color: acentos.azul.color },
   numeroTextoElegido: { color: colores.textoOscuro },
   numeroHoy: { color: colores.principal },
   barraFondo: {

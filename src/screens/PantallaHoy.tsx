@@ -40,6 +40,7 @@ import { CapturaRapida } from './captura/CapturaRapida';
 import { ConfirmacionMovidas } from './calendario/ConfirmacionMovidas';
 import { DesdeSiri } from './siri/DesdeSiri';
 import { FilaEvento } from './calendario/FilaEvento';
+import { MarcaFestivo } from './calendario/MarcaFestivo';
 import { SalidaSiguiente } from './calendario/SalidaSiguiente';
 import { abrirEvento, nuevoEvento, rangoHoras } from './calendario/textos';
 import { useAhora } from './calendario/useAhora';
@@ -138,6 +139,7 @@ export function PantallaHoy() {
             <BotonInicial nombre={nombre} onPress={() => router.push('/perfil')} />
           </View>
           <TarjetaDia siguiente={cargado ? siguiente : null} hoy={hoy} perfil={perfil} ahora={ahora} />
+          <MarcaFestivo dia={hoy} />
         </View>
 
         {/* Acciones rápidas, como en una app de banco: lo que más se hace, a un toque. */}

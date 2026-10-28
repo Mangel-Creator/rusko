@@ -10,6 +10,7 @@ import { espacio } from '@/theme';
 
 import {
   borradorDesdePerfil,
+  comprobarFestivos,
   comprobarPaso1,
   comprobarPaso2,
   hayErrores,
@@ -17,11 +18,14 @@ import {
   type Borrador,
   type Errores,
 } from './formulario-perfil/borrador';
+import { CamposFestivos } from './formulario-perfil/CamposFestivos';
 import { CamposRitmo } from './formulario-perfil/CamposRitmo';
 import { CamposSobreTi } from './formulario-perfil/CamposSobreTi';
 import { TarjetaPermiso } from './formulario-perfil/permisos';
 
-type Paso = 1 | 2 | 'permisos';
+type Paso = 1 | 'festivos' | 2 | 'permisos';
+
+const NUMERO_PASO: Record<Paso, number> = { 1: 1, festivos: 2, 2: 3, permisos: 3 };
 
 // Formulario de bienvenida. Sale solo la primera vez (o tras "Repetir bienvenida").
 // Al terminar, el diseño de rutas (_layout.tsx) lleva a las pestañas automáticamente.
@@ -58,7 +62,13 @@ export function PantallaBienvenida() {
       scroll.current?.scrollTo({ y: 0, animated: true });
       return;
     }
-    irA(2);
+    irA('festivos');
+  };
+
+  const siguienteFestivos = () => {
+    const nuevos = comprobarFestivos(borrador);
+    setErrores(nuevos);
+    if (!hayErrores(nuevos)) irA(2);
   };
 
   const empezar = () => {
@@ -80,7 +90,7 @@ export function PantallaBienvenida() {
 
   return (
     <Pantalla ref={scroll}>
-      <BarraProgreso paso={paso === 1 ? 1 : 2} total={2} />
+      <BarraProgreso paso={NUMERO_PASO[paso]} total={3} />
 
       {paso === 1 ? (
         <>
@@ -98,13 +108,24 @@ export function PantallaBienvenida() {
         </>
       ) : null}
 
+      {paso === 'festivos' ? (
+        <>
+          <Titulo>Tus festivos</Titulo>
+          <CamposFestivos borrador={borrador} cambiar={cambiar} errores={errores} />
+          <View style={estilos.botones}>
+            <Boton titulo="Siguiente" onPress={siguienteFestivos} />
+            <Boton variante="secundario" titulo="Atrás" onPress={() => irA(1)} />
+          </View>
+        </>
+      ) : null}
+
       {paso === 2 ? (
         <>
           <Titulo>Tu ritmo</Titulo>
           <CamposRitmo borrador={borrador} cambiar={cambiar} errores={errores} />
           <View style={estilos.botones}>
             <Boton titulo="Empezar" onPress={empezar} />
-            <Boton variante="secundario" titulo="Atrás" onPress={() => irA(1)} />
+            <Boton variante="secundario" titulo="Atrás" onPress={() => irA('festivos')} />
           </View>
         </>
       ) : null}

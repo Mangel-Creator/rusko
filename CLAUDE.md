@@ -2144,6 +2144,29 @@ borran solos a los 7 días.
 - **Pendiente**: eventos de todo el día (cumpleaños, festivos, vacaciones) cuando Organizy
   los tenga; lectura directa con `expo-calendar` en la app propia (ver la decisión del 27/09).
 
+## Festivos (28/10/2026)
+
+- Pedido por el usuario: preguntar dónde vive y dónde trabaja o estudia, y poner solos en el
+  calendario los festivos del año. **Bienvenida**: paso nuevo "Tus festivos" (ahora son 3
+  pasos: Sobre ti, Tus festivos, Tu ritmo). **Perfil > "Tus festivos"** para cambiarlo.
+- Preguntas (`formulario-perfil/CamposFestivos.tsx`): ¿trabajas o estudias? (Trabajo, Estudio,
+  Las dos, Ninguna) y ¿dónde? (donde vivo u otro municipio). Cuentan las fiestas del sitio de
+  trabajo o estudios; si no, las de casa. La **comunidad se busca sola** con OpenStreetMap
+  (`buscarComunidad` en `services/lugares.ts`, campo `ISO3166-2-lvl4`; Valle de Arán por
+  `county`), con "Cambiar" para elegirla a mano. En Canarias se pregunta la isla.
+- Se guarda en `Perfil.festivos` (`ZonaFestivos`, opcional: los perfiles de antes no lo tienen).
+- Cálculo (`services/festivos`, puro, con pruebas): nacionales y de comunidad copiadas de la
+  **tabla oficial del BOE** de cada año (`boe.ts`: 2026 y 2027, con las fiestas de isla y de
+  Arán de sus notas). **Cada otoño sale la del año siguiente: añádela** (la tabla se saca de
+  `boe.es/diario_boe/txt.php?id=BOE-A-...`). Sin tabla, solo las nacionales fijas y el
+  Viernes Santo (Pascua calculada) y se avisa. Las **2 fiestas locales** las añade la persona
+  (no hay lista oficial única de los más de 8000 municipios), con un botón "Buscarlas en
+  internet".
+- **No son eventos** (Organizy no tiene eventos de todo el día): `festivoDelDia(dia, zona)`
+  y en pantalla `MarcaFestivo` / `useFestivo` (`screens/calendario/MarcaFestivo.tsx`).
+  Se ven en **azul** (`acentos.azul`): píldora "Festivo · nombre" en Hoy y en el día de
+  Semana, y el día en azul en la tira y en la rejilla. No cambian huecos, carga ni avisos.
+
 ## Matriz de Eisenhower en las tareas (27/09/2026)
 
 - Lo pidió el usuario: clasificar cada tarea con la matriz de Eisenhower. Solo las **tareas
