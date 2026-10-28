@@ -167,6 +167,8 @@ type Resumen = {
   hora: string | null;
   tarea: string | null;
   importante: boolean;
+  automatico: boolean;
+  aviso?: string;
   via: 'reglas' | 'ia';
   enlace: string;
 };
@@ -185,7 +187,7 @@ async function analizar(cuenta: Cuenta, m: MensajeLeido): Promise<Resumen> {
   if (iaDisponible) {
     const uso = await sumarUso(cuenta.usuario, 'correo', LIMITE_IA_USUARIO, LIMITE_IA_GLOBAL).catch(() => null);
     if (uso?.permitido) {
-      const correo = { asunto: m.asunto, recibido: m.recibido };
+      const correo = { asunto: m.asunto, recibido: m.recibido, de: m.de, cuerpo: m.cuerpo, automatico: m.automatico };
       const a = await analizarConClaude({ asunto: base.asunto, de: base.de, cuerpo: limpiarCuerpo(m.cuerpo).slice(0, 4000), hoy: diaDe(m.recibido) });
       if (a) {
         const r = resultadoDeIA(a, correo);
@@ -193,8 +195,18 @@ async function analizar(cuenta: Cuenta, m: MensajeLeido): Promise<Resumen> {
       }
     }
   }
-  const r = analizarCorreo({ asunto: m.asunto, de: m.de, cuerpo: m.cuerpo, recibido: m.recibido });
-  return { ...base, titulo: r.titulo, resumen: r.resumen, fechaLimite: r.fechaLimite, hora: r.hora, tarea: r.tarea, importante: siempre, via: 'reglas' };
+  const r = analizarCorreo({ asunto: m.asunto, de: m.de, cuerpo: m.cuerpo, recibido: m.recibido, automatico: m.automatico });
+  return {
+    ...base,
+    titulo: r.titulo,
+    resumen: r.resumen,
+    fechaLimite: r.fechaLimite,
+    hora: r.hora,
+    tarea: r.tarea,
+    importante: siempre,
+    automatico: r.automatico,
+    via: 'reglas',
+  };
 }
 
 async function mandarAvisos(cuenta: Cuenta, avisos: { titulo: string; cuerpo: string }[]) {
@@ -255,6 +267,7 @@ async function revisarCuenta(cuenta: Cuenta, acceso: string, desde: Date, avisar
         hora: r.hora,
         tarea: r.tarea,
         importante: r.importante,
+        automatico: r.automatico,
         via: r.via,
         enlace: r.enlace,
       })),
@@ -442,6 +455,7 @@ async function estadoDelUsuario(usuario: string, tokenPush: unknown, siempre: un
         hora: f.hora ?? null,
         tarea: f.tarea,
         importante: f.importante === true,
+        automatico: f.automatico === true,
         via: f.via,
         enlace: f.enlace,
         origen: cuentaDe.get(f.cuenta)?.proveedor,

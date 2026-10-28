@@ -255,6 +255,31 @@ export async function quitarPlazo(id: string): Promise<void> {
   await guardarCorreos(correos.map((c) => (c.id === id ? { ...c, noEsPlazo: true } : c)));
 }
 
+// Cambia un correo guardado (fijar, quitar, recordatorio).
+async function cambiarCorreo(id: string, cambio: (c: CorreoResumido) => CorreoResumido): Promise<void> {
+  const { correos } = await leerCorreos();
+  if (!correos.some((c) => c.id === id)) return;
+  await guardarCorreos(correos.map((c) => (c.id === id ? cambio(c) : c)));
+}
+
+// Quitar un correo de Rusko (en el correo sigue igual): deja de salir en la pestaña y
+// no crea tareas ni citas. Lo ya apuntado se queda en el calendario. No vuelve al traer
+// los correos otra vez (se queda marcado como oculto).
+export function quitarCorreo(id: string): Promise<void> {
+  return cambiarCorreo(id, (c) => ({ ...c, oculto: true, fijado: false, recordatorio: null }));
+}
+
+// Fijar o desfijar un correo (los fijados van arriba).
+export function fijarCorreo(id: string): Promise<void> {
+  return cambiarCorreo(id, (c) => ({ ...c, fijado: !c.fijado }));
+}
+
+// Recordatorio de un correo: un aviso a esa hora (cuando = una de opcionesRecordatorio)
+// o null para quitarlo. Los avisos se reprograman solos al cambiar los correos.
+export function recordarCorreo(id: string, cuando: Date | null): Promise<void> {
+  return cambiarCorreo(id, (c) => ({ ...c, recordatorio: cuando ? cuando.toISOString() : null }));
+}
+
 // Deshace "¿Eliminar cita?": la vuelve a apuntar (si su día no ha pasado).
 export async function volverAApuntar(id: string): Promise<void> {
   const { correos } = await leerCorreos();

@@ -2,9 +2,10 @@ import { describe, expect, it } from '@jest/globals';
 
 import type { CorreoRemoto, CorreoResumido } from '@/data/correos';
 import type { Perfil } from '@/data/perfil';
-import { avisosDePlazos } from '@/services/avisos/correos';
+import { avisosDePlazos, avisosDeRecordatorios } from '@/services/avisos/correos';
 
 import {
+  asuntoCorto,
   avisaSiempre,
   bandejasCorreo,
   cambiarSiempre,
@@ -14,10 +15,14 @@ import {
   iaEncendida,
   leerEnlace,
   mezclarCorreos,
+  nivelCorreo,
+  opcionesRecordatorio,
   sinCuenta,
   tareaDeCorreo,
   textoGrupo,
   textoParaDia,
+  textoRecordatorio,
+  textoTienes,
   textoVuelta,
   validarRemoto,
 } from '../correos';
@@ -46,6 +51,9 @@ const local = (cambios: Partial<CorreoResumido> = {}): CorreoResumido => ({
   visto: false,
   eventoId: null,
   noEsPlazo: false,
+  fijado: false,
+  oculto: false,
+  recordatorio: null,
   ...cambios,
 });
 
@@ -67,7 +75,7 @@ describe('leerEnlace', () => {
 
 describe('validarRemoto', () => {
   it('se queda con lo válido', () => {
-    expect(validarRemoto(remoto())).toEqual({ ...remoto(), hora: null, importante: false });
+    expect(validarRemoto(remoto())).toEqual({ ...remoto(), hora: null, importante: false, automatico: false });
     expect(validarRemoto({ ...remoto(), importante: true })?.importante).toBe(true);
     expect(validarRemoto({ ...remoto(), fechaLimite: '5 oct', tarea: 'Algo' })).toMatchObject({ fechaLimite: null, tarea: null });
     expect(validarRemoto({ ...remoto(), enlace: 'https://otro.com' })?.enlace).toBe('');
@@ -214,7 +222,7 @@ describe('aviso de la víspera', () => {
     const [aviso] = avisosDePlazos([correo], [tarea], perfil, '2026-10-04');
     expect(aviso).toMatchObject({
       tipo: 'plazo-correo',
-      titulo: 'Mañana: Pagar el IBI',
+      titulo: 'Tienes que pagar el IBI mañana',
       destino: { pantalla: 'evento', id: 'e1' },
     });
     expect(aviso.cuando).toEqual(new Date(2026, 9, 4, 7, 30));
@@ -270,5 +278,92 @@ describe('avisarme siempre de', () => {
     for (let i = 0; i < 35; i++) lista = cambiarSiempre(lista, `Persona ${i}`);
     expect(lista).toHaveLength(30);
     expect(lista[0]).toBe('Persona 5');
+  });
+});
+describe('nivel de un correo', () => {
+  const hoy = '2026-10-27';
+  it('3 con "Avisarme siempre" o fecha hoy o mañana', () => {
+    expect(nivelCorreo(local({ automatico: true }), hoy, ['Gestoría'])).toBe(3);
+    expect(nivelCorreo(local({ fechaLimite: '2026-10-28', tarea: 'Pagar' }), hoy, [])).toBe(3);
+    expect(nivelCorreo(local({ fechaLimite: hoy, tarea: 'Pagar' }), hoy, [])).toBe(3);
+  });
+  it('2 con fecha más adelante o importante', () => {
+    expect(nivelCorreo(local({ fechaLimite: '2026-11-12', tarea: 'Dentista' }), hoy, [])).toBe(2);
+    expect(nivelCorreo(local({ importante: true }), hoy, [])).toBe(2);
+  });
+  it('1 de una persona y 0 automático; la fecha pasada o eliminada no cuenta', () => {
+    expect(nivelCorreo(local(), hoy, [])).toBe(1);
+    expect(nivelCorreo(local({ automatico: true }), hoy, [])).toBe(0);
+    expect(nivelCorreo(local({ fechaLimite: '2026-10-20', tarea: 'X' }), hoy, [])).toBe(1);
+    expect(nivelCorreo(local({ fechaLimite: '2026-10-28', tarea: 'X', noEsPlazo: true }), hoy, [])).toBe(1);
+  });
+});
+
+describe('asunto corto', () => {
+  it('quita etiquetas, emojis y números de pedido', () => {
+    expect(asuntoCorto('[EXTERNO] Tu pedido ha salido 🚚 nº 123456789')).toBe('Tu pedido ha salido');
+  });
+  it('corta por una palabra', () => {
+    const corto = asuntoCorto('Confirmación de tu reserva en el restaurante La Taberna del Puerto para el sábado', 40);
+    expect(corto.length).toBeLessThanOrEqual(40);
+    expect(corto.endsWith('…')).toBe(true);
+    expect(corto).not.toMatch(/s…$/);
+  });
+});
+
+describe('«Tienes X el día Y»', () => {
+  const hoy = '2026-10-27';
+  it('con el día largo, hoy, mañana y la hora', () => {
+    expect(textoTienes('Dentista', '2026-11-12', hoy)).toBe('Tienes dentista el jueves 12 de noviembre');
+    expect(textoTienes('Pagar el IBI', hoy, hoy)).toBe('Tienes que pagar el IBI hoy');
+    expect(textoTienes('Reunión', '2026-10-28', hoy, '10:00')).toBe('Tienes reunión mañana a las 10:00');
+  });
+  it('no confunde palabras que acaban en -ar y dice "Tenías" si ya pasó', () => {
+    expect(textoTienes('Taller de cerámica', '2026-10-28', hoy)).toBe('Tienes taller de cerámica mañana');
+    expect(textoTienes('Cena', '2026-10-25', hoy)).toBe('Tenías cena el domingo 25 de octubre');
+  });
+});
+
+describe('recordatorio de un correo', () => {
+  it('opciones según la hora y el día', () => {
+    // Martes 27/10 a las 10:00
+    const martes = opcionesRecordatorio(new Date(2026, 9, 27, 10, 0));
+    expect(martes.map((o) => o.clave)).toEqual(['hora', 'tarde', 'noche', 'manana', 'finde']);
+    expect(martes[4].cuando).toEqual(new Date(2026, 9, 31, 10, 0));
+    // Viernes 30/10 a las 20:00: ya no hay "esta tarde"; el lunes a las 9:00
+    const viernes = opcionesRecordatorio(new Date(2026, 9, 30, 20, 0));
+    expect(viernes.map((o) => o.clave)).toEqual(['hora', 'noche', 'manana', 'lunes']);
+    expect(viernes[3].cuando).toEqual(new Date(2026, 10, 2, 9, 0));
+  });
+  it('dice cuándo', () => {
+    const ahora = new Date(2026, 9, 27, 10, 0);
+    expect(textoRecordatorio(new Date(2026, 9, 27, 18, 0).toISOString(), ahora)).toBe('Te lo recuerdo hoy a las 18:00');
+    expect(textoRecordatorio(new Date(2026, 9, 28, 9, 0).toISOString(), ahora)).toBe('Te lo recuerdo mañana a las 09:00');
+    expect(textoRecordatorio(new Date(2026, 9, 31, 10, 0).toISOString(), ahora)).toBe('Te lo recuerdo el sáb 31 oct a las 10:00');
+  });
+  it('avisa ese día a esa hora, salvo si se quitó de Rusko', () => {
+    const cuando = new Date(2026, 9, 27, 18, 0);
+    const correo = local({ recordatorio: cuando.toISOString() });
+    const [aviso] = avisosDeRecordatorios([correo], '2026-10-27');
+    expect(aviso).toMatchObject({ tipo: 'recordatorio-correo', titulo: 'Gestoría: IVA', destino: { pantalla: 'resumenes' } });
+    expect(aviso.cuando).toEqual(cuando);
+    expect(avisosDeRecordatorios([correo], '2026-10-28')).toEqual([]);
+    expect(avisosDeRecordatorios([{ ...correo, oculto: true }], '2026-10-27')).toEqual([]);
+  });
+});
+
+describe('fijados, quitados y recordatorios', () => {
+  it('se conservan al traer los correos otra vez', () => {
+    const guardado = local({ fijado: true, oculto: true, recordatorio: '2026-10-28T08:00:00.000Z' });
+    const [c] = mezclarCorreos([guardado], [remoto()], new Date(2026, 8, 27));
+    expect(c).toMatchObject({ fijado: true, oculto: true, recordatorio: '2026-10-28T08:00:00.000Z' });
+    const [nuevo] = mezclarCorreos([], [remoto()], new Date(2026, 8, 27));
+    expect(nuevo).toMatchObject({ fijado: false, oculto: false, recordatorio: null });
+  });
+  it('lo quitado no sale en las bandejas ni crea tareas', () => {
+    const oculto = local({ id: 'x', oculto: true, fechaLimite: '2026-10-30', tarea: 'Pagar' });
+    expect(correosSinTarea([oculto], '2026-10-27')).toEqual([]);
+    const b = bandejasCorreo([oculto, local({ id: 'y' })], '2026-10-27', (iso) => iso.slice(0, 10));
+    expect(JSON.stringify(b)).not.toContain('"id":"x"');
   });
 });

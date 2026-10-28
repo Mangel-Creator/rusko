@@ -8,7 +8,7 @@
  *   - si son importantes (lo dice la IA de Organizy) o de alguien de "Avisarme siempre
  *     de…", te manda un aviso corto;
  *   - si vienen de una dirección vetada en Organizy, no hace nada con ellos;
- *   - del resto no avisa: en Organizy sale solo quién lo manda y el asunto.
+ *   - del resto no avisa: en Rusko sale quién lo manda, el asunto y un resumen corto.
  * Organizy recoge los resultados al abrirse, desde el enlace de "Aplicación web".
  *
  * Tus correos no se guardan en ningún servidor de Organizy: se leen aquí, dentro de
@@ -32,7 +32,7 @@
  * reglas, que comparte con el servidor). No lo edites a mano.
  */
 /* global GmailApp, PropertiesService, ScriptApp, UrlFetchApp, ContentService, HtmlService, Utilities, Session, LockService, Logger */
-/* global analizarCorreo, avisosDeCorreos, direccionRemitente, leerSiempre, leerVetados, limpiarCuerpo, nombreRemitente, resultadoDeIA, siempreAvisar, vetado, ZONA_CORREO */
+/* global analizarCorreo, avisosDeCorreos, cabecerasAutomaticas, direccionRemitente, leerSiempre, leerVetados, limpiarCuerpo, nombreRemitente, resultadoDeIA, siempreAvisar, vetado, ZONA_CORREO */
 
 var AJUSTES = {
   // Qué correos mira: los de "Principal" de la bandeja de entrada que no mandas tú.
@@ -196,6 +196,10 @@ function revisar_(desde, avisar) {
         de: m.getFrom() || '',
         cuerpo: (m.getPlainBody() || '').slice(0, 20000),
         recibido: m.getDate(),
+        // List-Unsubscribe, Precedence: bulk… = boletín o aviso automático.
+        automatico: cabecerasAutomaticas(function (nombre) {
+          return m.getHeader(nombre.replace(/(^|-)([a-z])/g, function (x) { return x.toUpperCase(); })) || '';
+        }),
       };
       // De una dirección vetada: se da por visto y no se guarda ni avisa.
       if (vetado(correo.de, vetados)) {
@@ -215,6 +219,8 @@ function revisar_(desde, avisar) {
         hora: analisis.hora || null,
         tarea: analisis.tarea,
         importante: analisis.importante || siempreAvisar(correo.de, siempre),
+        automatico: analisis.automatico === true,
+        aviso: analisis.aviso || '',
         via: analisis.via,
         enlace: 'https://mail.google.com/mail/?authuser=' + encodeURIComponent(yo) + '#all/' + m.getThread().getId(),
       };

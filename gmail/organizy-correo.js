@@ -8,7 +8,7 @@
  *   - si son importantes (lo dice la IA de Organizy) o de alguien de "Avisarme siempre
  *     de…", te manda un aviso corto;
  *   - si vienen de una dirección vetada en Organizy, no hace nada con ellos;
- *   - del resto no avisa: en Organizy sale solo quién lo manda y el asunto.
+ *   - del resto no avisa: en Rusko sale quién lo manda, el asunto y un resumen corto.
  * Organizy recoge los resultados al abrirse, desde el enlace de "Aplicación web".
  *
  * Tus correos no se guardan en ningún servidor de Organizy: se leen aquí, dentro de
@@ -32,7 +32,7 @@
  * reglas, que comparte con el servidor). No lo edites a mano.
  */
 /* global GmailApp, PropertiesService, ScriptApp, UrlFetchApp, ContentService, HtmlService, Utilities, Session, LockService, Logger */
-/* global analizarCorreo, avisosDeCorreos, direccionRemitente, leerSiempre, leerVetados, limpiarCuerpo, nombreRemitente, resultadoDeIA, siempreAvisar, vetado, ZONA_CORREO */
+/* global analizarCorreo, avisosDeCorreos, cabecerasAutomaticas, direccionRemitente, leerSiempre, leerVetados, limpiarCuerpo, nombreRemitente, resultadoDeIA, siempreAvisar, vetado, ZONA_CORREO */
 
 var AJUSTES = {
   // Qué correos mira: los de "Principal" de la bandeja de entrada que no mandas tú.
@@ -196,6 +196,10 @@ function revisar_(desde, avisar) {
         de: m.getFrom() || '',
         cuerpo: (m.getPlainBody() || '').slice(0, 20000),
         recibido: m.getDate(),
+        // List-Unsubscribe, Precedence: bulk… = boletín o aviso automático.
+        automatico: cabecerasAutomaticas(function (nombre) {
+          return m.getHeader(nombre.replace(/(^|-)([a-z])/g, function (x) { return x.toUpperCase(); })) || '';
+        }),
       };
       // De una dirección vetada: se da por visto y no se guarda ni avisa.
       if (vetado(correo.de, vetados)) {
@@ -215,6 +219,8 @@ function revisar_(desde, avisar) {
         hora: analisis.hora || null,
         tarea: analisis.tarea,
         importante: analisis.importante || siempreAvisar(correo.de, siempre),
+        automatico: analisis.automatico === true,
+        aviso: analisis.aviso || '',
         via: analisis.via,
         enlace: 'https://mail.google.com/mail/?authuser=' + encodeURIComponent(yo) + '#all/' + m.getThread().getId(),
       };
@@ -448,6 +454,8 @@ var CITA_DEBIL = /\bel dia\b/g;
 
 // Direcciones vetadas que se guardan como mucho.
 var MAX_VETADOS = 100;
+// Largo del resumen que sale al abrir un correo en Rusko.
+var LARGO_RESUMEN = 160;
 
 // "Gestoría López <info@gl.es>" -> "Gestoría López"
 function nombreRemitente(de) {
@@ -487,6 +495,30 @@ function vetado(de, lista) {
   if (!Array.isArray(lista) || !lista.length) return false;
   var direccion = direccionRemitente(de) || String(de || '').trim().toLowerCase();
   return !!direccion && lista.indexOf(direccion) !== -1;
+}
+
+// Remitentes que son máquinas: "noreply@", "notificaciones@", "newsletter@"...
+var REMITENTE_AUTOMATICO =
+  /^(no-?reply|noreply|do-?not-?reply|donotreply|no-?responder|noresponder|mailer-daemon)|(^|[._-])(notificaci(o|ó)n(es)?|notifications?|newsletters?|boletin(es)?|mailer|mailing|marketing|promo(ciones)?|news|alerts?|alertas?|bounces?)([._-]|$)/;
+// Frases que solo llevan los correos masivos o automáticos.
+var CUERPO_AUTOMATICO =
+  /(darte de baja|darse de baja|dejar de recibir (estos|este)|cancelar (tu |la )?suscripcion|unsubscribe|no respondas a este (correo|mensaje)|no responda a este (correo|mensaje)|(correo|mensaje) (generado|enviado) automaticamente|este es un (correo|mensaje) automatico)/;
+
+// ¿Lo manda una máquina (boletín, publicidad, aviso automático)? Quien lee el correo
+// puede decirlo ya (cabecera List-Unsubscribe, Precedence: bulk…) con correo.automatico.
+function esAutomatico(correo) {
+  if (correo.automatico === true) return true;
+  var local = direccionRemitente(correo.de).split('@')[0] || '';
+  if (local && REMITENTE_AUTOMATICO.test(local)) return true;
+  return CUERPO_AUTOMATICO.test(normalizar(String(correo.cuerpo || '').slice(-3000)));
+}
+
+// ¿Dicen las cabeceras que es un envío masivo o automático?
+function cabecerasAutomaticas(cabecera) {
+  if (cabecera('list-unsubscribe') || cabecera('list-id')) return true;
+  if (/^(bulk|list|junk)$/i.test(cabecera('precedence').trim())) return true;
+  var auto = cabecera('auto-submitted').trim().toLowerCase();
+  return !!auto && auto !== 'no';
 }
 
 // Quita "RE:", "RV:", "Fwd:", "[EXTERNO]"... del principio del asunto.
@@ -743,9 +775,9 @@ function horaEn(texto, hoy) {
   return dosCifras(h) + ':' + dosCifras(min);
 }
 
-// Qué es un correo sin IA: el asunto y, si tiene un plazo o una cita, el día (y la hora,
-// si va justo detrás). Sin resumen y sin saber si es importante (eso solo lo sabe la IA
-// o "Avisarme siempre").
+// Qué es un correo sin IA: el asunto, las primeras frases como resumen, si lo manda una
+// máquina y, si tiene un plazo o una cita, el día (y la hora, si va justo detrás). Sin
+// saber si es importante (eso solo lo sabe la IA o "Avisarme siempre").
 function analizarCorreo(correo) {
   var hoy = diaDe(correo.recibido);
   var titulo = limpiarAsunto(correo.asunto);
@@ -758,30 +790,36 @@ function analizarCorreo(correo) {
   if (fecha && !hora && enAsunto && fechaLimiteEn(cuerpo, hoy) === fecha) hora = horaEn(cuerpo, hoy);
   return {
     titulo: titulo.slice(0, 120),
-    resumen: '',
+    resumen: resumir(correo.cuerpo, LARGO_RESUMEN),
     fechaLimite: fecha,
     hora: hora,
     tarea: fecha ? titulo.slice(0, 80) : null,
     importante: false,
+    automatico: esAutomatico(correo),
     via: 'reglas',
   };
 }
 
+
 // Lo que contesta la IA (función "correo"), comprobado: fecha real entre hoy y un año,
-// textos recortados y la línea del aviso solo si es importante.
+// textos recortados, resumen de una frase (o el de las reglas) y la línea del aviso solo
+// si es importante.
 function resultadoDeIA(a, correo) {
   var hoy = diaDe(correo.recibido);
   var fecha = typeof a.fechaLimite === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(a.fechaLimite) ? a.fechaLimite : null;
   if (fecha && (fecha < hoy || fecha > sumarDias(hoy, 366))) fecha = null;
   var titulo = String(a.titulo || '').trim().slice(0, 120) || limpiarAsunto(correo.asunto);
   var importante = a.importante === true;
+  var hora = typeof a.hora === 'string' && /^([01]\d|2[0-3]):[0-5]\d$/.test(a.hora) ? a.hora : null;
   return {
     titulo: titulo,
-    resumen: importante ? String(a.resumen || '').trim().slice(0, 160) : '',
+    resumen: String(a.resumen || '').trim().slice(0, 200) || resumir(correo.cuerpo, LARGO_RESUMEN),
+    aviso: importante ? String(a.aviso || '').trim().slice(0, 160) : '',
     fechaLimite: fecha,
-    hora: null, // la IA no dice la hora (todavía)
+    hora: fecha ? hora : null,
     tarea: fecha ? String(a.tarea || titulo).trim().slice(0, 80) : null,
     importante: importante,
+    automatico: a.automatico === true || esAutomatico(correo),
     via: 'ia',
   };
 }
@@ -830,6 +868,29 @@ function textoCuando(dia, hoy) {
   return 'El ' + textoDia(dia);
 }
 
+var DIAS_LARGOS = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
+// Palabras que acaban como un verbo ("-ar", "-er", "-ir") y no lo son.
+var NO_VERBOS = /^(taller|lugar|hogar|alquiler|mujer|ayer|poder|placer|familiar|particular|militar|collar|altar|azucar|azúcar|cancer|cáncer|caracter|carácter|deber|bazar|dolar|dólar|nectar|néctar|cadaver|cadáver|alfiler|menester|tutor|elixir|faquir|nadir|zafir)$/i;
+var MESES_LARGOS = ['enero', 'febrero', 'marzo', 'abril', 'mayo', 'junio', 'julio', 'agosto', 'septiembre', 'octubre', 'noviembre', 'diciembre'];
+
+// «Tienes dentista el jueves 11 de noviembre», «Tienes que pagar el IBI mañana».
+// Nunca con el nombre de quien lo lee (lo pidió el usuario el 27/10/2026).
+function textoTienes(que, dia, hoy, hora) {
+  var texto = String(que || '').trim();
+  var primera = texto.split(/\s+/)[0] || '';
+  // "Pagar el IBI" -> "que pagar el IBI"; "Dentista" -> "dentista" (no "IBI" ni "DGT").
+  if (/^[A-ZÁÉÍÓÚÑ][a-záéíóúñ]/.test(texto)) texto = texto.charAt(0).toLowerCase() + texto.slice(1);
+  if (/^[a-záéíóúñ]+(ar|er|ir)$/i.test(primera) && primera.length > 3 && !NO_VERBOS.test(primera)) texto = 'que ' + texto;
+  var cuando;
+  if (dia === hoy) cuando = 'hoy';
+  else if (dia === sumarDias(hoy, 1)) cuando = 'mañana';
+  else {
+    var p = dia.split('-').map(Number);
+    cuando = 'el ' + DIAS_LARGOS[diaSemana(dia)] + ' ' + p[2] + ' de ' + MESES_LARGOS[p[1] - 1];
+  }
+  return 'Tienes ' + texto + ' ' + cuando + (hora ? ' a las ' + hora : '');
+}
+
 // Los avisos de una vuelta: uno por cada correo con fecha (ya es una tarea) y uno por
 // cada importante (o uno solo para todos si son muchos). Del resto, nada.
 function avisosDeCorreos(correos, ahora) {
@@ -839,7 +900,7 @@ function avisosDeCorreos(correos, ahora) {
   correos.forEach(function (c) {
     if (c.fechaLimite) {
       avisos.push({
-        titulo: recortar(textoCuando(c.fechaLimite, hoy) + (c.hora ? ' a las ' + c.hora : '') + ': ' + (c.tarea || c.titulo), 90),
+        titulo: recortar(textoTienes(c.tarea || c.titulo, c.fechaLimite, hoy, c.hora), 90),
         cuerpo: (c.hora ? 'Te lo he apuntado en el calendario.' : 'Te lo he apuntado en las tareas.') + ' Correo de ' + c.de + '.',
       });
     } else if (c.importante) {
@@ -862,7 +923,7 @@ function avisosDeCorreos(correos, ahora) {
     importantes.forEach(function (c) {
       avisos.push({
         titulo: recortar(c.de + ': ' + c.titulo, 90),
-        cuerpo: recortar(c.resumen || 'Correo importante en Principal.', 180),
+        cuerpo: recortar(c.aviso || c.resumen || 'Correo importante en Principal.', 180),
       });
     });
   }

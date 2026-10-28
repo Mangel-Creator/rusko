@@ -15,7 +15,8 @@ import { guardarAjuste, leerAjuste } from './ajustes';
 //   - En pantallas: const { cargado, conexion, cuentas, proveedores, correos } = useCorreos();
 //   - Fuera de pantallas: await leerCorreos(); suscribirseCorreos(...)
 //   - Para cambiar: guardarConexion, guardarCuentas, guardarCorreos, guardarSiempre y
-//     guardarVetados (services/correo hace el resto).
+//     guardarVetados (services/correo hace el resto: quitarCorreo, fijarCorreo,
+//     recordarCorreo…).
 
 export type ProveedorCorreo = 'gmail' | 'outlook';
 
@@ -39,13 +40,15 @@ export type CorreoRemoto = {
   direccion?: string; // "info@gl.es" (los de antes del 27/10/2026 no la traen)
   asunto: string;
   titulo: string;
-  // Desde el 26/10/2026 no hay resúmenes: solo la línea del aviso de un correo
-  // importante ("Te pide que le confirmes hoy…"), o vacío. Los antiguos pueden traer uno.
+  // De qué trata, en una o dos frases (desde el 27/10/2026: sin IA, las primeras frases
+  // del correo; con IA, una frase suya). Los del 26 y 27/10 de antes pueden traer solo
+  // la línea del aviso de un importante, o vacío.
   resumen: string;
   fechaLimite: ClaveDia | null; // el día que importa: un plazo, una cita, un cargo
   hora?: string | null; // "HH:MM" si es una cita con hora (desde el 27/10/2026)
   tarea: string | null; // lo que hay que hacer (o la cita), para el calendario
   importante?: boolean; // lo dice la IA, o es de "Avisarme siempre de…"
+  automatico?: boolean; // lo manda una máquina: boletín, publicidad, aviso automático
   via: 'reglas' | 'ia';
   enlace: string; // abre el correo en Gmail u Outlook
   origen?: ProveedorCorreo; // solo en los de las cuentas vinculadas
@@ -57,7 +60,14 @@ export type CorreoResumido = CorreoRemoto & {
   visto: boolean;
   eventoId: string | null; // tarea o cita creada en el calendario (aunque luego se borre)
   noEsPlazo: boolean; // "¿Eliminar cita?" aceptado: se queda en la pestaña, sin tarea ni cita
+  fijado: boolean; // arriba del todo en la pestaña
+  oculto: boolean; // quitado de Rusko (en el correo sigue igual); no vuelve aunque llegue otra vez
+  recordatorio: string | null; // ISO: cuándo avisar de este correo
 };
+
+// Importancia de un correo en la pestaña (nivelCorreo, en services/correo):
+// 3 muy importante, 2 importante, 1 medio, 0 poco (boletines y avisos automáticos).
+export type NivelCorreo = 0 | 1 | 2 | 3;
 
 export type ConexionCorreo = {
   enlace: string; // URL de la "Aplicación web" del ayudante
@@ -83,6 +93,11 @@ const CLAVE_CUENTAS = 'cuentasCorreo';
 const CLAVE_SIEMPRE = 'correoSiempre';
 const CLAVE_VETADOS = 'correoVetados';
 
+// Los guardados antes del 27/10/2026 no traen fijado, oculto ni recordatorio.
+function completarCorreo(c: CorreoResumido): CorreoResumido {
+  return { ...c, fijado: c.fijado === true, oculto: c.oculto === true, recordatorio: c.recordatorio ?? null };
+}
+
 let estado: Estado = { cargado: false, conexion: null, cuentas: [], proveedores: null, correos: [], siempre: [], vetados: [] };
 let cargando: Promise<void> | null = null;
 const oyentes = new Set<() => void>();
@@ -103,7 +118,7 @@ export function cargarCorreos(): Promise<void> {
     ]).then(([conexion, correos, cuentas, siempre, vetados]) =>
       cambiar({
         conexion,
-        correos: Array.isArray(correos) ? correos : [],
+        correos: Array.isArray(correos) ? correos.map(completarCorreo) : [],
         cuentas: Array.isArray(cuentas) ? cuentas : [],
         siempre: Array.isArray(siempre) ? siempre.filter((s) => typeof s === 'string') : [],
         vetados: Array.isArray(vetados) ? vetados.filter((s) => typeof s === 'string') : [],

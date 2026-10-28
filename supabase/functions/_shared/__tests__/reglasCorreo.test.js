@@ -117,7 +117,7 @@ describe('limpiar y resumir', () => {
 });
 
 describe('analizarCorreo y avisos', () => {
-  it('un correo con plazo lleva fecha y tarea, sin resumen', () => {
+  it('un correo con plazo lleva fecha, tarea y un resumen corto', () => {
     const a = reglas.analizarCorreo({
       asunto: 'RE: Declaración trimestral',
       de: 'Gestoría <g@g.es>',
@@ -126,11 +126,12 @@ describe('analizarCorreo y avisos', () => {
     });
     expect(a).toEqual({
       titulo: 'Declaración trimestral',
-      resumen: '',
+      resumen: 'Necesito las facturas antes del 10 de octubre para presentar el IVA.',
       fechaLimite: '2026-10-10',
       hora: null,
       tarea: 'Declaración trimestral',
       importante: false,
+      automatico: false,
       via: 'reglas',
     });
   });
@@ -150,17 +151,17 @@ describe('analizarCorreo y avisos', () => {
       RECIBIDO,
     );
     expect(avisos).toEqual([
-      { titulo: 'El lun 5 oct: Mandar facturas', cuerpo: 'Te lo he apuntado en las tareas. Correo de Gestoría.' },
+      { titulo: 'Tienes que mandar facturas el lunes 5 de octubre', cuerpo: 'Te lo he apuntado en las tareas. Correo de Gestoría.' },
       { titulo: 'Ana: Correo 3', cuerpo: 'Te pide que confirmes hoy.' },
     ]);
     expect(reglas.avisosDeCorreos([normal(1), normal(2)], RECIBIDO)).toEqual([]);
     expect(
-      reglas.avisosDeCorreos([{ titulo: 'X', de: 'Y', resumen: '', fechaLimite: '2026-09-28', tarea: 'X' }], RECIBIDO)[0].titulo,
-    ).toBe('Mañana: X');
+      reglas.avisosDeCorreos([{ titulo: 'Cena', de: 'Y', resumen: '', fechaLimite: '2026-09-28', tarea: 'Cena' }], RECIBIDO)[0].titulo,
+    ).toBe('Tienes cena mañana');
     expect(reglas.textoCuando(HOY, HOY)).toBe('Hoy');
     const cita = { titulo: 'Dentista', de: 'Clínica', resumen: '', fechaLimite: '2026-09-28', hora: '10:00', tarea: 'Dentista' };
     expect(reglas.avisosDeCorreos([cita], RECIBIDO)[0]).toEqual({
-      titulo: 'Mañana a las 10:00: Dentista',
+      titulo: 'Tienes dentista mañana a las 10:00',
       cuerpo: 'Te lo he apuntado en el calendario. Correo de Clínica.',
     });
   });
@@ -183,14 +184,20 @@ describe('resultadoDeIA', () => {
     ).toEqual({
       titulo: 'Cita en el dentista',
       resumen: 'Confírmala.',
+      aviso: '',
       fechaLimite: '2026-10-02',
       hora: null,
       tarea: 'Dentista a las 10',
       importante: true,
+      automatico: false,
       via: 'ia',
     });
-    expect(reglas.resultadoDeIA({ titulo: 'Oferta', fechaLimite: null, importante: false, resumen: 'Compra ya' }, correo)).toMatchObject({
-      resumen: '',
+    expect(
+      reglas.resultadoDeIA({ titulo: 'Oferta', fechaLimite: null, importante: false, aviso: 'Compra ya', resumen: 'Rebajas', automatico: true }, correo),
+    ).toMatchObject({
+      resumen: 'Rebajas',
+      aviso: '',
+      automatico: true,
       importante: false,
       tarea: null,
     });
@@ -201,6 +208,64 @@ describe('resultadoDeIA', () => {
     expect(reglas.resultadoDeIA({ titulo: 'A', fechaLimite: '2028-01-01' }, correo).fechaLimite).toBeNull();
     expect(reglas.resultadoDeIA({ titulo: 'A', fechaLimite: '5 oct' }, correo).fechaLimite).toBeNull();
     expect(reglas.resultadoDeIA({ titulo: '', fechaLimite: null }, correo).titulo).toBe('Cita');
+  });
+});
+
+describe('resumen de la IA, hora y aviso', () => {
+  const correo = { asunto: 'Cita', de: 'Clínica <citas@clinica.es>', cuerpo: 'Te esperamos el jueves. Trae la tarjeta.', recibido: RECIBIDO };
+
+  it('usa la hora si hay fecha, el aviso si es importante y, sin resumen, el de las reglas', () => {
+    const r = reglas.resultadoDeIA({ titulo: 'Dentista', fechaLimite: '2026-10-01', hora: '10:30', importante: true, aviso: 'Confirma la cita' }, correo);
+    expect(r).toMatchObject({ hora: '10:30', aviso: 'Confirma la cita', resumen: 'Te esperamos el jueves. Trae la tarjeta.' });
+    expect(reglas.resultadoDeIA({ titulo: 'A', fechaLimite: null, hora: '10:30' }, correo).hora).toBeNull();
+    expect(reglas.resultadoDeIA({ titulo: 'A', fechaLimite: '2026-10-01', hora: '25:00' }, correo).hora).toBeNull();
+  });
+
+  it('el aviso de un importante usa su línea antes que el resumen', () => {
+    const c = { titulo: 'IVA', de: 'Gestoría', resumen: 'Resumen', aviso: 'Te pide las facturas hoy', fechaLimite: null, importante: true };
+    expect(reglas.avisosDeCorreos([c], RECIBIDO)[0].cuerpo).toBe('Te pide las facturas hoy');
+    expect(reglas.avisosDeCorreos([{ ...c, aviso: '' }], RECIBIDO)[0].cuerpo).toBe('Resumen');
+  });
+});
+
+describe('correos automáticos', () => {
+  const de = (d, cuerpo) => reglas.esAutomatico({ de: d, cuerpo: cuerpo || 'Hola' });
+
+  it('por el remitente', () => {
+    expect(de('Amazon <no-reply@amazon.es>')).toBe(true);
+    expect(de('noreply@banco.es')).toBe(true);
+    expect(de('Tienda <newsletter@tienda.com>')).toBe(true);
+    expect(de('Banco <notificaciones@banco.es>')).toBe(true);
+    expect(de('Ana <ana.lopez@gmail.com>')).toBe(false);
+    expect(de('Gestoría <info@gl.es>')).toBe(false);
+    expect(de('Noelia <noelia@gmail.com>')).toBe(false);
+  });
+
+  it('por el texto o las cabeceras', () => {
+    expect(de('Tienda <hola@tienda.es>', 'Ofertas.\nSi no quieres recibir más, puedes darte de baja aquí.')).toBe(true);
+    expect(de('x@y.es', 'Por favor, no respondas a este correo.')).toBe(true);
+    expect(reglas.esAutomatico({ de: 'x@y.es', cuerpo: '', automatico: true })).toBe(true);
+    const cab = (datos) => (n) => datos[n] || '';
+    expect(reglas.cabecerasAutomaticas(cab({ 'list-unsubscribe': '<mailto:x@y.es>' }))).toBe(true);
+    expect(reglas.cabecerasAutomaticas(cab({ precedence: 'bulk' }))).toBe(true);
+    expect(reglas.cabecerasAutomaticas(cab({ 'auto-submitted': 'auto-generated' }))).toBe(true);
+    expect(reglas.cabecerasAutomaticas(cab({ 'auto-submitted': 'no' }))).toBe(false);
+    expect(reglas.cabecerasAutomaticas(cab({}))).toBe(false);
+  });
+
+  it('analizarCorreo lo dice', () => {
+    const a = reglas.analizarCorreo({ asunto: 'Tu pedido', de: 'no-reply@tienda.es', cuerpo: 'Ya va de camino.', recibido: RECIBIDO });
+    expect(a.automatico).toBe(true);
+    expect(a.resumen).toBe('Ya va de camino.');
+  });
+});
+
+describe('«Tienes X el día Y»', () => {
+  it('sin nombre, con verbo o sin él y con la fecha larga', () => {
+    expect(reglas.textoTienes('Dentista', '2026-11-12', HOY)).toBe('Tienes dentista el jueves 12 de noviembre');
+    expect(reglas.textoTienes('Pagar el IBI', HOY, HOY)).toBe('Tienes que pagar el IBI hoy');
+    expect(reglas.textoTienes('Taller del coche', '2026-09-28', HOY, '09:00')).toBe('Tienes taller del coche mañana a las 09:00');
+    expect(reglas.textoTienes('IBI', '2026-09-28', HOY)).toBe('Tienes IBI mañana');
   });
 });
 

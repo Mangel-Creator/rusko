@@ -40,7 +40,7 @@ import {
   type ClaveDia,
 } from '@/services/fechas';
 
-import { avisosDePlazos } from './correos';
+import { avisosDePlazos, avisosDeRecordatorios } from './correos';
 import { avisosDeEpoca, type EpocaParaAvisos } from './epoca';
 import { avisosDePlanes } from './planes';
 import { TIPOS_ALARMA, type AvisoPlanificado } from './tipos';
@@ -340,6 +340,8 @@ const GENERADORES: Generador[] = [
   { activo: () => true, generar: (ctx, dia) => avisosDePlanes(ctx.planes, ctx.eventos, dia) },
   // Plazos que llegaron por correo (fase 11): la víspera, a la hora de levantarse.
   { activo: (a) => a.plazosCorreo, generar: (ctx, dia) => avisosDePlazos(ctx.correos, ctx.eventos, ctx.perfil, dia) },
+  // "Recuérdamelo" de un correo: lo pide la persona, así que siempre.
+  { activo: () => true, generar: (ctx, dia) => avisosDeRecordatorios(ctx.correos, dia) },
 ];
 
 // Para probar desde Perfil: el resumen o el cierre de hoy tal cual llegarían,

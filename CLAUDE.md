@@ -410,7 +410,8 @@ sesión que fuera**:
   siguiente que tengas, aunque sea mañana, con "Cómo llegar". El saludo ("¿Qué toca hoy,
   Miguel?") queda pequeño arriba, junto al Perfil. La lista del día ya no repite lo
   siguiente en naranja: todo va en filas normales.
-- 26/10/2026 (sustituye a "elige qué correos resume" del 29/09) — **Correo sin resúmenes.**
+- 26/10/2026 (sustituye a "elige qué correos resume" del 29/09; **el resumen vuelve, corto, el
+  27/10/2026**: ver esa fecha) — **Correo sin resúmenes.**
   El usuario prefirió que la IA no resuma: de cada correo solo **de qué va y el día que
   importa** (un plazo, una cita o un cargo), y que **avise solo de lo que importa**:
   1. **Con fecha**: tarea en el calendario ese día y aviso ("Mañana: Pagar el IBI").
@@ -500,6 +501,19 @@ sesión que fuera**:
   calendario, también sin IA**: las reglas apuntan citas (cita, reunión, examen…) y cualquier
   fecha escrita con año; con hora, como cita. Un falso positivo cuesta poco ("Eliminar"). Ver
   "Fase 11" > "Pestaña Correo ampliada".
+- 27/10/2026 (cambia en parte "Correo sin resúmenes" del 26/10) — **Correo por importancia,
+  con resumen corto** (sesiones "12 Correo" y "08 Diseño"; lo pidió el usuario):
+  - **Resumen corto al abrir un correo**: de qué trata en una o dos frases. Sin IA, las primeras
+    frases del correo (`resumir`, 160 letras); con IA, una frase suya. Los avisos siguen siendo
+    solo de lo que importa (eso del 26/10 no cambia).
+  - **Nivel 0-3** (color del recuadro): 3 "Avisarme siempre de…" o fecha hoy o mañana; 2 fecha
+    más adelante o importante para la IA; 1 lo escribe una persona; 0 automático (boletines,
+    `noreply`, cabeceras `List-Unsubscribe`…). Lo calcula la app (depende del día).
+  - **Quitar de Rusko, fijar y "Recuérdamelo"** en cada correo. Quitar no toca el correo ni lo
+    ya apuntado en el calendario.
+  - **Tono**: nunca el nombre del usuario; con fecha, «Tienes dentista el jueves 12 de
+    noviembre» / «Tienes que pagar el IBI mañana» (también en los avisos).
+  Ver "Fase 11" > "Correo por importancia".
 
 ## Cómo prueba el usuario en el iPhone
 
@@ -2013,6 +2027,26 @@ borran solos a los 7 días.
     petición) y Resúmenes vacío con la frase de la IA. Tras desplegar, la revisión del servidor
     siguió en marcha. **Falta**: probarlo con su Gmail de verdad (un correo **nuevo**: el de
     11/11 ya se dio por visto y no se vuelve a mirar).
+- **Correo por importancia** (27/10/2026, sesión "12 Correo" los datos y "08 Diseño" lo que se
+  ve; ver "Decisiones del usuario" y "Diseño" > "Correo por recuadros"):
+  - **Datos** (`data/correos.ts`): `CorreoResumido` lleva `fijado`, `oculto` (quitado de Rusko) y
+    `recordatorio` (ISO o null); `CorreoRemoto.automatico`; tipo `NivelCorreo` (0-3). Lo guardado
+    antes se completa al cargar (`completarCorreo`). `mezclarCorreos` conserva los tres campos.
+  - **Funciones** (`services/correo`): `nivelCorreo` / `conNivel` (`CorreoConNivel`),
+    `asuntoCorto`, `textoTienes` ("Tenías" si ya pasó), `opcionesRecordatorio(ahora)` (En 1 hora,
+    Esta tarde 18:00, Esta noche 21:00, Mañana 9:00 y El sábado 10:00 de lunes a jueves o El
+    lunes 9:00 de viernes a domingo; solo las que no han pasado), `textoRecordatorio`,
+    `quitarCorreo(id)`, `fijarCorreo(id)` (alterna) y `recordarCorreo(id, cuando | null)`.
+    Lo `oculto` no sale en `bandejasCorreo`, no cuenta como nuevo ni crea tareas.
+  - **Aviso del recordatorio** (tipo `recordatorio-correo`, siempre activo, abre Correo):
+    "Gestoría: IVA" / "Me pediste que te lo recordara." El de la víspera pasa a «Tienes que
+    pagar el IBI mañana».
+  - **Automático**: `esAutomatico` y `cabecerasAutomaticas` en `reglasCorreo.js` (remitente
+    `noreply`/boletines, pie de "darse de baja", cabeceras de listas); columna
+    `correo_resumenes.automatico` (migración `20261027030000_correo_automatico.sql`, aplicada).
+    La IA devuelve además `resumen` (una frase), `hora` y `automatico`; los avisos del servidor y
+    del ayudante dicen «Tienes X el día Y». `correo` y `correo-cuentas` desplegadas; ayudante
+    regenerado (**el usuario tiene que pegarlo otra vez** y hacer "Nueva versión").
 
 ## Otros calendarios (27/09/2026)
 

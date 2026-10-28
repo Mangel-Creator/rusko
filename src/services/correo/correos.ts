@@ -1,4 +1,4 @@
-import type { CorreoRemoto, CorreoResumido, ProveedorCorreo } from '@/data/correos';
+import type { CorreoRemoto, CorreoResumido, NivelCorreo, ProveedorCorreo } from '@/data/correos';
 import type { Evento } from '@/data/eventos/tipos';
 import {
   DIAS_SEMANA_CORTOS,
@@ -59,6 +59,7 @@ export function validarRemoto(dato: unknown): CorreoRemoto | null {
     hora,
     tarea: fecha && esTexto(d.tarea, 200) && d.tarea.trim() ? d.tarea.trim() : null,
     importante: d.importante === true,
+    automatico: d.automatico === true,
     via: d.via === 'ia' ? 'ia' : 'reglas',
     enlace,
     ...(origen ? { origen } : {}),
@@ -114,7 +115,7 @@ export function cambiarVetados(vetados: string[], direccion: string, vetar: bool
 
 // Junta lo que ya había en el móvil con lo que manda el ayudante: los nuevos entran
 // sin ver y los que ya estaban conservan lo del móvil (visto, tarea, "¿Eliminar
-// cita?"). Se olvidan los de hace más de DIAS_EN_EL_MOVIL días y los de direcciones
+// cita?", fijado, quitado y recordatorio). Se olvidan los de hace más de DIAS_EN_EL_MOVIL días y los de direcciones
 // vetadas.
 export function mezclarCorreos(
   locales: CorreoResumido[],
@@ -128,8 +129,17 @@ export function mezclarCorreos(
     porId.set(
       remoto.id,
       local
-        ? { ...local, ...remoto, visto: local.visto, eventoId: local.eventoId, noEsPlazo: local.noEsPlazo }
-        : { ...remoto, visto: false, eventoId: null, noEsPlazo: false },
+        ? {
+            ...local,
+            ...remoto,
+            visto: local.visto,
+            eventoId: local.eventoId,
+            noEsPlazo: local.noEsPlazo,
+            fijado: local.fijado === true,
+            oculto: local.oculto === true,
+            recordatorio: local.recordatorio ?? null,
+          }
+        : { ...remoto, visto: false, eventoId: null, noEsPlazo: false, fijado: false, oculto: false, recordatorio: null },
     );
   }
   const limite = new Date(ahora.getTime() - DIAS_EN_EL_MOVIL * 86400000).toISOString();
@@ -143,9 +153,10 @@ export function esPlazo(correo: CorreoResumido): correo is CorreoResumido & { fe
   return correo.fechaLimite !== null && !correo.noEsPlazo;
 }
 
-// Los plazos que aún no tienen tarea en el calendario (solo los de hoy en adelante).
+// Los plazos que aún no tienen tarea en el calendario (solo los de hoy en adelante y
+// no quitados de Rusko).
 export function correosSinTarea(correos: CorreoResumido[], hoy: ClaveDia): CorreoResumido[] {
-  return correos.filter((c) => esPlazo(c) && !c.eventoId && c.fechaLimite >= hoy);
+  return correos.filter((c) => esPlazo(c) && !c.eventoId && !c.oculto && c.fechaLimite >= hoy);
 }
 
 // Lo que se apunta en el calendario de un correo con fecha, tipo "Yo": con hora, una
@@ -220,6 +231,7 @@ export type GrupoCorreos = { dia: ClaveDia; correos: CorreoResumido[] };
 // - conFecha: los apuntados de hoy en adelante, el más cercano primero, y pasados: los
 //   apuntados con fecha ya pasada, el más reciente primero;
 // - resumenes: los importantes sin fecha (los decide la IA o "Avisarme siempre de…").
+// Los quitados de Rusko (oculto) no salen en ninguna.
 export type BandejasCorreo = {
   todos: GrupoCorreos[];
   conFecha: CorreoResumido[];
@@ -228,7 +240,7 @@ export type BandejasCorreo = {
 };
 
 export function bandejasCorreo(correos: CorreoResumido[], hoy: ClaveDia, diaDe: (iso: string) => ClaveDia): BandejasCorreo {
-  const ordenados = [...correos].sort((a, b) => b.recibido.localeCompare(a.recibido));
+  const ordenados = correos.filter((c) => !c.oculto).sort((a, b) => b.recibido.localeCompare(a.recibido));
   const todos: GrupoCorreos[] = [];
   for (const correo of ordenados) {
     const dia = diaDe(correo.recibido);
@@ -253,5 +265,116 @@ export function iaEncendida(correos: CorreoResumido[]): boolean {
 }
 
 export function contarNuevos(correos: CorreoResumido[]): number {
-  return correos.filter((c) => !c.visto).length;
+  return correos.filter((c) => !c.visto && !c.oculto).length;
+}
+
+// Importancia de un correo (27/10/2026; el color de su recuadro):
+// 3 muy importante: de "Avisarme siempre de…" o con un plazo o cita para hoy o mañana;
+// 2 importante: con fecha más adelante, o importante para la IA;
+// 1 medio: lo escribe una persona;
+// 0 poco: boletines, publicidad y avisos automáticos.
+// Una fecha ya pasada o "¿Eliminar cita?" aceptado no suben el nivel.
+export function nivelCorreo(correo: CorreoResumido, hoy: ClaveDia, siempre: string[]): NivelCorreo {
+  if (avisaSiempre(siempre, correo.de)) return 3;
+  if (esPlazo(correo) && correo.fechaLimite >= hoy) return correo.fechaLimite <= sumarDias(hoy, 1) ? 3 : 2;
+  if (correo.importante) return 2;
+  return correo.automatico ? 0 : 1;
+}
+
+export type CorreoConNivel = CorreoResumido & { nivel: NivelCorreo };
+
+export function conNivel(correos: CorreoResumido[], hoy: ClaveDia, siempre: string[]): CorreoConNivel[] {
+  return correos.map((c) => ({ ...c, nivel: nivelCorreo(c, hoy, siempre) }));
+}
+
+// El asunto, corto para el recuadro: sin emojis, sin "[EXTERNO]" ni números de pedido
+// al final y cortado por una palabra ("Tu pedido de Amazon ha salido…").
+export function asuntoCorto(texto: string, max = 60): string {
+  const limpio = texto
+    .replace(/\p{Extended_Pictographic}️?/gu, '')
+    .replace(/^(\s*\[[^\]]{1,30}\])+/, '')
+    .replace(/\s*[#(]?\s*(n[ºo°.]?\s*)?#?\d{5,}\)?\s*$/i, '')
+    .replace(/\s+/g, ' ')
+    .trim()
+    .replace(/[\s:;,.-]+$/, '');
+  if (limpio.length <= max) return limpio;
+  const corte = limpio.slice(0, max - 1);
+  const espacio = corte.lastIndexOf(' ');
+  return (espacio > max * 0.5 ? corte.slice(0, espacio) : corte).replace(/[\s:;,.-]+$/, '') + '…';
+}
+
+const DIAS_LARGOS = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+const MESES_LARGOS = [
+  'enero',
+  'febrero',
+  'marzo',
+  'abril',
+  'mayo',
+  'junio',
+  'julio',
+  'agosto',
+  'septiembre',
+  'octubre',
+  'noviembre',
+  'diciembre',
+];
+// Acaban como un verbo ("-ar", "-er", "-ir") y no lo son.
+const NO_VERBOS =
+  /^(taller|lugar|hogar|alquiler|mujer|ayer|poder|placer|familiar|particular|militar|collar|altar|az[uú]car|c[aá]ncer|car[aá]cter|deber|bazar|d[oó]lar|n[eé]ctar|cad[aá]ver|alfiler|menester|elixir|faquir|nadir|zafir)$/i;
+
+// «Tienes dentista el jueves 12 de noviembre», «Tienes que pagar el IBI mañana a las 10:00».
+// Nunca con el nombre de quien lo lee. Igual que textoTienes de reglasCorreo.js (avisos
+// del servidor y del ayudante), pero con "Tenías" si ya pasó.
+export function textoTienes(que: string, dia: ClaveDia, hoy: ClaveDia, hora?: string | null): string {
+  let texto = que.trim();
+  const primera = texto.split(/\s+/)[0] ?? '';
+  if (/^[A-ZÁÉÍÓÚÑ][a-záéíóúñ]/.test(texto)) texto = texto.charAt(0).toLowerCase() + texto.slice(1);
+  if (/^[a-záéíóúñ]+(ar|er|ir)$/i.test(primera) && primera.length > 3 && !NO_VERBOS.test(primera)) texto = `que ${texto}`;
+  let cuando: string;
+  if (dia === hoy) cuando = 'hoy';
+  else if (dia === sumarDias(hoy, 1)) cuando = 'mañana';
+  else {
+    const fecha = fechaDesdeClave(dia);
+    cuando = `el ${DIAS_LARGOS[diaSemanaDesdeLunes(fecha)]} ${fecha.getDate()} de ${MESES_LARGOS[fecha.getMonth()]}`;
+  }
+  return `${dia < hoy ? 'Tenías' : 'Tienes'} ${texto} ${cuando}${hora ? ` a las ${hora}` : ''}`;
+}
+
+// --- Recordatorio de un correo ("Ponerme un recordatorio") ---
+
+export type OpcionRecordatorio = { clave: string; texto: string; cuando: Date };
+
+const aLas = (base: Date, dias: number, h: number) =>
+  new Date(base.getFullYear(), base.getMonth(), base.getDate() + dias, h, 0, 0, 0);
+
+// Las opciones del selector: en 1 hora, esta tarde (18:00), esta noche (21:00), mañana
+// a las 9:00 y, según el día, el sábado a las 10:00 o el lunes a las 9:00. Solo las que
+// aún no han pasado (con 30 min de margen).
+export function opcionesRecordatorio(ahora: Date): OpcionRecordatorio[] {
+  const margen = ahora.getTime() + 30 * 60000;
+  const dia = diaSemanaDesdeLunes(ahora); // lunes = 0
+  const opciones: OpcionRecordatorio[] = [
+    { clave: 'hora', texto: 'En 1 hora', cuando: new Date(ahora.getTime() + 3600000) },
+    { clave: 'tarde', texto: 'Esta tarde, a las 18:00', cuando: aLas(ahora, 0, 18) },
+    { clave: 'noche', texto: 'Esta noche, a las 21:00', cuando: aLas(ahora, 0, 21) },
+    { clave: 'manana', texto: 'Mañana a las 9:00', cuando: aLas(ahora, 1, 9) },
+    dia < 4
+      ? { clave: 'finde', texto: 'El sábado a las 10:00', cuando: aLas(ahora, 5 - dia, 10) }
+      : { clave: 'lunes', texto: 'El lunes a las 9:00', cuando: aLas(ahora, 7 - dia, 9) },
+  ];
+  return opciones.filter((o, i) => i === 0 || o.cuando.getTime() > margen);
+}
+
+// "Te lo recuerdo hoy a las 18:00", "… mañana a las 9:00", "… el sáb 31 oct a las 10:00".
+export function textoRecordatorio(iso: string, ahora: Date): string {
+  const cuando = new Date(iso);
+  const hora = `${String(cuando.getHours()).padStart(2, '0')}:${String(cuando.getMinutes()).padStart(2, '0')}`;
+  const dias = Math.round((aLas(cuando, 0, 0).getTime() - aLas(ahora, 0, 0).getTime()) / 86400000);
+  const dia =
+    dias === 0
+      ? 'hoy'
+      : dias === 1
+        ? 'mañana'
+        : `el ${DIAS_SEMANA_CORTOS[diaSemanaDesdeLunes(cuando)]} ${cuando.getDate()} ${MESES_CORTOS[cuando.getMonth()]}`;
+  return `Te lo recuerdo ${dia} a las ${hora}`;
 }
