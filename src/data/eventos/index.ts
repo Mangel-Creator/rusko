@@ -42,8 +42,31 @@ export function cargarEventos(): Promise<void> {
       }
       cambiar(eventos);
     })();
+    // Después de cargar (desde dentro esperaría a sí misma). Y cada hora, por si
+    // la web se queda abierta días seguidos.
+    void cargando.then(() => {
+      void borrarTareasHechasAntiguas();
+      setInterval(() => void borrarTareasHechasAntiguas(), 60 * 60 * 1000);
+    });
   }
   return cargando;
+}
+
+const UN_DIA_MS = 24 * 60 * 60 * 1000;
+
+// Las tareas marcadas como hechas se borran solas a las 24 h si no se desmarcan.
+// Las del plan de estudio (id "epoca-", ver PREFIJO_EPOCA) no: las lleva su época.
+// Las que se marcaron antes de existir "hechaEn" empiezan a contar ahora.
+async function borrarTareasHechasAntiguas(): Promise<void> {
+  const ahora = Date.now();
+  const fechar: Evento[] = [];
+  const borrar: string[] = [];
+  for (const e of estado.eventos) {
+    if (!e.flexible || !e.hecha || e.id.startsWith('epoca-')) continue;
+    if (!e.hechaEn) fechar.push({ ...e, hechaEn: new Date(ahora).toISOString() });
+    else if (ahora - Date.parse(e.hechaEn) >= UN_DIA_MS) borrar.push(e.id);
+  }
+  await cambiarEventos(fechar, borrar);
 }
 
 export function nuevoId(): string {
@@ -74,7 +97,7 @@ export async function cambiarEventos(guardar: Evento[], borrar: string[]): Promi
 
 export async function marcarHecha(id: string, hecha: boolean): Promise<void> {
   const evento = estado.eventos.find((e) => e.id === id);
-  if (evento) await guardarEvento({ ...evento, hecha });
+  if (evento) await guardarEvento({ ...evento, hecha, hechaEn: hecha ? new Date().toISOString() : null });
 }
 
 // Coloca una tarea en la matriz de Eisenhower (null = sin clasificar).

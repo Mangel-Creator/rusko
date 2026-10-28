@@ -4,7 +4,7 @@ import type { ClaveDia } from '@/services/fechas';
 // Qué es un evento en Organizy. Lo usan el guardado (SQLite o navegador),
 // las pantallas y la lógica de services/agenda.
 
-export type TipoEvento = 'cliente' | 'amigos' | 'yo';
+export type TipoEvento = 'cliente' | 'amigos' | 'yo' | 'entreno' | 'estudios';
 export type Repeticion = 'nunca' | 'diaria' | 'semanal' | 'mensual';
 
 // Lugar de un evento:
@@ -72,6 +72,8 @@ export type Evento = {
   flexible: boolean;
   duracionMin: number | null; // solo en tareas flexibles
   hecha: boolean; // solo en tareas flexibles
+  // Cuándo se marcó como hecha (ISO). A las 24 h la tarea se borra sola. Opcional, como "cliente".
+  hechaEn?: string | null;
   foco: boolean; // bloque de foco: tiempo protegido
   // Minutos de antelación del aviso (fase 4). null = la del perfil; 0 = sin aviso.
   // Las tareas flexibles no tienen aviso (no tienen hora).
