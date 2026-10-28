@@ -17,7 +17,8 @@ export type FiestaLocal = { fecha: ClaveDia; nombre: string };
 
 // Se guarda en el perfil (Perfil.festivos).
 export type ZonaFestivos = {
-  ocupacion: Ocupacion;
+  // null: aún sin preguntar (perfiles de antes, puestos solos con el municipio de casa).
+  ocupacion: Ocupacion | null;
   donde: 'casa' | 'otro'; // dónde trabaja o estudia: donde vive u otro municipio
   municipio: string; // el municipio cuyas fiestas cuentan
   comunidad: CodigoComunidad;

@@ -109,11 +109,9 @@ export function borradorDesdePerfil(perfil: Perfil | null): Borrador {
   };
 }
 
-const OCUPACIONES: Ocupacion[] = ['trabajo', 'estudios', 'las-dos', 'ninguna'];
-
 // Sin festivos guardados, se propone el municipio del sitio "Trabajo" si lo hay.
 function borradorFestivos(zona: ZonaFestivos | null | undefined, sitios: SitioHabitual[] | null): BorradorFestivos {
-  if (zona && OCUPACIONES.includes(zona.ocupacion)) {
+  if (zona?.comunidad) {
     return { ...zona, municipio: zona.donde === 'otro' ? zona.municipio : '', buscadoPara: zona.municipio };
   }
   const trabajo = sitios?.find((s) => s.nombre.trim().toLowerCase() === 'trabajo');

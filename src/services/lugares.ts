@@ -118,6 +118,28 @@ export async function buscarComunidad(texto: string): Promise<ResultadoComunidad
   }
 }
 
+// Perfiles hechos antes de los festivos (28/10/2026): se ponen solos con el municipio de
+// casa, sin preguntar si trabaja o estudia (eso se cambia en Perfil > "Tus festivos").
+export async function completarFestivosPendientes(): Promise<void> {
+  const perfil = await leerPerfil();
+  if (!perfil || perfil.festivos || !perfil.vivienda.direccion.trim()) return;
+  const resultado = await buscarComunidad(perfil.vivienda.direccion.trim());
+  if (resultado.estado !== 'encontrado') return;
+  const actual = await leerPerfil();
+  if (!actual || actual.festivos) return;
+  await guardarPerfil({
+    ...actual,
+    festivos: {
+      ocupacion: null,
+      donde: 'casa',
+      municipio: actual.vivienda.direccion.trim(),
+      comunidad: resultado.comunidad,
+      subzona: resultado.subzona,
+      locales: [],
+    },
+  });
+}
+
 async function completarLugar<T extends Lugar>(lugar: T): Promise<T> {
   if (lugar.coordenadas) {
     return lugar;

@@ -19,7 +19,7 @@ import { atenderAlarmasNativas, iniciarAlarmas } from '@/services/alarmas';
 import { atenderRespuesta, escucharRespuestas, iniciarAvisos } from '@/services/avisos';
 import { iniciarCalendarios } from '@/services/calendarios';
 import { formatearHora } from '@/services/fechas';
-import { completarCoordenadasPendientes } from '@/services/lugares';
+import { completarCoordenadasPendientes, completarFestivosPendientes } from '@/services/lugares';
 import { iniciarCorreo } from '@/services/correo';
 import { iniciarNube } from '@/services/nube';
 import { iniciarPlanes } from '@/services/planes';
@@ -59,8 +59,10 @@ export default function LayoutRaiz() {
 
   useEffect(() => {
     // Lee el perfil guardado y calcula las coordenadas que falten
-    // (por ejemplo, si se rellenó sin conexión).
-    cargarPerfil().then(() => completarCoordenadasPendientes());
+    // (por ejemplo, si se rellenó sin conexión), y los festivos de los perfiles de antes.
+    cargarPerfil()
+      .then(() => completarCoordenadasPendientes())
+      .then(() => completarFestivosPendientes());
     cargarEventos();
     // Programa los avisos de los próximos días y los mantiene al día (solo en el móvil).
     return iniciarAvisos();

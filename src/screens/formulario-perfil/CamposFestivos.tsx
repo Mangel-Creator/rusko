@@ -150,7 +150,7 @@ export function CamposFestivos({ borrador, cambiar, errores }: Props) {
         </>
       ) : null}
 
-      {f.ocupacion ? (
+      {f.ocupacion || f.comunidad ? (
         <Tarjeta style={estilos.comunidad}>
           {buscando ? (
             <Texto secundario>Buscando tu comunidad…</Texto>

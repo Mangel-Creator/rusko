@@ -139,7 +139,7 @@ export function PantallaHoy() {
             <BotonInicial nombre={nombre} onPress={() => router.push('/perfil')} />
           </View>
           <TarjetaDia siguiente={cargado ? siguiente : null} hoy={hoy} perfil={perfil} ahora={ahora} />
-          <MarcaFestivo dia={hoy} />
+          <MarcaFestivo dia={hoy} avisarDentroDe={7} />
         </View>
 
         {/* Acciones rápidas, como en una app de banco: lo que más se hace, a un toque. */}

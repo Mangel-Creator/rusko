@@ -6,7 +6,7 @@ import type { Evento } from '@/data/eventos';
 import { usePerfil } from '@/data/perfil';
 import { colocarEnCarriles, intervaloDe } from '@/services/agenda';
 import { PREFIJO_EPOCA } from '@/services/epoca';
-import { DIAS_SEMANA_LETRA, fechaDesdeClave, horaDesdeMinutos, type ClaveDia } from '@/services/fechas';
+import { DIAS_SEMANA_LETRA, fechaDesdeClave, formatearDiaCorto, horaDesdeMinutos, type ClaveDia } from '@/services/fechas';
 import { festivoDelDia } from '@/services/festivos';
 import { acentos, cifras, colorBaldosa, colores, colorEvento, espacio, fuentes, radio } from '@/theme';
 
@@ -88,6 +88,22 @@ export function RejillaSemana({ dias, ventana, hoy, minutoAhora, alTocarDia, alT
           );
         })}
       </View>
+
+      {/* El motivo de cada festivo: en la columna no cabe, va en una línea debajo. */}
+      {dias.map(({ dia }) => {
+        const festivo = festivoDelDia(dia, perfil?.festivos);
+        if (!festivo) return null;
+        return (
+          <View key={dia} style={estilos.filaFestivo}>
+            <Texto pequeno fuerte style={estilos.textoFestivo}>
+              {formatearDiaCorto(fechaDesdeClave(dia))}
+            </Texto>
+            <Texto pequeno style={[estilos.textoFestivo, estilos.motivoFestivo]} numberOfLines={1}>
+              {festivo.nombre}
+            </Texto>
+          </View>
+        );
+      })}
 
       {hayTareas ? (
         <View style={estilos.filaTareas}>
@@ -216,6 +232,18 @@ const estilos = StyleSheet.create({
   letra: { color: colores.textoSecundario, fontSize: 11 },
   numeroTexto: { ...cifras, fontFamily: fuentes.horaFuerte, fontSize: 17 },
   textoFestivo: { color: acentos.azul.color },
+  filaFestivo: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: espacio.s,
+    marginLeft: ANCHO_HORAS,
+    marginBottom: espacio.xs,
+    paddingHorizontal: espacio.m,
+    paddingVertical: espacio.xs,
+    borderRadius: radio.chip,
+    backgroundColor: acentos.azul.suave,
+  },
+  motivoFestivo: { flex: 1 },
   textoHoy: { color: colores.textoOscuro },
   cargaFondo: { width: '56%', height: 4, borderRadius: 2, backgroundColor: colores.elevado, overflow: 'hidden' },
   cargaFondoHoy: { backgroundColor: colores.principalPulsado },

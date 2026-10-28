@@ -2166,6 +2166,12 @@ borran solos a los 7 días.
   y en pantalla `MarcaFestivo` / `useFestivo` (`screens/calendario/MarcaFestivo.tsx`).
   Se ven en **azul** (`acentos.azul`): píldora "Festivo · nombre" en Hoy y en el día de
   Semana, y el día en azul en la tira y en la rejilla. No cambian huecos, carga ni avisos.
+  En la rejilla, el **motivo** va en una línea azul bajo la cabecera ("Martes 8 dic ·
+  Inmaculada Concepción"); en Hoy, si hoy no es festivo, avisa del próximo de los 7 días
+  siguientes ("El martes 8 dic es festivo · …").
+- **Perfiles de antes** (sin `festivos`): `completarFestivosPendientes()` (al abrir, en
+  `_layout`) los pone solos con la comunidad del municipio de casa y `ocupacion: null`
+  (sin preguntar); en Perfil > "Tus festivos" se completa.
 
 ## Matriz de Eisenhower en las tareas (27/09/2026)
 
