@@ -3,7 +3,7 @@ import { router, useFocusEffect, useLocalSearchParams } from 'expo-router';
 import { useCallback, useEffect, useState, type ComponentProps } from 'react';
 import { Platform, StyleSheet, View } from 'react-native';
 
-import { Pantalla, Plegable, Selector, Tarjeta, Texto, Titulo } from '@/components';
+import { Pantalla, Selector, Tarjeta, Texto, Titulo } from '@/components';
 import { useCorreos } from '@/data/correos';
 import { useEventos } from '@/data/eventos';
 import {
@@ -34,8 +34,8 @@ import { VincularAyudante, VincularCorreo } from './correo/VincularCorreo';
 //   "Tus cuentas") y tres bandejas de recuadros de color (FilaCorreo → RecuadroCorreo):
 //   "Todo" (fijados arriba y luego por importancia, también lo que se apuntó), "Con
 //   fecha" (lo que está en tu calendario, con "¿Eliminar cita?") y "Resúmenes" (lo
-//   importante sin fecha; se llena sola al encender la IA). Plegados, "Remitentes
-//   vetados" y "Vincular otra cuenta".
+//   importante sin fecha; se llena sola al encender la IA). Plegado, "Remitentes
+//   vetados". "Vincular otra cuenta" va en el desplegable del chip (28/10/2026).
 // Llegan aquí también la vuelta del inicio de sesión en la web (?correo=ok&cuenta=…) y
 // el QR del ayudante (#ayudante=<enlace>, detrás de "#" para que no llegue a ningún
 // servidor).
@@ -167,7 +167,13 @@ export function PantallaResumenes() {
       ) : (
         <>
           {verCuentas || caducada ? (
-            <CuentasCorreo cuentas={cuentas} conexion={conexion} actualizando={actualizando} alTerminar={setMensaje} />
+            <CuentasCorreo
+              cuentas={cuentas}
+              conexion={conexion}
+              proveedores={proveedores}
+              actualizando={actualizando}
+              alTerminar={setMensaje}
+            />
           ) : null}
 
           <Selector
@@ -224,10 +230,6 @@ export function PantallaResumenes() {
 
           <VetadosCorreo />
 
-          <Plegable titulo="Vincular otra cuenta" resumen="Gmail, Outlook, iCloud…">
-            <VincularCorreo proveedores={proveedores} alTerminar={setMensaje} />
-            {conexion ? null : <VincularAyudante alTerminar={setMensaje} />}
-          </Plegable>
         </>
       )}
     </Pantalla>

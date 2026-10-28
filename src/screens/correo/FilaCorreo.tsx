@@ -50,7 +50,8 @@ export function FilaCorreo({ correo, hoy, nuevo, apuntado }: Props) {
   const cosa = correo.hora ? 'cita' : 'tarea';
   const recibido = new Date(correo.recibido);
   const dia = claveDia(recibido);
-  const hora = dia === hoy ? formatearHora(recibido) : textoGrupo(dia, hoy);
+  // Siempre la hora a la que llegó; si no es de hoy, también el día («Ayer · 09:10»).
+  const hora = dia === hoy ? formatearHora(recibido) : `${textoGrupo(dia, hoy)} · ${formatearHora(recibido)}`;
   const donde = correo.origen ? NOMBRE_PROVEEDOR[correo.origen] : 'Gmail';
   const conAviso = correo.de ? avisaSiempre(siempre, correo.de) : false;
   const direccion = correo.direccion ?? (correo.de.includes('@') ? correo.de : null);
@@ -63,6 +64,7 @@ export function FilaCorreo({ correo, hoy, nuevo, apuntado }: Props) {
       fijado={correo.fijado}
       asunto={asuntoCorto(correo.titulo)}
       de={correo.de}
+      direccion={direccion && direccion.toLowerCase() !== correo.de.toLowerCase() ? direccion : null}
       hora={hora}
       resumen={correo.resumen}
       cuando={plazo ? textoTienes(correo.tarea ?? correo.titulo, plazo, hoy, correo.hora) : null}

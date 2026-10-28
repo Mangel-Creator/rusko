@@ -34,7 +34,8 @@ type Props = {
   fijado: boolean;
   asunto: string;
   de: string;
-  hora: string;
+  direccion?: string | null; // la dirección de quien lo manda, debajo del nombre
+  hora: string; // a la que llegó: «14:28», «Ayer · 09:10»
   resumen: string | null;
   cuando?: string | null; // «Tienes dentista el jueves 12 de noviembre»
   nuevo?: boolean;
@@ -76,6 +77,7 @@ export function RecuadroCorreo({
   fijado,
   asunto,
   de,
+  direccion,
   hora,
   resumen,
   cuando,
@@ -143,7 +145,7 @@ export function RecuadroCorreo({
             fijado ? 'Fijado.' : '',
             `${NOMBRE_NIVEL[nivel]}.`,
             `${asunto}.`,
-            `De ${de}, ${hora}.`,
+            `De ${de}${direccion ? ` (${direccion})` : ''}, ${hora}.`,
             cuando ? `${cuando}.` : '',
             recordatorio ? `${recordatorio}.` : '',
           ].join(' ')}
@@ -174,6 +176,11 @@ export function RecuadroCorreo({
               {hora}
             </Texto>
           </View>
+          {direccion ? (
+            <Texto pequeno numberOfLines={1} style={[estilos.direccion, secundario]}>
+              {direccion}
+            </Texto>
+          ) : null}
           <Texto fuerte numberOfLines={abierto ? undefined : 2} style={[estilos.asunto, texto]}>
             {asunto}
           </Texto>
@@ -370,6 +377,7 @@ const estilos = StyleSheet.create({
   punto: { width: 8, height: 8, borderRadius: radio.chip },
   de: { flexShrink: 1, fontFamily: fuentes.textoMedio },
   hora: { marginLeft: 'auto', ...cifras, fontFamily: fuentes.hora },
+  direccion: { fontSize: 12, lineHeight: 16, marginTop: -2 },
   asunto: { fontSize: tamanos.grande, lineHeight: 24, fontFamily: fuentes.titulo, letterSpacing: -0.3 },
   resumen: { marginTop: espacio.xs },
   pildoras: { flexDirection: 'row', flexWrap: 'wrap', gap: espacio.s },

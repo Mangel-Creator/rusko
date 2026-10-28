@@ -1,15 +1,19 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
-import { useState } from 'react';
-import { Platform, StyleSheet, View } from 'react-native';
+import { useState, type ReactNode } from 'react';
+import { Platform, Pressable, StyleSheet, View } from 'react-native';
 
-import { Boton, LogoMarca, Tarjeta, Texto, Titulo } from '@/components';
-import type { ConexionCorreo, CuentaCorreo } from '@/data/correos';
+import { Boton, LogoMarca, Texto } from '@/components';
+import type { ConexionCorreo, CuentaCorreo, ProveedoresCorreo } from '@/data/correos';
 import { desconectarCorreo, NOMBRE_PROVEEDOR, quitarCuenta, vincularCuenta } from '@/services/correo';
 import { claveDia, formatearHora } from '@/services/fechas';
-import { colores, espacio, radio } from '@/theme';
+import { alturaTactil, colores, espacio, radio } from '@/theme';
 
-// "Tus cuentas" en Resúmenes (fase 11): las vinculadas en el servidor y el ayudante de
-// Gmail, con cuándo se miraron, "Volver a entrar" si la llave caducó y "Quitar".
+import { VincularAyudante, VincularCorreo } from './VincularCorreo';
+
+// "Tus cuentas" en Correo (fase 11): un desplegable pequeño justo debajo del chip de la
+// cuenta (28/10/2026, lo pidió el usuario: antes se abría en grande). Una línea por
+// cuenta (logo, dirección, cuándo se miró, "Volver a entrar" si caducó y "Quitar") y, al
+// final, "Vincular otra cuenta", que abre ahí mismo los botones de Gmail y Outlook.
 
 function hace(iso: string | null): string | null {
   if (!iso) return null;
@@ -23,14 +27,16 @@ function hace(iso: string | null): string | null {
 type Props = {
   cuentas: CuentaCorreo[];
   conexion: ConexionCorreo | null;
+  proveedores: ProveedoresCorreo | null;
   actualizando: boolean;
   alTerminar: (mensaje: { bien: boolean; texto: string }) => void;
 };
 
-export function CuentasCorreo({ cuentas, conexion, actualizando, alTerminar }: Props) {
+export function CuentasCorreo({ cuentas, conexion, proveedores, actualizando, alTerminar }: Props) {
   // Qué se está a punto de quitar: el id de una cuenta o "ayudante".
   const [quitando, setQuitando] = useState<string | null>(null);
   const [ocupado, setOcupado] = useState(false);
+  const [vinculando, setVinculando] = useState(false);
 
   const confirmarQuitar = async () => {
     const id = quitando;
@@ -66,98 +72,169 @@ export function CuentasCorreo({ cuentas, conexion, actualizando, alTerminar }: P
     quitando === 'ayudante' ? 'el ayudante de Gmail' : cuentas.find((c) => c.id === quitando)?.email ?? '';
 
   return (
-    <View style={estilos.contenedor}>
-      <Titulo nivel={3}>Tus cuentas</Titulo>
+    <View style={estilos.panel}>
       {cuentas.map((c) => {
         const caducada = c.estado === 'caducada';
         const revisada = hace(c.ultimaRevision);
         return (
-          <View key={c.id} style={estilos.fila}>
-            <View style={estilos.cabecera}>
+          <Fila
+            key={c.id}
+            logo={
               <View accessible accessibilityLabel={NOMBRE_PROVEEDOR[c.proveedor]}>
-                <LogoMarca proveedor={c.proveedor === 'gmail' ? 'google' : 'microsoft'} tamano={20} />
+                <LogoMarca proveedor={c.proveedor === 'gmail' ? 'google' : 'microsoft'} tamano={16} />
               </View>
-              <View style={estilos.textos}>
-                <Texto fuerte numberOfLines={1}>
-                  {c.email}
-                </Texto>
-                <Texto pequeno secundario style={caducada ? estilos.aviso : undefined}>
-                  {caducada
-                    ? `Tienes que volver a entrar en ${NOMBRE_PROVEEDOR[c.proveedor]}`
-                    : actualizando
-                      ? 'Mirando si hay algo nuevo…'
-                      : revisada
-                        ? `Revisado ${revisada} · cada 5 min`
-                        : 'Vinculado · lo reviso cada 5 min'}
-                </Texto>
-              </View>
-            </View>
-            <View style={estilos.botones}>
-              {caducada ? <Boton titulo="Volver a entrar" onPress={() => volverAEntrar(c)} style={estilos.boton} /> : null}
-              <Boton variante="secundario" titulo="Quitar" onPress={() => setQuitando(c.id)} style={estilos.boton} />
-            </View>
-          </View>
+            }
+            titulo={c.email}
+            estado={
+              caducada
+                ? 'Tienes que volver a entrar'
+                : actualizando
+                  ? 'Mirando si hay algo nuevo…'
+                  : revisada
+                    ? `Revisado ${revisada}`
+                    : 'Vinculado'
+            }
+            mal={caducada}
+            accion={caducada ? { texto: 'Entrar', alPulsar: () => volverAEntrar(c) } : null}
+            alQuitar={() => setQuitando(c.id)}
+          />
         );
       })}
       {conexion ? (
-        <View style={estilos.fila}>
-          <View style={estilos.cabecera}>
-            <Ionicons name="code-slash-outline" size={20} color={colores.texto} />
-            <View style={estilos.textos}>
-              <Texto fuerte>Ayudante de Gmail</Texto>
-              <Texto pequeno secundario style={conexion.error && !actualizando ? estilos.aviso : undefined}>
-                {actualizando
-                  ? 'Mirando si hay algo nuevo…'
-                  : conexion.error === 'sin-conexion'
-                    ? 'Sin conexión: te enseño lo último que traje.'
-                    : conexion.error === 'no-responde'
-                      ? 'No responde. Revisa en script.google.com que está implementado.'
-                      : hace(conexion.ultimaRevision)
-                        ? `Revisado ${hace(conexion.ultimaRevision)} · cada 10 min`
-                        : 'Conectado · lo reviso cada 10 min'}
-              </Texto>
-            </View>
-          </View>
+        <Fila
+          logo={<Ionicons name="code-slash-outline" size={16} color={colores.texto} />}
+          titulo="Ayudante de Gmail"
+          estado={
+            actualizando
+              ? 'Mirando si hay algo nuevo…'
+              : conexion.error === 'sin-conexion'
+                ? 'Sin conexión'
+                : conexion.error === 'no-responde'
+                  ? 'No responde: mira script.google.com'
+                  : hace(conexion.ultimaRevision)
+                    ? `Revisado ${hace(conexion.ultimaRevision)}`
+                    : 'Conectado'
+          }
+          mal={!!conexion.error && !actualizando}
+          accion={null}
+          alQuitar={() => setQuitando('ayudante')}
+        />
+      ) : null}
+
+      {quitando ? (
+        <View style={estilos.confirmar}>
+          <Texto pequeno fuerte>¿Desvinculo {nombreQuitando}?</Texto>
+          <Texto pequeno secundario>
+            {quitando === 'ayudante'
+              ? 'Dejo de pedirle correos y borro sus resúmenes de aquí. Las tareas se quedan.'
+              : 'Borro del servidor el permiso para leer tu correo y sus resúmenes. Las tareas se quedan.'}
+          </Texto>
           <View style={estilos.botones}>
-            <Boton variante="secundario" titulo="Quitar" onPress={() => setQuitando('ayudante')} style={estilos.boton} />
+            <Boton titulo={ocupado ? 'Quitando…' : 'Desvincular'} onPress={confirmarQuitar} disabled={ocupado} style={estilos.boton} />
+            <Boton variante="secundario" titulo="Cancelar" onPress={() => setQuitando(null)} disabled={ocupado} style={estilos.boton} />
           </View>
         </View>
       ) : null}
 
-      {quitando ? (
-        <Tarjeta style={estilos.confirmar}>
-          <Texto fuerte>¿Desvinculo {nombreQuitando}?</Texto>
-          <Texto pequeno secundario>
-            {quitando === 'ayudante'
-              ? 'Dejo de pedirle correos y borro sus resúmenes de este móvil. Las tareas se quedan.'
-              : 'Borro del servidor el permiso para leer tu correo y sus resúmenes. Las tareas se quedan.'}
-          </Texto>
-          <Boton titulo={ocupado ? 'Quitando…' : 'Sí, desvincular'} onPress={confirmarQuitar} disabled={ocupado} />
-          <Boton variante="secundario" titulo="Cancelar" onPress={() => setQuitando(null)} disabled={ocupado} />
-        </Tarjeta>
+      <View style={estilos.raya} />
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded: vinculando }}
+        onPress={() => setVinculando((v) => !v)}
+        style={({ pressed }) => [estilos.fila, pressed && estilos.pulsado]}>
+        <Ionicons name="add-circle-outline" size={18} color={colores.principal} />
+        <Texto pequeno fuerte style={estilos.vincular}>
+          Vincular otra cuenta
+        </Texto>
+        <Ionicons name={vinculando ? 'chevron-up' : 'chevron-down'} size={16} color={colores.textoSecundario} />
+      </Pressable>
+      {vinculando ? (
+        <View style={estilos.vincularDentro}>
+          <VincularCorreo proveedores={proveedores} alTerminar={alTerminar} />
+          {conexion ? null : <VincularAyudante alTerminar={alTerminar} />}
+        </View>
       ) : null}
 
       {Platform.OS === 'web' ? (
         <Texto pequeno secundario>
-          En la web no llegan avisos: los correos nuevos salen marcados aquí.
+          En la web no llegan avisos: lo nuevo sale marcado aquí.
         </Texto>
       ) : null}
     </View>
   );
 }
 
+function Fila({
+  logo,
+  titulo,
+  estado,
+  mal,
+  accion,
+  alQuitar,
+}: {
+  logo: ReactNode;
+  titulo: string;
+  estado: string;
+  mal: boolean;
+  accion: { texto: string; alPulsar: () => void } | null;
+  alQuitar: () => void;
+}) {
+  return (
+    <View style={estilos.fila}>
+      {logo}
+      <View style={estilos.textos}>
+        <Texto pequeno fuerte numberOfLines={1}>
+          {titulo}
+        </Texto>
+        <Texto pequeno secundario numberOfLines={1} style={[estilos.estado, mal ? estilos.aviso : null]}>
+          {estado}
+        </Texto>
+      </View>
+      {accion ? <Enlace texto={accion.texto} etiqueta={`${accion.texto} en ${titulo}`} alPulsar={accion.alPulsar} fuerte /> : null}
+      <Enlace texto="Quitar" etiqueta={`Quitar ${titulo}`} alPulsar={alQuitar} />
+    </View>
+  );
+}
+
+function Enlace({ texto, etiqueta, alPulsar, fuerte }: { texto: string; etiqueta: string; alPulsar: () => void; fuerte?: boolean }) {
+  return (
+    <Pressable
+      accessibilityRole="button"
+      accessibilityLabel={etiqueta}
+      onPress={alPulsar}
+      style={({ pressed }) => [estilos.enlace, pressed && estilos.pulsado]}>
+      <Texto pequeno fuerte style={fuerte ? estilos.entrar : estilos.quitar}>
+        {texto}
+      </Texto>
+    </Pressable>
+  );
+}
+
 const estilos = StyleSheet.create({
-  contenedor: { gap: espacio.s },
-  fila: {
-    gap: espacio.s,
-    padding: espacio.m,
+  // Pegado a la derecha, bajo el chip, y estrecho.
+  panel: {
+    alignSelf: 'flex-end',
+    width: '100%',
+    maxWidth: 340,
+    marginTop: -espacio.s,
+    gap: espacio.xs,
+    paddingVertical: espacio.xs,
+    paddingHorizontal: espacio.s + 4,
     backgroundColor: colores.tarjeta,
-    borderRadius: radio.grande,
+    borderRadius: radio.normal,
   },
-  cabecera: { flexDirection: 'row', alignItems: 'center', gap: espacio.m },
-  textos: { flex: 1, gap: 2 },
+  fila: { flexDirection: 'row', alignItems: 'center', gap: espacio.s, minHeight: alturaTactil },
+  textos: { flex: 1 },
+  estado: { fontSize: 12, lineHeight: 16 },
   aviso: { color: colores.aviso },
-  botones: { flexDirection: 'row', gap: espacio.s, justifyContent: 'flex-end' },
-  boton: { flexGrow: 0 },
-  confirmar: { gap: espacio.s },
+  enlace: { minHeight: alturaTactil, justifyContent: 'center', paddingHorizontal: espacio.xs },
+  quitar: { color: colores.textoSecundario },
+  vincular: { flex: 1, color: colores.principal },
+  entrar: { color: colores.principal },
+  vincularDentro: { gap: espacio.s, paddingBottom: espacio.s },
+  raya: { height: StyleSheet.hairlineWidth, backgroundColor: colores.borde },
+  confirmar: { gap: espacio.s, padding: espacio.s, backgroundColor: colores.elevado, borderRadius: radio.pequeno },
+  botones: { flexDirection: 'row', gap: espacio.s },
+  boton: { flex: 1 },
+  pulsado: { opacity: 0.8 },
 });

@@ -780,10 +780,13 @@ azules (ver "Fase 6"). Es la única parte clara de la app.
   `services/correo` (`conNivel`, `asuntoCorto`, `textoTienes`, `quitarCorreo`,
   `fijarCorreo`, `recordarCorreo`) y pasa el «¿Eliminar cita?» siempre a la vista y, al
   abrirlo, Abrir en Gmail, Ver en el calendario, Avisarme siempre y Vetar. En "Todo" ya no
-  se agrupa por día: la hora dice "Ayer" o el día si no es de hoy. **La cuenta vinculada
+  se agrupa por día: la hora dice "Ayer · 15:45" o el día y la hora si no es de hoy, y debajo
+  del remitente va su dirección (28/10/2026, lo pidió el usuario). **La cuenta vinculada
   es un chip pequeño junto al título** (`ChipCuentas`: logo, dirección acortada, punto
-  rojo si hay que volver a entrar); al tocarlo se abre "Tus cuentas" (sale sola si una
-  cuenta caducó). Sin la tarjeta de «ya está vinculado»: arriba solo salen los errores.
+  rojo si hay que volver a entrar); al tocarlo se abre **un desplegable pequeño justo
+  debajo** (`CuentasCorreo`, 28/10/2026: antes se abría en grande): una línea por cuenta
+  (logo, dirección, cuándo se miró, "Entrar" si caducó y "Quitar") y al final "Vincular
+  otra cuenta", que abre ahí los botones de Gmail y Outlook. Se abre solo si una cuenta caducó. Sin la tarjeta de «ya está vinculado»: arriba solo salen los errores.
 - **Acentos de color** (28/10/2026, el usuario: "dale algo más de color, solo hay negro y
   naranja"): la paleta de Correo (`acentos` en el tema: naranja, rojo, azul y blanco, cada
   uno con su tinte oscuro `suave`) en tres sitios. **Acciones rápidas de Hoy**: Apuntar
