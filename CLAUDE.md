@@ -770,9 +770,15 @@ azules (ver "Fase 6"). Es la única parte clara de la app.
   hay fecha, «Tienes X el día Y» (`textoTienes`, **sin el nombre del usuario**). Al tocarlo
   dice de qué trata en una o dos frases. Siempre a la vista, tres botones redondos:
   quitar (de Rusko, con «¿Lo quito de Rusko? En tu correo sigue igual»), fijar y
-  recordatorio. **La cuenta vinculada es un chip pequeño junto al título** (`ChipCuentas`:
-  logo, dirección acortada, punto rojo si hay que volver a entrar); al tocarlo se abre
-  "Tus cuentas". Sin la tarjeta grande de «ya está vinculado».
+  recordatorio (las opciones de `opcionesRecordatorio` salen dentro del recuadro; el que
+  hay, debajo con un reloj). `FilaCorreo` monta el recuadro con los datos de
+  `services/correo` (`conNivel`, `asuntoCorto`, `textoTienes`, `quitarCorreo`,
+  `fijarCorreo`, `recordarCorreo`) y pasa el «¿Eliminar cita?» siempre a la vista y, al
+  abrirlo, Abrir en Gmail, Ver en el calendario, Avisarme siempre y Vetar. En "Todo" ya no
+  se agrupa por día: la hora dice "Ayer" o el día si no es de hoy. **La cuenta vinculada
+  es un chip pequeño junto al título** (`ChipCuentas`: logo, dirección acortada, punto
+  rojo si hay que volver a entrar); al tocarlo se abre "Tus cuentas" (sale sola si una
+  cuenta caducó). Sin la tarjeta de «ya está vinculado»: arriba solo salen los errores.
 - **Acentos de color** (28/10/2026, el usuario: "dale algo más de color, solo hay negro y
   naranja"): la paleta de Correo (`acentos` en el tema: naranja, rojo, azul y blanco, cada
   uno con su tinte oscuro `suave`) en tres sitios. **Acciones rápidas de Hoy**: Apuntar

@@ -26,7 +26,8 @@ function corta(email: string): string {
 
 export function ChipCuentas({ cuentas, conexion, abierto, alPulsar }: Props) {
   const primera = cuentas[0];
-  const caducada = cuentas.some((c) => c.estado === 'caducada') || !!conexion?.error;
+  const caducadas = cuentas.some((c) => c.estado === 'caducada');
+  const caducada = caducadas || !!conexion?.error;
   const total = cuentas.length + (conexion ? 1 : 0);
   const nombre = primera ? corta(primera.email) : 'Ayudante';
   const resto = total > 1 ? ` +${total - 1}` : '';
@@ -37,7 +38,7 @@ export function ChipCuentas({ cuentas, conexion, abierto, alPulsar }: Props) {
       accessibilityState={{ expanded: abierto }}
       accessibilityLabel={`${total === 1 ? 'Cuenta vinculada' : `${total} cuentas vinculadas`}: ${
         primera?.email ?? 'ayudante de Gmail'
-      }${caducada ? '. Hay que volver a entrar' : ''}`}
+      }${caducadas ? '. Hay que volver a entrar' : caducada ? '. El ayudante no responde' : ''}`}
       onPress={alPulsar}
       hitSlop={(alturaTactil - 32) / 2}
       style={({ pressed }) => [estilos.chip, pressed && estilos.pulsado]}>

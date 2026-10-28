@@ -3,8 +3,6 @@ import { useState, type ComponentProps, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Texto } from '@/components';
-import { textoDiaCorto } from '@/services/correo';
-import { sumarDias, type ClaveDia } from '@/services/fechas';
 import { alturaTactil, cifras, coloresNivel, espacio, fuentes, radio, tamanos, type NivelCorreo } from '@/theme';
 
 // Un correo en la bandeja de Correo como recuadro de color (27/10/2026): rojo muy
@@ -13,7 +11,8 @@ import { alturaTactil, cifras, coloresNivel, espacio, fuentes, radio, tamanos, t
 // Al tocarlo se abre y dice de qué trata en una o dos frases; debajo van las acciones
 // que le pase la pantalla (abrir en Gmail, vetar…).
 // Siempre a la vista, tres botones: eliminar (de Rusko, con confirmación), fijar arriba
-// y poner un recordatorio.
+// y poner un recordatorio (abre las opciones dentro del recuadro). Debajo de la fecha,
+// también a la vista, lo que pase la pantalla en `aviso` (el «¿Eliminar cita?»).
 
 type Props = {
   nivel: NivelCorreo;
@@ -22,13 +21,15 @@ type Props = {
   de: string;
   hora: string;
   resumen: string | null;
-  cuando?: string | null; // «Tienes la entrega el jue 29 oct»
+  cuando?: string | null; // «Tienes dentista el jueves 12 de noviembre»
   nuevo?: boolean;
-  conRecordatorio?: boolean;
+  recordatorio?: string | null; // «Te lo recuerdo mañana a las 09:00»
+  opcionesRecordar: { clave: string; texto: string; alElegir: () => void }[];
+  alQuitarRecordatorio: () => void;
   alEliminar: () => void;
   alFijar: () => void;
-  alRecordar: () => void;
-  children?: ReactNode;
+  aviso?: ReactNode; // siempre a la vista
+  children?: ReactNode; // al abrirlo
 };
 
 const NOMBRE_NIVEL: Record<NivelCorreo, string> = {
@@ -37,14 +38,6 @@ const NOMBRE_NIVEL: Record<NivelCorreo, string> = {
   1: 'Medio',
   0: 'Poco importante',
 };
-
-// «Tienes X el día Y», sin llamar al usuario por su nombre.
-export function textoTienes(que: string, dia: ClaveDia, hoy: ClaveDia, hora?: string | null): string {
-  const a = hora ? ` a las ${hora}` : '';
-  if (dia === hoy) return `Tienes ${que} hoy${a}`;
-  if (dia === sumarDias(hoy, 1)) return `Tienes ${que} mañana${a}`;
-  return `${dia < hoy ? 'Tenías' : 'Tienes'} ${que} el ${textoDiaCorto(dia)}${a}`;
-}
 
 // Fijados arriba; luego de más a menos importante y, dentro de cada nivel, lo más nuevo.
 export function porImportancia<T extends { nivel: NivelCorreo; fijado: boolean; recibido: string }>(lista: T[]): T[] {
@@ -62,17 +55,21 @@ export function RecuadroCorreo({
   resumen,
   cuando,
   nuevo,
-  conRecordatorio,
+  recordatorio,
+  opcionesRecordar,
+  alQuitarRecordatorio,
   alEliminar,
   alFijar,
-  alRecordar,
+  aviso,
   children,
 }: Props) {
   const [abierto, setAbierto] = useState(false);
-  const [eliminando, setEliminando] = useState(false);
+  // Lo que se abre bajo los botones: confirmar quitar o elegir el recordatorio.
+  const [panel, setPanel] = useState<'quitar' | 'recordar' | null>(null);
   const c = coloresNivel[nivel];
   const texto = { color: c.texto };
   const secundario = { color: c.secundario };
+  const alternar = (p: 'quitar' | 'recordar') => setPanel((actual) => (actual === p ? null : p));
 
   return (
     <View style={[estilos.recuadro, { backgroundColor: c.fondo, borderColor: c.borde }]}>
@@ -84,8 +81,9 @@ export function RecuadroCorreo({
           fijado ? 'Fijado.' : '',
           `${NOMBRE_NIVEL[nivel]}.`,
           `${asunto}.`,
-          `De ${de}, a las ${hora}.`,
+          `De ${de}, ${hora}.`,
           cuando ? `${cuando}.` : '',
+          recordatorio ? `${recordatorio}.` : '',
         ].join(' ')}
         accessibilityHint={abierto ? 'Cierra el resumen' : 'Dice de qué trata'}
         onPress={() => setAbierto((a) => !a)}
@@ -108,40 +106,89 @@ export function RecuadroCorreo({
             {cuando}
           </Texto>
         ) : null}
+        {recordatorio ? (
+          <View style={estilos.lineaDe}>
+            <Ionicons name="alarm" size={14} color={c.texto} />
+            <Texto pequeno style={secundario}>
+              {recordatorio}
+            </Texto>
+          </View>
+        ) : null}
         {abierto ? (
-          <Texto style={[estilos.resumen, texto]}>{resumen ?? 'Aún no tengo un resumen de este correo.'}</Texto>
+          <Texto style={[estilos.resumen, texto]}>{resumen || 'Aún no tengo un resumen de este correo.'}</Texto>
         ) : null}
       </Pressable>
 
-      {eliminando ? (
-        <View style={[estilos.confirmar, { backgroundColor: c.boton }]}>
+      {aviso}
+
+      <View style={estilos.botones}>
+        <BotonIcono
+          icono="trash-outline"
+          etiqueta={`Quitar «${asunto}» de Rusko`}
+          color={c.texto}
+          fondo={c.boton}
+          onPress={() => alternar('quitar')}
+        />
+        <BotonIcono
+          icono={fijado ? 'pin' : 'pin-outline'}
+          etiqueta={fijado ? 'Dejar de fijar' : 'Fijar arriba'}
+          color={c.texto}
+          fondo={c.boton}
+          onPress={alFijar}
+        />
+        <BotonIcono
+          icono={recordatorio ? 'alarm' : 'alarm-outline'}
+          etiqueta={recordatorio ? 'Cambiar el recordatorio' : 'Ponerme un recordatorio'}
+          color={c.texto}
+          fondo={c.boton}
+          onPress={() => alternar('recordar')}
+        />
+      </View>
+
+      {panel === 'quitar' ? (
+        <View style={[estilos.panel, { backgroundColor: c.boton }]}>
           <Texto pequeno style={texto}>
             ¿Lo quito de Rusko? En tu correo sigue igual.
           </Texto>
-          <View style={estilos.botones}>
+          <View style={estilos.pildoras}>
             <Pildora etiqueta="Quitar" color={c.texto} fondo={c.boton} onPress={alEliminar} />
-            <Pildora etiqueta="Mejor no" color={c.texto} fondo="transparent" onPress={() => setEliminando(false)} />
+            <Pildora etiqueta="Mejor no" color={c.texto} fondo="transparent" onPress={() => setPanel(null)} />
           </View>
         </View>
-      ) : (
-        <View style={estilos.botones}>
-          <BotonIcono icono="trash-outline" etiqueta={`Quitar «${asunto}» de Rusko`} color={c.texto} fondo={c.boton} onPress={() => setEliminando(true)} />
-          <BotonIcono
-            icono={fijado ? 'pin' : 'pin-outline'}
-            etiqueta={fijado ? 'Dejar de fijar' : 'Fijar arriba'}
-            color={c.texto}
-            fondo={c.boton}
-            onPress={alFijar}
-          />
-          <BotonIcono
-            icono={conRecordatorio ? 'alarm' : 'alarm-outline'}
-            etiqueta={conRecordatorio ? 'Cambiar el recordatorio' : 'Ponerme un recordatorio'}
-            color={c.texto}
-            fondo={c.boton}
-            onPress={alRecordar}
-          />
+      ) : null}
+
+      {panel === 'recordar' ? (
+        <View style={[estilos.panel, { backgroundColor: c.boton }]}>
+          <Texto pequeno style={texto}>
+            ¿Cuándo te lo recuerdo?
+          </Texto>
+          <View style={estilos.pildoras}>
+            {opcionesRecordar.map((o) => (
+              <Pildora
+                key={o.clave}
+                etiqueta={o.texto}
+                color={c.texto}
+                fondo="transparent"
+                onPress={() => {
+                  o.alElegir();
+                  setPanel(null);
+                }}
+              />
+            ))}
+            {recordatorio ? (
+              <Pildora
+                etiqueta="Quitar el recordatorio"
+                color={c.texto}
+                fondo={c.boton}
+                onPress={() => {
+                  alQuitarRecordatorio();
+                  setPanel(null);
+                }}
+              />
+            ) : null}
+          </View>
         </View>
-      )}
+      ) : null}
 
       {abierto && children ? <View style={estilos.mas}>{children}</View> : null}
     </View>
@@ -198,6 +245,7 @@ const estilos = StyleSheet.create({
   asunto: { fontSize: tamanos.grande, lineHeight: 24, fontFamily: fuentes.titulo, letterSpacing: -0.3 },
   resumen: { marginTop: espacio.xs },
   botones: { flexDirection: 'row', gap: espacio.s },
+  pildoras: { flexDirection: 'row', flexWrap: 'wrap', gap: espacio.s },
   icono: {
     width: alturaTactil,
     height: alturaTactil,
@@ -205,7 +253,7 @@ const estilos = StyleSheet.create({
     alignItems: 'center',
     justifyContent: 'center',
   },
-  confirmar: { gap: espacio.s, padding: espacio.s, borderRadius: radio.normal },
+  panel: { gap: espacio.s, padding: espacio.s + 4, borderRadius: radio.normal },
   pildora: {
     minHeight: alturaTactil,
     justifyContent: 'center',
