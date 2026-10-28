@@ -46,8 +46,18 @@ export function costeLlamada(modelo: string, uso: UsoTokens): number {
   return Math.ceil(coste);
 }
 
+// El dueño de la app (ia_cuentas.dueno, 28/10/2026) no tiene límites: ni de 5 horas y
+// semana ni por día en cada función. Para sumarUso, su límite por persona es este.
+export const SIN_LIMITE = 1_000_000;
+
+export async function esDueno(usuario: string): Promise<boolean> {
+  const { data, error } = await clienteAdmin().rpc('ia_es_dueno', { p_usuario: usuario });
+  if (error) console.error(`ia_es_dueno: ${error.message}`);
+  return data === true;
+}
+
 export type PermisoIA =
-  | { permitido: true }
+  | { permitido: true; dueno: boolean }
   | { permitido: false; motivo: 'ventana' | 'semana'; libre: string | null };
 
 // ¿Puede esta persona usar la IA ahora? Si el servidor falla, deja pasar: los
@@ -61,10 +71,10 @@ export async function permitirIA(usuario: string): Promise<PermisoIA> {
   });
   if (error || !data) {
     console.error(`ia_permitir: ${error?.message ?? 'sin datos'}`);
-    return { permitido: true };
+    return { permitido: true, dueno: false };
   }
-  const d = data as { permitido: boolean; motivo?: 'ventana' | 'semana'; libre?: string | null };
-  if (d.permitido) return { permitido: true };
+  const d = data as { permitido: boolean; dueno?: boolean; motivo?: 'ventana' | 'semana'; libre?: string | null };
+  if (d.permitido) return { permitido: true, dueno: d.dueno === true };
   return { permitido: false, motivo: d.motivo ?? 'ventana', libre: d.libre ?? null };
 }
 
@@ -84,19 +94,67 @@ export async function apuntarIA(usuario: string, funcion: string, modelo: string
   if (error) console.error(`ia_apuntar: ${error.message}`);
 }
 
+// Solo suma a lo gastado de la clave, sin tocar los límites (el correo, que va aparte).
+export async function apuntarGasto(funcion: string, modelo: string, uso: UsoTokens): Promise<void> {
+  const { error } = await clienteAdmin().rpc('ia_sumar_gasto', {
+    p_funcion: funcion,
+    p_entrada: uso.input_tokens,
+    p_salida: uso.output_tokens,
+    p_coste: costeLlamada(modelo, uso),
+  });
+  if (error) console.error(`ia_sumar_gasto: ${error.message}`);
+}
+
+// Saldo de la clave de Anthropic: Anthropic no deja leerlo con la clave, así que se
+// resta lo apuntado en ia_gasto desde la última recarga. Si el usuario recarga, cambiar
+// los secretos IA_SALDO_CLAVE (millonésimas de dólar; 5 $ por defecto) e
+// IA_SALDO_DESDE (día de la recarga, AAAA-MM-DD).
+const SALDO_CLAVE = numeroDeEntorno('IA_SALDO_CLAVE', 5_000_000);
+const SALDO_DESDE = /^\d{4}-\d{2}-\d{2}$/.test(Deno.env.get('IA_SALDO_DESDE') ?? '')
+  ? Deno.env.get('IA_SALDO_DESDE')!
+  : '2026-10-28';
+
+export type SaldoClave = {
+  saldo: number;
+  gastado: number;
+  llamadas: number;
+  entrada: number;
+  salida: number;
+  desde: string;
+};
+
+async function saldoClave(): Promise<SaldoClave> {
+  const { data, error } = await clienteAdmin().rpc('ia_gasto_clave', { p_desde: SALDO_DESDE });
+  if (error || !data) throw new Error(`ia_gasto_clave: ${error?.message ?? 'sin datos'}`);
+  const d = data as { llamadas: number; entrada: number; salida: number; coste: number };
+  return {
+    saldo: SALDO_CLAVE,
+    gastado: Number(d.coste),
+    llamadas: Number(d.llamadas),
+    entrada: Number(d.entrada),
+    salida: Number(d.salida),
+    desde: SALDO_DESDE,
+  };
+}
+
 export type EstadoIA = {
   horas: number;
   ventana: { usado: number; limite: number; libre: string | null };
   semana: { usado: number; limite: number; libre: string | null };
   extra: number;
   compra: boolean;
+  // Solo para el dueño: sin límites y con el saldo de la clave.
+  sinLimite?: true;
+  clave?: SaldoClave;
 };
 
 export async function estadoIA(usuario: string): Promise<EstadoIA> {
   const { data, error } = await clienteAdmin().rpc('ia_estado', { p_usuario: usuario, p_horas: LIMITES_IA.horas });
   if (error || !data) throw new Error(`ia_estado: ${error?.message ?? 'sin datos'}`);
   const d = data as { ventana: number; ventanaFin: string | null; semana: number; semanaFin: string | null; extra: number };
+  const dueno = await esDueno(usuario);
   return {
+    ...(dueno ? { sinLimite: true as const, clave: await saldoClave() } : {}),
     horas: LIMITES_IA.horas,
     ventana: { usado: Number(d.ventana), limite: LIMITES_IA.ventana, libre: d.ventanaFin },
     semana: { usado: Number(d.semana), limite: LIMITES_IA.semana, libre: d.semanaFin },

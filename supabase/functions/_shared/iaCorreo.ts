@@ -1,5 +1,6 @@
 import Anthropic from 'npm:@anthropic-ai/sdk@0.128.0';
 import { CLAVE_ANTHROPIC } from './claveAnthropic.ts';
+import { apuntarGasto } from './limiteIA.ts';
 
 // IA de los correos (fase 11): qué es, un resumen de una frase (vuelve el 27/10/2026, lo
 // pidió el usuario), la fecha y la hora que importan, si es importante y si lo manda una
@@ -110,6 +111,7 @@ export async function analizarConClaude(p: PeticionIA): Promise<AnalisisIA | nul
     });
     // En los registros solo queda el gasto, nunca el correo.
     console.log(`correo ia · tokens ${respuesta.usage.input_tokens}+${respuesta.usage.output_tokens}`);
+    await apuntarGasto('correo', MODELO, respuesta.usage);
     if (respuesta.stop_reason !== 'end_turn') {
       console.error('Respuesta cortada:', respuesta.stop_reason);
       return null;

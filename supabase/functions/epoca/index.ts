@@ -18,7 +18,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk@0.128.0';
 import { CLAVE_ANTHROPIC } from '../_shared/claveAnthropic.ts';
 import { respuestaJson, respuestaPrevia } from '../_shared/cors.ts';
 import { numeroDeEntorno, sumarUso } from '../_shared/limite.ts';
-import { apuntarIA, cuerpoLimiteIA, permitirIA } from '../_shared/limiteIA.ts';
+import { apuntarIA, cuerpoLimiteIA, permitirIA, SIN_LIMITE } from '../_shared/limiteIA.ts';
 import { usuarioDeLaPeticion } from '../_shared/usuario.ts';
 
 // El mismo modelo que la captura y el correo (barato y rápido). Se puede cambiar
@@ -304,7 +304,7 @@ Deno.serve(async (req) => {
   if (!permiso.permitido) return respuestaJson(req, cuerpoLimiteIA(permiso), 429);
 
   try {
-    const uso = await sumarUso(usuario, 'epoca', LIMITE_POR_USUARIO, LIMITE_GLOBAL);
+    const uso = await sumarUso(usuario, 'epoca', permiso.dueno ? SIN_LIMITE : LIMITE_POR_USUARIO, LIMITE_GLOBAL);
     if (!uso.permitido) return respuestaJson(req, { error: uso.motivo }, 429);
   } catch (error) {
     console.error(error);

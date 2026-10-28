@@ -8,12 +8,19 @@ import {
   agotado,
   consultarEstadoIA,
   cuandoSeLibera,
+  dolares,
   lineaLimite,
+  miles,
   porcentaje,
+  porcentajeClave,
+  quedaDeLaClave,
   textoExtra,
+  textoTokens,
+  tokensQuedan,
   type EstadoIA,
   type LimiteIA,
   type MotivoLimiteIA,
+  type SaldoClave,
 } from '@/services/ia';
 import { cifras, colores, espacio, fuentes, radio, tamanos } from '@/theme';
 
@@ -51,10 +58,16 @@ export function SeccionIA() {
 
   return (
     <>
-      <Texto secundario>
-        Como en Claude, la IA tiene dos límites: uno cada {ia?.horas ?? 5} horas y otro por semana. Si llegas a
-        uno, Rusko sigue funcionando sin IA hasta que se libere.
-      </Texto>
+      {ia?.sinLimite ? (
+        <Texto secundario>
+          Tú no tienes límites: la IA nunca se te para. Las barras son solo para que veas lo que gastas.
+        </Texto>
+      ) : (
+        <Texto secundario>
+          Como en Claude, la IA tiene dos límites: uno cada {ia?.horas ?? 5} horas y otro por semana. Si llegas a
+          uno, Rusko sigue funcionando sin IA hasta que se libere.
+        </Texto>
+      )}
 
       {carga.estado === 'cargando' ? <Texto secundario>Mirando cuánta te queda…</Texto> : null}
       {carga.estado === 'error' ? (
@@ -70,7 +83,9 @@ export function SeccionIA() {
 
       {extra ? <Texto fuerte>{extra}</Texto> : null}
 
-      {ia ? (
+      {ia?.clave ? <SaldoDeLaClave clave={ia.clave} /> : null}
+
+      {ia && !ia.sinLimite ? (
         <Boton
           variante={sinIA ? 'principal' : 'secundario'}
           titulo="Conseguir más IA"
@@ -88,6 +103,45 @@ export function SeccionIA() {
         </Tarjeta>
       ) : null}
     </>
+  );
+}
+
+// Solo para el dueño: lo gastado de la clave de Anthropic y lo que queda del saldo.
+function SaldoDeLaClave({ clave }: { clave: SaldoClave }) {
+  const valor = porcentajeClave(clave);
+  const color = valor >= 80 ? colores.aviso : colores.principal;
+  const [, mes, dia] = clave.desde.split('-');
+  return (
+    <Tarjeta>
+      <View
+        style={estilos.barra}
+        accessible
+        accessibilityRole="progressbar"
+        accessibilityLabel="Saldo de la clave"
+        accessibilityValue={{ min: 0, max: 100, now: valor, text: `Quedan ${dolares(quedaDeLaClave(clave), true)}` }}>
+        <View style={estilos.fila}>
+          <Texto fuerte>Saldo de la clave</Texto>
+          <Text style={[estilos.cifra, valor >= 80 && { color: colores.aviso }]}>
+            Quedan {dolares(quedaDeLaClave(clave), true)}
+          </Text>
+        </View>
+        <View style={estilos.fondoBarra}>
+          <View style={[estilos.relleno, { width: `${valor}%`, backgroundColor: color }]} />
+        </View>
+        <Texto pequeno secundario>
+          Gastado {dolares(clave.gastado)} de {dolares(clave.saldo)}
+          {dia ? ` desde el ${dia}/${mes}` : ''}.
+        </Texto>
+      </View>
+      <Texto>
+        Tokens gastados: {miles(clave.entrada)} de entrada y {miles(clave.salida)} de salida, en{' '}
+        {miles(clave.llamadas)} {clave.llamadas === 1 ? 'vez' : 'veces'}.
+      </Texto>
+      <Texto>Te quedan {textoTokens(tokensQuedan(clave))}, al ritmo de ahora.</Texto>
+      <Texto pequeno secundario>
+        Es la cuenta de Rusko, de todo el que usa la IA. La cifra exacta está en la consola de Anthropic.
+      </Texto>
+    </Tarjeta>
   );
 }
 

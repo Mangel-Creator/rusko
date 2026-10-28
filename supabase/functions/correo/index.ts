@@ -14,6 +14,7 @@
 import { respuestaJson, respuestaPrevia } from '../_shared/cors.ts';
 import { analizarConClaude, iaDisponible, leerPeticionIA } from '../_shared/iaCorreo.ts';
 import { numeroDeEntorno, sumarUso } from '../_shared/limite.ts';
+import { esDueno, SIN_LIMITE } from '../_shared/limiteIA.ts';
 import { usuarioDeLaPeticion } from '../_shared/usuario.ts';
 
 const LIMITE_POR_USUARIO = numeroDeEntorno('CORREO_LIMITE_USUARIO', 100);
@@ -33,7 +34,8 @@ Deno.serve(async (req) => {
   if (!peticion) return respuestaJson(req, { error: 'peticion' }, 400);
 
   try {
-    const uso = await sumarUso(usuario, 'correo', LIMITE_POR_USUARIO, LIMITE_GLOBAL);
+    const limite = (await esDueno(usuario)) ? SIN_LIMITE : LIMITE_POR_USUARIO;
+    const uso = await sumarUso(usuario, 'correo', limite, LIMITE_GLOBAL);
     if (!uso.permitido) return respuestaJson(req, { error: uso.motivo }, 429);
   } catch (error) {
     console.error(error);

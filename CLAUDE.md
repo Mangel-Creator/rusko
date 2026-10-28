@@ -2269,6 +2269,18 @@ borran solos a los 7 días.
   Propuesta de paquetes en el Word "RESUMEN IA" del usuario. Para regalar saldo a mano:
   `select public.ia_recargar('<usuario>', 500000, 'regalo', '<referencia única>')`.
 - **Correo aparte**: hecho el 26/10/2026 (ver "Decisiones del usuario", esa fecha).
+- **El dueño, sin límites y con el saldo de la clave** (28/10/2026, lo pidió el usuario; migración
+  `20261028000000_ia_dueno.sql`, ya aplicada): `ia_cuentas.dueno` (puesto a mano con SQL a su
+  cuenta con correo; no está en el repositorio). Al dueño la IA no le para: `ia_permitir` siempre
+  le deja (y le devuelve `dueno`), las funciones le pasan `SIN_LIMITE` a `sumarUso` (captura,
+  época y correo) y no se le descuenta saldo extra; sigue viendo las barras. Solo a él, `estado`
+  de la función `ia` devuelve `sinLimite` y `clave` (saldo, gastado, llamadas, tokens de entrada
+  y salida, desde), y Perfil > "Tu IA" enseña "Saldo de la clave": lo que queda, lo gastado y los
+  tokens que quedan al ritmo de ahora (`tokensQuedan`). **Anthropic no deja leer el saldo con la
+  clave**: Rusko suma todo lo que gasta en `ia_gasto` (por día y función, de todas las personas,
+  **también el correo**, con `apuntarGasto`; no se borra) y lo resta del saldo. Si el usuario
+  recarga, cambiar los secretos `IA_SALDO_CLAVE` (millonésimas de dólar; 5 $ por defecto) e
+  `IA_SALDO_DESDE` (día de la recarga; por defecto 2026-10-28).
 - **Planes de pago** (pendiente): cada plan tendrá sus números; hoy son los mismos para todos.
   Propuesta por plan en el Word "PLAN DE PRECIOS TEMPORAL" del usuario (sin decidir).
   Con usuarios anónimos, borrar los datos del navegador da un usuario nuevo con los límites a

@@ -3,12 +3,19 @@ import { describe, expect, it } from '@jest/globals';
 import {
   agotado,
   cuandoSeLibera,
+  dolares,
   leerEstadoIA,
   leerLimiteAlcanzado,
   lineaLimite,
   mensajeLimite,
+  miles,
   porcentaje,
+  porcentajeClave,
+  quedaDeLaClave,
+  textoCantidad,
   textoExtra,
+  textoTokens,
+  tokensQuedan,
 } from '@/services/ia/limites';
 
 // Martes 29 de septiembre de 2026, 13:00 (hora del dispositivo).
@@ -101,6 +108,57 @@ describe('leer respuestas del servidor', () => {
     });
     expect(estado?.semana.libre).toBe('2026-10-05T08:00:00Z');
     expect(estado?.compra).toBe(false);
+    expect(estado?.sinLimite).toBe(false);
+    expect(estado?.clave).toBeNull();
     expect(leerEstadoIA({ horas: 5, ventana: {} })).toBeNull();
+  });
+
+  it('el dueño: sin límite y con el saldo de la clave', () => {
+    const estado = leerEstadoIA({
+      horas: 5,
+      ventana: { usado: 0, limite: 150000, libre: null },
+      semana: { usado: 0, limite: 500000, libre: null },
+      extra: 0,
+      compra: false,
+      sinLimite: true,
+      clave: { saldo: 5_000_000, gastado: 1200, llamadas: 3, entrada: 6000, salida: 1200, desde: '2026-10-28' },
+    });
+    expect(estado?.sinLimite).toBe(true);
+    expect(estado?.clave?.gastado).toBe(1200);
+    expect(leerEstadoIA({ ...estado, clave: { saldo: 'x' } })?.clave).toBeNull();
+  });
+});
+
+describe('saldo de la clave', () => {
+  const clave = { saldo: 5_000_000, gastado: 10_000, llamadas: 40, entrada: 50_000, salida: 10_000, desde: '2026-10-28' };
+
+  it('dinero y miles en español', () => {
+    expect(dolares(5_000_000)).toBe('5,00 $');
+    expect(dolares(4_990_000)).toBe('4,99 $');
+    expect(dolares(953)).toBe('0,001 $');
+    expect(dolares(0)).toBe('0,00 $');
+    expect(miles(1234567)).toBe('1.234.567');
+  });
+
+  it('lo que queda, el porcentaje y los tokens al ritmo de ahora', () => {
+    expect(quedaDeLaClave(clave)).toBe(4_990_000);
+    expect(porcentajeClave(clave)).toBe(1);
+    expect(porcentajeClave({ ...clave, gastado: 0 })).toBe(0);
+    // 10.000 millonésimas por 60.000 tokens: 1/6 por token.
+    expect(tokensQuedan(clave)).toBe(29_940_000);
+    // Sin gastar nada, al coste medio de Haiku 5.5.
+    expect(tokensQuedan({ ...clave, gastado: 0, entrada: 0, salida: 0 })).toBe(31_250_000);
+    expect(quedaDeLaClave({ ...clave, gastado: 6_000_000 })).toBe(0);
+  });
+
+  it('cantidades grandes en palabras', () => {
+    expect(textoCantidad(850)).toBe('850');
+    expect(textoCantidad(12_400)).toBe('unos 12 mil');
+    expect(textoCantidad(1_000_000)).toBe('un millón');
+    expect(textoCantidad(2_500_000)).toBe('unos 2,5 millones');
+    expect(textoCantidad(29_940_000)).toBe('unos 30 millones');
+    expect(textoTokens(29_940_000)).toBe('unos 30 millones de tokens');
+    expect(textoTokens(12_400)).toBe('unos 12 mil tokens');
+    expect(dolares(4_998_787, true)).toBe('4,99 $');
   });
 });

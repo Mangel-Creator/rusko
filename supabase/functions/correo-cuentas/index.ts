@@ -24,6 +24,7 @@ import { respuestaJson, respuestaPrevia } from '../_shared/cors.ts';
 import { cifrar, descifrar } from '../_shared/cifrado.ts';
 import { analizarConClaude, iaDisponible } from '../_shared/iaCorreo.ts';
 import { numeroDeEntorno, sumarUso } from '../_shared/limite.ts';
+import { esDueno, SIN_LIMITE } from '../_shared/limiteIA.ts';
 import { enviarPush, type ClavesVapid } from '../_shared/webPush.ts';
 import {
   conResultado,
@@ -187,7 +188,8 @@ async function analizar(cuenta: Cuenta, m: MensajeLeido): Promise<Resumen> {
   const siempre = siempreAvisar(m.de, cuenta.siempre_avisar ?? []);
   // Sin clave o pasado el máximo de correos del día, se usan las reglas.
   if (iaDisponible) {
-    const uso = await sumarUso(cuenta.usuario, 'correo', LIMITE_IA_USUARIO, LIMITE_IA_GLOBAL).catch(() => null);
+    const limite = (await esDueno(cuenta.usuario)) ? SIN_LIMITE : LIMITE_IA_USUARIO;
+    const uso = await sumarUso(cuenta.usuario, 'correo', limite, LIMITE_IA_GLOBAL).catch(() => null);
     if (uso?.permitido) {
       const correo = { asunto: m.asunto, recibido: m.recibido, de: m.de, cuerpo: m.cuerpo, automatico: m.automatico };
       const a = await analizarConClaude({ asunto: base.asunto, de: base.de, cuerpo: limpiarCuerpo(m.cuerpo).slice(0, 4000), hoy: diaDe(m.recibido) });

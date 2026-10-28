@@ -13,7 +13,7 @@ import Anthropic from 'npm:@anthropic-ai/sdk@0.128.0';
 import { CLAVE_ANTHROPIC } from '../_shared/claveAnthropic.ts';
 import { respuestaJson, respuestaPrevia } from '../_shared/cors.ts';
 import { numeroDeEntorno, sumarUso } from '../_shared/limite.ts';
-import { apuntarIA, cuerpoLimiteIA, permitirIA } from '../_shared/limiteIA.ts';
+import { apuntarIA, cuerpoLimiteIA, permitirIA, SIN_LIMITE } from '../_shared/limiteIA.ts';
 import { usuarioDeLaPeticion } from '../_shared/usuario.ts';
 
 // Modelo pequeño y barato de Claude (Haiku 5.5, desde el 26/10/2026), pensando poco:
@@ -142,7 +142,7 @@ Deno.serve(async (req) => {
 
   let usosHoy: number;
   try {
-    const uso = await sumarUso(usuario, 'captura', LIMITE_POR_USUARIO, LIMITE_GLOBAL);
+    const uso = await sumarUso(usuario, 'captura', permiso.dueno ? SIN_LIMITE : LIMITE_POR_USUARIO, LIMITE_GLOBAL);
     if (!uso.permitido) return respuestaJson(req, { error: uso.motivo }, 429);
     usosHoy = uso.usosHoy;
   } catch (error) {

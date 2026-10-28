@@ -7,12 +7,25 @@ import { claveDia, diaSemanaDesdeLunes, formatearHora, sumarDias } from '@/servi
 
 export type LimiteIA = { usado: number; limite: number; libre: string | null };
 
+// Lo gastado de la clave de Anthropic (solo le llega al dueño, 28/10/2026). Dinero en
+// millonésimas de dólar; `desde` es el día de la última recarga ("AAAA-MM-DD").
+export type SaldoClave = {
+  saldo: number;
+  gastado: number;
+  llamadas: number;
+  entrada: number;
+  salida: number;
+  desde: string;
+};
+
 export type EstadoIA = {
   horas: number;
   ventana: LimiteIA;
   semana: LimiteIA;
   extra: number; // saldo comprado que queda, en millonésimas de dólar
   compra: boolean; // si ya se puede comprar más
+  sinLimite: boolean; // el dueño: la IA no se le para nunca
+  clave: SaldoClave | null;
 };
 
 export type MotivoLimiteIA = 'ventana' | 'semana';
@@ -113,5 +126,80 @@ export function leerEstadoIA(datos: unknown): EstadoIA | null {
   const horas = Number(d.horas);
   if (!ventana || !semana || !Number.isFinite(horas) || horas <= 0) return null;
   const extra = Number(d.extra);
-  return { horas, ventana, semana, extra: Number.isFinite(extra) ? extra : 0, compra: d.compra === true };
+  return {
+    horas,
+    ventana,
+    semana,
+    extra: Number.isFinite(extra) ? extra : 0,
+    compra: d.compra === true,
+    sinLimite: d.sinLimite === true,
+    clave: leerSaldoClave(d.clave),
+  };
+}
+
+function leerSaldoClave(v: unknown): SaldoClave | null {
+  if (!v || typeof v !== 'object') return null;
+  const c = v as Record<string, unknown>;
+  const numeros = [c.saldo, c.gastado, c.llamadas, c.entrada, c.salida].map(Number);
+  if (numeros.some((n) => !Number.isFinite(n) || n < 0)) return null;
+  const [saldo, gastado, llamadas, entrada, salida] = numeros;
+  const desde = typeof c.desde === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(c.desde) ? c.desde : '';
+  return { saldo, gastado, llamadas, entrada, salida, desde };
+}
+
+// ---------- Saldo de la clave (dueño) ----------
+
+// Lo que cuesta de media un token si aún no se ha gastado nada: Claude Haiku 5.5 (0,10 $
+// y 0,50 $ por millón) con unos 85 de cada 100 tokens de entrada.
+const COSTE_MEDIO_TOKEN = 0.16; // millonésimas de dólar
+
+// 1234567 -> "1.234.567"
+export function miles(n: number): string {
+  return String(Math.round(n)).replace(/\B(?=(\d{3})+(?!\d))/g, '.');
+}
+
+// Millonésimas de dólar -> "4,99 $" (y "0,004 $" si es menos de un céntimo). Lo que
+// queda va hacia abajo, para no decir "5,00 $" si ya se ha gastado algo.
+export function dolares(millonesimas: number, haciaAbajo = false): string {
+  const d = millonesimas / 1_000_000;
+  const texto =
+    d > 0 && d < 0.01 ? d.toFixed(3) : haciaAbajo ? (Math.floor(d * 100) / 100).toFixed(2) : d.toFixed(2);
+  return `${texto.replace('.', ',')} $`;
+}
+
+export function quedaDeLaClave(c: SaldoClave): number {
+  return Math.max(0, c.saldo - c.gastado);
+}
+
+// De 0 a 100, lo gastado del saldo (hacia arriba, como las barras).
+export function porcentajeClave(c: SaldoClave): number {
+  if (c.saldo <= 0) return 100;
+  if (c.gastado <= 0) return 0;
+  return Math.min(100, Math.ceil((c.gastado / c.saldo) * 100));
+}
+
+// Cuántos tokens quedan, al coste medio por token de lo gastado hasta ahora.
+export function tokensQuedan(c: SaldoClave): number {
+  const tokens = c.entrada + c.salida;
+  const medio = tokens > 0 && c.gastado > 0 ? c.gastado / tokens : COSTE_MEDIO_TOKEN;
+  return Math.floor(quedaDeLaClave(c) / medio);
+}
+
+// "850", "unos 12 mil", "un millón", "unos 2,5 millones", "unos 31 millones". Delante
+// de un nombre, los millones llevan "de": textoTokens.
+export function textoCantidad(n: number): string {
+  if (n < 10_000) return miles(n);
+  if (n < 1_000_000) return `unos ${miles(n / 1000)} mil`;
+  const millones = n / 1_000_000;
+  if (millones < 10) {
+    const texto = millones.toFixed(1).replace('.', ',').replace(/,0$/, '');
+    return texto === '1' ? 'un millón' : `unos ${texto} millones`;
+  }
+  return `unos ${miles(millones)} millones`;
+}
+
+// "850 tokens", "unos 12 mil tokens", "unos 31 millones de tokens".
+export function textoTokens(n: number): string {
+  const cantidad = textoCantidad(n);
+  return /mill[oó]n/.test(cantidad) ? `${cantidad} de tokens` : `${cantidad} tokens`;
 }
