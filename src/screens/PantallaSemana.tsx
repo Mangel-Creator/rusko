@@ -59,6 +59,7 @@ import { DURACION_POR_DEFECTO, horaParaHueco, huecosParaPlan } from '@/services/
 
 import { MarcaFestivo } from './calendario/MarcaFestivo';
 import { MenuEvento } from './calendario/MenuEvento';
+import { RejillaMes } from './calendario/RejillaMes';
 import { RejillaSemana } from './calendario/RejillaSemana';
 import { nuevoEvento, rangoHoras } from './calendario/textos';
 import { useAhora } from './calendario/useAhora';
@@ -70,12 +71,44 @@ const ALTURA_BARRA = 44;
 const CAMBIO_DE_DIA = FadeIn.duration(160);
 
 // Cómo se ve el calendario, como en Google Calendar. Se recuerda (organizy:vistaCalendario).
-type Vista = 'dia' | '3dias' | 'semana';
+type Vista = 'dia' | '3dias' | 'semana' | 'mes';
 const OPCIONES_VISTA: Opcion<Vista>[] = [
   { valor: 'dia', etiqueta: 'Día' },
   { valor: '3dias', etiqueta: '3 días' },
   { valor: 'semana', etiqueta: 'Semana' },
+  { valor: 'mes', etiqueta: 'Mes' },
 ];
+
+const ETIQUETA_ATRAS: Record<Vista, string> = {
+  dia: 'Semana anterior',
+  '3dias': 'Días anteriores',
+  semana: 'Semana anterior',
+  mes: 'Mes anterior',
+};
+const ETIQUETA_ADELANTE: Record<Vista, string> = {
+  dia: 'Semana siguiente',
+  '3dias': 'Días siguientes',
+  semana: 'Semana siguiente',
+  mes: 'Mes siguiente',
+};
+
+// Semanas enteras (de lunes a domingo) que cubren el mes de ese día: 5 o 6.
+function diasDelMes(dia: ClaveDia): ClaveDia[] {
+  const fecha = fechaDesdeClave(dia);
+  const primero = claveDia(new Date(fecha.getFullYear(), fecha.getMonth(), 1));
+  const ultimo = claveDia(new Date(fecha.getFullYear(), fecha.getMonth() + 1, 0));
+  const desde = claveDia(inicioDeSemana(fechaDesdeClave(primero)));
+  const dias: ClaveDia[] = [];
+  for (let d = desde; d <= ultimo || dias.length % 7 !== 0; d = sumarDias(d, 1)) dias.push(d);
+  return dias;
+}
+
+// El día 1 del mes que está a "meses" de ese día (o hoy, si es el mes de hoy).
+function otroMes(dia: ClaveDia, meses: number, hoy: ClaveDia): ClaveDia {
+  const fecha = fechaDesdeClave(dia);
+  const destino = claveDia(new Date(fecha.getFullYear(), fecha.getMonth() + meses, 1));
+  return destino.slice(0, 7) === hoy.slice(0, 7) ? hoy : destino;
+}
 let vistaEnMemoria: Vista | null = null;
 
 function useVista(): [Vista, (vista: Vista) => void] {
@@ -134,6 +167,7 @@ export function PantallaSemana() {
   // Lo que enseña la rejilla: la semana entera o el día elegido y los dos siguientes.
   const diasRejilla = vista === '3dias' ? [0, 1, 2].map((i) => sumarDias(elegido, i)) : dias;
   const pasoDias = vista === '3dias' ? 3 : 7;
+  const diasMes = vista === 'mes' ? diasDelMes(elegido) : [];
   const jornada = minutosDeJornada(perfil);
 
   // Época dorada (fase 4b): los días de una época usan su horario para la carga y
@@ -180,15 +214,19 @@ export function PantallaSemana() {
   const desplazamiento = useSharedValue(0);
   const anchoTira = useSharedValue(360);
   const estiloTira = useAnimatedStyle(() => ({ transform: [{ translateX: desplazamiento.get() }] }));
-  // Días que avanza cada flecha o deslizamiento (3 en "3 días", 7 en el resto). Va en un
-  // valor compartido porque el gesto se crea una sola vez.
+  // Días que avanza cada flecha o deslizamiento (3 en "3 días", 7 en el resto; en "Mes",
+  // un mes). Va en valores compartidos porque el gesto se crea una sola vez.
   const paso = useSharedValue(7);
+  const porMeses = useSharedValue(false);
   useEffect(() => paso.set(pasoDias), [paso, pasoDias]);
+  useEffect(() => porMeses.set(vista === 'mes'), [porMeses, vista]);
   const cambiarSemana = (semanas: number) => {
     const ancho = anchoTira.get();
     desplazamiento.set(withTiming(-semanas * ancho, { duration: duracion.corta }));
     setTimeout(() => {
-      setElegido((actual) => sumarDias(actual, paso.get() * semanas));
+      setElegido((actual) =>
+        porMeses.get() ? otroMes(actual, semanas, claveDia(new Date())) : sumarDias(actual, paso.get() * semanas),
+      );
       desplazamiento.set(semanas * ancho);
       desplazamiento.set(withTiming(0, { duration: duracion.normal }));
     }, duracion.corta);
@@ -219,6 +257,7 @@ export function PantallaSemana() {
   const hitosElegido = diaElegido.epoca?.hitos.filter((h) => h.fecha === elegido) ?? [];
   const tareas = eventos.filter((e) => e.flexible && e.fecha === elegido);
   const huecosPlan = huecosParaPlan(delDia.map(intervaloDe), diaElegido.ventana, elegido, ahora);
+  const tituloMes = nombreMes(fechaDesdeClave(vista === '3dias' || vista === 'mes' ? elegido : sumarDias(lunes, 3)));
 
   return (
     <View style={estilos.contenedor}>
@@ -226,17 +265,15 @@ export function PantallaSemana() {
         <View style={estilos.zonaDeslizable} {...deslizar.panHandlers}>
           <View style={estilos.cabecera}>
             <View style={estilos.textos}>
-              <Titulo>{nombreMes(fechaDesdeClave(vista === '3dias' ? elegido : sumarDias(lunes, 3)))}</Titulo>
-              <Texto secundario>Semana {numeroSemana(fechaElegida)}</Texto>
+              {/* Los meses largos ("Septiembre") un poco más pequeños, para que quepan con "Hoy". */}
+              <Titulo numberOfLines={1} style={tituloMes.length > 8 && estilos.mesLargo}>
+                {tituloMes}
+              </Titulo>
+              <Texto secundario>
+                {vista === 'mes' ? fechaElegida.getFullYear() : `Semana ${numeroSemana(fechaElegida)}`}
+              </Texto>
             </View>
-            <BotonIcono icono="chevron-back" etiqueta={vista === '3dias' ? 'Días anteriores' : 'Semana anterior'} onPress={() => cambiarSemana(-1)} />
-            <BotonIcono icono="chevron-forward" etiqueta={vista === '3dias' ? 'Días siguientes' : 'Semana siguiente'} onPress={() => cambiarSemana(1)} />
-          </View>
-
-          <View style={estilos.leyendaFila}>
-            <View style={estilos.textos}>
-              <Selector opciones={OPCIONES_VISTA} valor={vista} alCambiar={setVista} />
-            </View>
+            {/* "Hoy" va junto a las flechas para que las cuatro vistas quepan en una fila. */}
             {!diasRejillaOElegido(vista, diasRejilla, elegido).includes(hoy) ? (
               <Pressable
                 accessibilityRole="button"
@@ -248,9 +285,38 @@ export function PantallaSemana() {
                 </Texto>
               </Pressable>
             ) : null}
+            <BotonIcono icono="chevron-back" etiqueta={ETIQUETA_ATRAS[vista]} onPress={() => cambiarSemana(-1)} />
+            <BotonIcono icono="chevron-forward" etiqueta={ETIQUETA_ADELANTE[vista]} onPress={() => cambiarSemana(1)} />
           </View>
 
-          {vista !== 'dia' ? (
+          <Selector opciones={OPCIONES_VISTA} valor={vista} alCambiar={setVista} />
+
+          {vista === 'mes' ? (
+            <View style={estilos.marcoRejilla}>
+              <Animated.View
+                style={estiloTira}
+                onLayout={(e) => {
+                  anchoTira.set(e.nativeEvent.layout.width);
+                }}>
+                <RejillaMes
+                  dias={diasMes.map((dia) => {
+                    const conEpoca = delDiaConEpoca(dia);
+                    return {
+                      dia,
+                      cosas: [...conEpoca.eventos, ...eventos.filter((e) => e.flexible && e.fecha === dia)],
+                      hayHito: conEpoca.epoca?.hitos.some((h) => h.fecha === dia) ?? false,
+                    };
+                  })}
+                  mes={fechaElegida.getMonth()}
+                  hoy={hoy}
+                  alTocarDia={(dia) => {
+                    setElegido(dia);
+                    setVista('dia');
+                  }}
+                />
+              </Animated.View>
+            </View>
+          ) : vista !== 'dia' ? (
             <View style={estilos.marcoRejilla}>
               <Animated.View
                 style={estiloTira}
@@ -507,8 +573,9 @@ function LineaDeHoras({ eventos, ventana, minutoAhora, alTocar }: PropsLinea) {
   );
 }
 
-// ¿Se ve hoy? En "Día", si es el elegido; en las otras vistas, si está en la rejilla.
+// ¿Se ve hoy? En "Día", si es el elegido; en "Mes", si es de ese mes; en las otras, si está en la rejilla.
 function diasRejillaOElegido(vista: Vista, diasRejilla: ClaveDia[], elegido: ClaveDia): ClaveDia[] {
+  if (vista === 'mes') return diasDelMes(elegido).filter((d) => d.slice(0, 7) === elegido.slice(0, 7));
   return vista === 'dia' ? [elegido] : diasRejilla;
 }
 
@@ -561,7 +628,6 @@ const estilos = StyleSheet.create({
     justifyContent: 'center',
   },
   pulsado: { opacity: 0.7 },
-  leyendaFila: { flexDirection: 'row', alignItems: 'center', justifyContent: 'space-between' },
   leyenda: { flexDirection: 'row', gap: espacio.m },
   leyendaItem: { flexDirection: 'row', alignItems: 'center', gap: espacio.xs },
   punto: { width: 10, height: 10, borderRadius: 5 },
@@ -574,6 +640,7 @@ const estilos = StyleSheet.create({
   },
   marcoTira: { overflow: 'hidden' },
   marcoRejilla: { overflow: 'hidden' },
+  mesLargo: { fontSize: 28, lineHeight: 34, letterSpacing: -0.9 },
   aviso: {
     position: 'absolute',
     left: espacio.m,

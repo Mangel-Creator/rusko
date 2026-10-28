@@ -1038,10 +1038,12 @@ animaciones infinitas.
   cuando no se está en hoy. Línea de horas a 56 px por hora; los solapados van en
   columnas; los bloques de foco en negro con "Protegido".
 - **Semana como Google Calendar** (28/10/2026, lo pidió el usuario): arriba "Día · 3 días ·
-  Semana" (se recuerda en `organizy:vistaCalendario`; por defecto Semana). Semana y 3 días son
+  Semana · Mes" (se recuerda en `organizy:vistaCalendario`; por defecto Semana). Semana y 3 días son
   una rejilla de columnas con la línea de horas (`screens/calendario/RejillaSemana.tsx`): tocar
   el día lo abre en "Día", tocar un hueco crea una cita a esa hora y las tareas sin hora van
-  arriba. **Tocar cualquier cita o tarea abre una hoja abajo** (`MenuEvento`) con "Abrir",
+  arriba. **Mes** (`RejillaMes.tsx`, 28/10): el mes entero en cajas, cada día con sus 3 primeras
+  cosas en pastillas (y el festivo en azul); las flechas cambian de mes y **tocar un día lo abre en
+  "Día"**. **Tocar cualquier cita o tarea abre una hoja abajo** (`MenuEvento`) con "Abrir",
   "Hecha" (tareas) y "Eliminar" sin entrar en la ficha; al eliminar sale "Deshacer" 6 s.
 - Eventos de ejemplo: en modo desarrollo se crean solos la primera vez
   (`organizy:ejemplosCreados`). En Perfil > Pruebas hay botones para crearlos y
