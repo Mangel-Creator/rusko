@@ -258,11 +258,13 @@ export function PantallaSemana() {
                 <RejillaSemana
                   dias={diasRejilla.map((dia) => {
                     const conEpoca = delDiaConEpoca(dia);
+                    const minutosTareas = tareasPendientes(eventos, dia, hoy).reduce((t, e) => t + duracionTarea(e), 0);
                     return {
                       dia,
                       eventos: conEpoca.eventos,
                       tareas: eventos.filter((e) => e.flexible && e.fecha === dia),
                       hayHito: conEpoca.epoca?.hitos.some((h) => h.fecha === dia) ?? false,
+                      carga: cargaDelDia(conEpoca.eventos.map(intervaloDe), minutosTareas, conEpoca.jornada),
                     };
                   })}
                   ventana={ventanaDelDia(perfil)}
