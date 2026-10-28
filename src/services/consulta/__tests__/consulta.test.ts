@@ -73,60 +73,91 @@ describe('entenderPregunta', () => {
 });
 
 describe('nombreDelDia', () => {
-  it('dice los días cercanos por su nombre y los lejanos con el mes', () => {
+  it('dice los días cercanos como una persona y los lejanos con el mes', () => {
     expect(nombreDelDia(HOY, HOY)).toBe('Hoy');
     expect(nombreDelDia('2026-10-27', HOY)).toBe('Mañana');
-    expect(nombreDelDia('2026-10-29', HOY)).toBe('El jueves 29');
-    expect(nombreDelDia('2026-11-01', HOY)).toBe('El domingo 1 de noviembre');
+    expect(nombreDelDia('2026-10-28', HOY)).toBe('Pasado mañana');
+    expect(nombreDelDia('2026-10-29', HOY)).toBe('El jueves');
+    expect(nombreDelDia('2026-11-01', HOY)).toBe('El domingo');
+    expect(nombreDelDia('2026-11-02', HOY)).toBe('El lunes 2 de noviembre');
     expect(nombreDelDia('2026-11-11', HOY)).toBe('El miércoles 11 de noviembre');
   });
 });
 
 describe('respuestaDelDia', () => {
   const ahora = new Date(2026, 9, 26, 12, 0);
-  const miercoles = '2026-10-28';
+  const jueves = '2026-10-29';
+  const responder = (eventos: Evento[], dia = jueves, cuando = ahora) =>
+    respuestaDelDia({ eventos, dia, ahora: cuando, perfil: null });
 
   it('lo tienes libre', () => {
-    expect(respuestaDelDia({ eventos: [], dia: miercoles, ahora, perfil: null })).toBe('El miércoles 28 lo tienes libre.');
+    expect(responder([])).toBe('El jueves no tienes nada. Día libre.');
+    expect(responder([], '2026-10-28')).toBe('Pasado mañana lo tienes libre del todo.');
   });
 
-  it('cuenta las citas en orden, con el sitio, y las tareas', () => {
+  it('cuenta las citas como un relato, con las horas en palabras', () => {
     const eventos = [
-      evento({ titulo: 'Pádel', fecha: miercoles, horaInicio: '18:00', horaFin: '19:30' }),
+      evento({ titulo: 'Pádel', fecha: jueves, horaInicio: '18:00', horaFin: '19:30' }),
       evento({
         titulo: 'Reunión',
-        fecha: miercoles,
+        fecha: jueves,
         horaInicio: '13:00',
         horaFin: '14:00',
         lugar: { tipo: 'otro', direccion: 'Calle Mayor 3, Alicante', coordenadas: null },
       }),
-      evento({ titulo: 'Médico', fecha: miercoles, horaInicio: '01:30', horaFin: '02:00' }),
-      tarea('Comprar pan', miercoles),
+      evento({ titulo: 'Médico', fecha: jueves, horaInicio: '01:30', horaFin: '02:00' }),
+      tarea('Comprar pan', jueves),
     ];
-    expect(respuestaDelDia({ eventos, dia: miercoles, ahora, perfil: null })).toBe(
-      'El miércoles 28 tienes 3 cosas: a la 1:30, Médico, a las 13:00, Reunión en Calle Mayor 3 y a las 18:00, Pádel. ' +
-        'Y una tarea sin hora: Comprar pan.',
+    expect(responder(eventos)).toBe(
+      'El jueves tienes tres cosas. Empiezas a la una y media de la madrugada con Médico, ' +
+        'luego Reunión, a la una del mediodía en Calle Mayor 3, y acabas a las seis de la tarde con Pádel. ' +
+        'Además, tienes pendiente Comprar pan.',
     );
   });
 
-  it('de hoy solo cuenta lo que queda', () => {
+  it('no repite la parte del día y dice si tienes la tarde o la mañana libre', () => {
+    const manana = [
+      evento({ titulo: 'Gimnasio', fecha: jueves, horaInicio: '08:00', horaFin: '09:00' }),
+      evento({ titulo: 'Reunión', fecha: jueves, horaInicio: '10:15', horaFin: '11:00' }),
+    ];
+    expect(responder(manana)).toBe(
+      'El jueves tienes dos cosas: Gimnasio, a las ocho de la mañana, y luego Reunión, a las diez y cuarto. ' +
+        'La tarde la tienes libre.',
+    );
+    const tarde = [evento({ titulo: 'Pádel', fecha: jueves, horaInicio: '18:40', horaFin: '20:00' })];
+    expect(responder(tarde)).toBe('El jueves solo tienes Pádel, a las siete menos veinte de la tarde. Por la mañana, libre.');
+  });
+
+  it('de hoy solo cuenta lo que queda y dice en qué estás ahora', () => {
     const eventos = [
       evento({ titulo: 'Desayuno', horaInicio: '08:00', horaFin: '09:00' }),
       evento({ titulo: 'Cena', horaInicio: '21:00', horaFin: '22:00' }),
     ];
-    expect(respuestaDelDia({ eventos, dia: HOY, ahora, perfil: null })).toBe('Hoy te queda una cosa: a las 21:00, Cena.');
-    const tarde = new Date(2026, 9, 26, 23, 0);
-    expect(respuestaDelDia({ eventos, dia: HOY, ahora: tarde, perfil: null })).toBe('Hoy ya no te queda nada. A descansar.');
+    expect(responder(eventos, HOY)).toBe('Hoy solo te queda Cena, a las nueve de la noche.');
+    expect(responder(eventos, HOY, new Date(2026, 9, 26, 23, 0))).toBe('Por hoy ya está. Lo que queda de día es para ti.');
+
+    const ocupado = [
+      evento({ titulo: 'Reunión', horaInicio: '10:00', horaFin: '11:00' }),
+      evento({ titulo: 'Comida', horaInicio: '14:00', horaFin: '15:30' }),
+    ];
+    expect(responder(ocupado, HOY, new Date(2026, 9, 26, 10, 30))).toBe(
+      'Ahora mismo estás con Reunión, hasta las once de la mañana. Después solo te queda Comida, a las dos de la tarde.',
+    );
   });
 
   it('solo tareas, días pasados y listas largas', () => {
-    expect(respuestaDelDia({ eventos: [tarea('Llamar al banco', miercoles)], dia: miercoles, ahora, perfil: null })).toBe(
-      'El miércoles 28 no tienes nada con hora. Tienes una tarea sin hora: Llamar al banco.',
+    expect(responder([tarea('Llamar al banco', jueves)])).toBe(
+      'El jueves no tienes nada a una hora fija. Solo tienes pendiente Llamar al banco.',
     );
-    expect(respuestaDelDia({ eventos: [], dia: '2026-10-25', ahora, perfil: null })).toBe('Ayer no tenías nada apuntado.');
+    expect(responder([], '2026-10-25')).toBe('Ayer no tenías nada apuntado.');
+    expect(responder([evento({ titulo: 'Cena', fecha: '2026-10-25', horaInicio: '21:00', horaFin: '23:00' })], '2026-10-25')).toBe(
+      'Ayer solo tuviste Cena, a las nueve de la noche.',
+    );
     const muchas = Array.from({ length: 8 }, (_, i) =>
-      evento({ titulo: `Cita ${i + 1}`, fecha: miercoles, horaInicio: `1${i}:00`, horaFin: `1${i}:30` }),
+      evento({ titulo: `Cita ${i + 1}`, fecha: jueves, horaInicio: `1${i}:00`, horaFin: `1${i}:30` }),
     );
-    expect(respuestaDelDia({ eventos: muchas, dia: miercoles, ahora, perfil: null })).toMatch(/Cita 6 y 2 más\.$/);
+    expect(responder(muchas)).toMatch(
+      /^El jueves tienes ocho cosas\. Empiezas .*Cita 4, a la una, Cita 5, a las dos de la tarde, y luego tres cosas más\. Vas a ir a tope\.$/,
+    );
   });
 });

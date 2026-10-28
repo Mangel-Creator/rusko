@@ -1334,9 +1334,18 @@ borran solos a los 7 días.
 - **Preguntas por la agenda, sin IA** (26/10/2026, lo pidió el usuario): antes de mandar la
   frase a la IA, `entenderPregunta` (`services/consulta/`) mira si es "¿qué tengo el
   miércoles?", "¿tengo algo mañana?", "¿estoy libre el 5 de noviembre?"... Si lo es, no sale
-  nada del móvil: `respuestaDelDia` contesta en una tarjeta ("El miércoles 28 tienes 2 cosas:
-  a las 10:00, Reunión en Oficina y…"; de hoy, solo lo que queda) y la lee en voz alta
-  (`hablar`, con "Escuchar"/"Callar" y "Cerrar"). Lo que no es pregunta sigue a la captura.
+  nada del móvil: `respuestaDelDia` contesta en una tarjeta y la lee en voz alta (`hablar`,
+  con "Escuchar"/"Callar" y "Cerrar"). Lo que no es pregunta sigue a la captura.
+  **Habla como una persona** (28/10/2026, lo pidió el usuario: "mucho más humana y
+  cercana"): horas en palabras con la parte del día, sin repetirla ("a las seis y media de
+  la tarde", "a la una menos cuarto"), las citas como un relato ("Mañana tienes tres cosas.
+  Empiezas a las ocho y media con…, luego…, y acabas a las tres con…"), "Ahora mismo estás
+  con… hasta las once" si estás en algo, las tareas como "Además, tienes pendiente…" y un
+  comentario al final ("La tarde la tienes libre.", "Vas a ir a tope."). La web elige la voz
+  más natural que haya (`services/vozNatural.ts`: "Natural" de Edge, "mejorada"/"Premium"
+  del iPhone, "Google español"; nunca las de juguete), un poco más despacio (0,95) y frase a
+  frase. En el iPhone suena mucho mejor con una voz descargada: Ajustes > Accesibilidad >
+  Contenido leído > Voces > Español (España) > una "mejorada" o "Premium".
 - Coste aproximado con Haiku 5.5 (desde el 26/10/2026): unas 0,02 céntimos de dólar por frase,
   unas 5.000 frases por dólar. Antes, con Haiku 4.5: 0,2 céntimos (unos 1.300 tokens de entrada y 120 de
   salida, a 1 $ y 5 $ por millón): unas 500 frases por dólar. Gasto en console.anthropic.com > Usage / Cost; conviene poner

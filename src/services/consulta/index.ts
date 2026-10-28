@@ -20,8 +20,8 @@ import {
 //
 //   - entenderPregunta(frase, hoy): el día por el que preguntas, o null si no es una
 //     pregunta por tu agenda (entonces la frase sigue a la captura de siempre).
-//   - respuestaDelDia(...): "El miércoles 28 tienes 2 cosas: a las 10:00, Reunión en
-//     Oficina y a las 18:00, Pádel."
+//   - respuestaDelDia(...): "El miércoles tienes dos cosas: Reunión, a las diez de la
+//     mañana en Oficina, y luego Pádel, a las seis de la tarde."
 
 const DIAS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
 const MESES = [
@@ -124,22 +124,92 @@ function fechaEscrita(t: string, hoy: ClaveDia): ClaveDia | null {
 
 const NOMBRES_DIA = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
 
-// "Hoy", "Mañana", "Ayer", "El miércoles 28" o, si queda lejos o en
-// otro mes, "El miércoles 4 de noviembre".
+// Como lo diría una persona: "Hoy", "Mañana", "Pasado mañana", "Ayer", "El miércoles"
+// (si cae en los próximos 6 días) o "El miércoles 4 de noviembre".
 export function nombreDelDia(dia: ClaveDia, hoy: ClaveDia): string {
   if (dia === hoy) return 'Hoy';
   if (dia === sumarDias(hoy, 1)) return 'Mañana';
+  if (dia === sumarDias(hoy, 2)) return 'Pasado mañana';
   if (dia === sumarDias(hoy, -1)) return 'Ayer';
   const fecha = fechaDesdeClave(dia);
-  const base = `El ${NOMBRES_DIA[diaSemanaDesdeLunes(fecha)]} ${fecha.getDate()}`;
-  const cerca = dia > hoy && dia <= sumarDias(hoy, 6) && fecha.getMonth() === fechaDesdeClave(hoy).getMonth();
-  return cerca ? base : `${base} de ${nombreMes(fecha).toLocaleLowerCase('es-ES')}`;
+  const semana = NOMBRES_DIA[diaSemanaDesdeLunes(fecha)];
+  if (dia > hoy && dia <= sumarDias(hoy, 6)) return `El ${semana}`;
+  return `El ${semana} ${fecha.getDate()} de ${nombreMes(fecha).toLocaleLowerCase('es-ES')}`;
 }
 
-// "a las 10:00", pero "a la 1:30" (se dice "a la una").
-function aLas(hora: string): string {
-  const h = Number(hora.slice(0, 2));
-  return `${h === 1 ? 'a la' : 'a las'} ${h}:${hora.slice(3)}`;
+// Horas y números en palabras: la voz lee "18:00" como "dieciocho horas" y "la 1" como
+// "la uno".
+const NUMEROS = [
+  'cero',
+  'una',
+  'dos',
+  'tres',
+  'cuatro',
+  'cinco',
+  'seis',
+  'siete',
+  'ocho',
+  'nueve',
+  'diez',
+  'once',
+  'doce',
+  'trece',
+  'catorce',
+  'quince',
+  'dieciséis',
+  'diecisiete',
+  'dieciocho',
+  'diecinueve',
+  'veinte',
+  'veintiuno',
+  'veintidós',
+  'veintitrés',
+  'veinticuatro',
+  'veinticinco',
+  'veintiséis',
+  'veintisiete',
+  'veintiocho',
+  'veintinueve',
+];
+
+function enLetra(n: number): string {
+  return NUMEROS[n] ?? String(n);
+}
+
+type Franja = 'de la madrugada' | 'de la mañana' | 'del mediodía' | 'de la tarde' | 'de la noche';
+
+function franjaDe(hora: number): Franja {
+  if (hora >= 1 && hora < 6) return 'de la madrugada';
+  if (hora >= 6 && hora < 12) return 'de la mañana';
+  if (hora >= 12 && hora < 14) return 'del mediodía';
+  if (hora >= 14 && hora < 21) return 'de la tarde';
+  return 'de la noche';
+}
+
+// "a las seis y media de la tarde", "a la una menos cuarto", "hasta las once y diez".
+// La franja se calla si es la misma que la de antes ("…de la tarde, y luego a las ocho").
+function horaHablada(hora: string, prefijo: 'a' | 'hasta', franjaAntes: Franja | null = null) {
+  const total = minutosDesdeHora(hora);
+  const h = Math.floor(total / 60);
+  const m = total % 60;
+  const franja = franjaDe(h);
+  // A partir de y treinta y algo se dice "menos": "las siete menos veinte".
+  const menos = m > 30;
+  const reloj = (menos ? h + 1 : h) % 12 || 12;
+  const minutos =
+    m === 0
+      ? ''
+      : m === 15
+        ? ' y cuarto'
+        : m === 30
+          ? ' y media'
+          : m === 45
+            ? ' menos cuarto'
+            : menos
+              ? ` menos ${enLetra(60 - m)}`
+              : ` y ${enLetra(m)}`;
+  const texto = `${prefijo} ${reloj === 1 ? 'la' : 'las'} ${enLetra(reloj)}${minutos}${franja === franjaAntes ? '' : ` ${franja}`}`;
+  return { texto, franja };
 }
 
 function unirConY(partes: string[]): string {
@@ -147,18 +217,49 @@ function unirConY(partes: string[]): string {
   return `${partes.slice(0, -1).join(', ')} y ${partes[partes.length - 1]}`;
 }
 
+// "una cosa", "tres cosas", "12 cosas" (todo lo que se cuenta aquí es femenino).
 function contar(n: number, una: string, varias: string): string {
-  return n === 1 ? una : `${n} ${varias}`;
+  return n === 1 ? `una ${una}` : `${n <= 10 ? enLetra(n) : n} ${varias}`;
 }
 
-// Más de esto cansa de oír: el resto se dice como "y 3 más".
-const MAX_EN_VOZ = 6;
+// Para no decir siempre lo mismo, pero sin azar: el mismo día, la misma frase.
+function elegir(opciones: string[], dia: ClaveDia): string {
+  return opciones[fechaDesdeClave(dia).getDate() % opciones.length];
+}
 
-function lista(textos: string[]): string {
-  const vistos = textos.slice(0, MAX_EN_VOZ);
-  const resto = textos.length - vistos.length;
-  if (resto > 0) vistos.push(resto === 1 ? 'una más' : `${resto} más`);
-  return unirConY(vistos);
+// Más de esto cansa de oír: el resto se dice como "y luego tres cosas más".
+const MAX_EN_VOZ = 5;
+
+type Cosa = { titulo: string; inicio: string; sitio: string | null };
+
+function limpiarTitulo(titulo: string): string {
+  return titulo.trim().replace(/\.+$/, '');
+}
+
+// Las citas contadas como un relato: "Empiezas a las diez de la mañana con Reunión en
+// Oficina, luego Comida, a las dos de la tarde, y acabas a las seis con Pádel."
+function relato(cosas: Cosa[], pasado: boolean): string {
+  let franja: Franja | null = null;
+  const partes = cosas.slice(0, MAX_EN_VOZ).map((c) => {
+    const hora = horaHablada(c.inicio, 'a', franja);
+    franja = hora.franja;
+    return { titulo: c.titulo, hora: hora.texto, en: c.sitio ? ` en ${c.sitio}` : '' };
+  });
+  const resto = cosas.length - partes.length;
+
+  if (partes.length === 1) return `${partes[0].titulo}, ${partes[0].hora}${partes[0].en}`;
+  if (partes.length === 2) {
+    const [a, b] = partes;
+    return `${a.titulo}, ${a.hora}${a.en}, y luego ${b.titulo}, ${b.hora}${b.en}`;
+  }
+  const [primera, ...siguientes] = partes;
+  const ultima = resto > 0 ? null : siguientes.pop();
+  const trozos = [`${pasado ? 'Empezaste' : 'Empiezas'} ${primera.hora} con ${primera.titulo}${primera.en}`];
+  siguientes.forEach((c, i) => trozos.push(`${['luego ', 'después '][i] ?? ''}${c.titulo}, ${c.hora}${c.en}`));
+  const final = ultima
+    ? `y ${pasado ? 'acabaste' : 'acabas'} ${ultima.hora} con ${ultima.titulo}${ultima.en}`
+    : `y luego ${contar(resto, 'cosa', 'cosas')} más`;
+  return `${trozos.join(', ')}, ${final}`;
 }
 
 type Datos = {
@@ -168,40 +269,78 @@ type Datos = {
   perfil: Perfil | null;
 };
 
-// La respuesta, lista para leerla en voz alta. De hoy solo cuenta lo que queda.
+// La respuesta, lista para leerla en voz alta, con el tono de alguien que mira tu agenda
+// contigo (lo pidió el usuario el 28/10/2026: "mucho más humana y cercana"). De hoy solo
+// cuenta lo que queda y, si estás en algo, lo dice primero.
 export function respuestaDelDia({ eventos, dia, ahora, perfil }: Datos): string {
   const hoy = claveDia(ahora);
+  const esHoy = dia === hoy;
   const pasado = dia < hoy;
   const nombre = nombreDelDia(dia, hoy);
   const delDia = eventosDelDia(eventos, dia);
   const minuto = minutosDelDia(ahora);
-  const citas =
-    dia === hoy ? delDia.filter((e) => minutosDesdeHora(e.horaFin ?? e.horaInicio ?? '00:00') > minuto) : delDia;
+  const inicio = (e: Evento) => minutosDesdeHora(e.horaInicio ?? '00:00');
+  const fin = (e: Evento) => minutosDesdeHora(e.horaFin ?? e.horaInicio ?? '00:00');
+  const citas = esHoy ? delDia.filter((e) => fin(e) > minuto) : delDia;
   // Las tareas sin hacer de días pasados salen hoy; de un día pasado no se cuentan.
   const tareas = pasado ? [] : tareasPendientes(eventos, dia, hoy);
 
   if (citas.length === 0 && tareas.length === 0) {
     if (pasado) return `${nombre} no tenías nada apuntado.`;
-    if (dia === hoy && delDia.length > 0) return 'Hoy ya no te queda nada. A descansar.';
-    return `${nombre} lo tienes libre.`;
+    if (esHoy && delDia.length > 0) return 'Por hoy ya está. Lo que queda de día es para ti.';
+    return elegir([`${nombre} lo tienes libre del todo.`, `${nombre} no tienes nada. Día libre.`], dia);
   }
 
+  const cosa = (e: Evento): Cosa => {
+    const lugar = resolverLugar(e.lugar, perfil);
+    return {
+      titulo: limpiarTitulo(e.titulo),
+      inicio: e.horaInicio ?? '00:00',
+      sitio: lugar ? (lugar.nombre ?? lugar.direccion.split(',')[0]) : null,
+    };
+  };
+
   const frases: string[] = [];
-  if (citas.length > 0) {
-    const textos = citas.map((e) => {
-      const lugar = resolverLugar(e.lugar, perfil);
-      const sitio = lugar ? (lugar.nombre ?? lugar.direccion.split(',')[0]) : null;
-      return `${aLas(e.horaInicio ?? '00:00')}, ${e.titulo}${sitio ? ` en ${sitio}` : ''}`;
-    });
-    const cuantas = contar(citas.length, 'una cosa', 'cosas');
-    const empieza = pasado ? `tenías ${cuantas}` : dia === hoy ? `te queda${citas.length === 1 ? '' : 'n'} ${cuantas}` : `tienes ${cuantas}`;
-    frases.push(`${nombre} ${empieza}: ${lista(textos)}.`);
-  } else {
-    frases.push(`${nombre} no tienes nada con hora.`);
+  const enCurso = esHoy ? citas.filter((e) => inicio(e) <= minuto) : [];
+  const proximas = citas.filter((e) => e !== enCurso[0]);
+  if (enCurso.length > 0) {
+    const e = enCurso[0];
+    const hasta = e.horaFin ? `, ${horaHablada(e.horaFin, 'hasta').texto}` : '';
+    frases.push(`Ahora mismo estás con ${cosa(e).titulo}${hasta}.`);
   }
+
+  if (proximas.length > 0) {
+    const n = proximas.length;
+    const cuantas = contar(n, 'cosa', 'cosas');
+    let cabecera: string;
+    if (enCurso.length > 0) cabecera = n === 1 ? 'Después solo te queda' : `Después te quedan ${cuantas}`;
+    else if (esHoy) cabecera = n === 1 ? 'Hoy solo te queda' : `Hoy te quedan ${cuantas}`;
+    else if (pasado) cabecera = n === 1 ? `${nombre} solo tuviste` : `${nombre} tuviste ${cuantas}`;
+    else cabecera = n === 1 ? `${nombre} solo tienes` : `${nombre} tienes ${cuantas}`;
+    const lista = relato(proximas.map(cosa), pasado);
+    // Una o dos van seguidas; con más, el relato va en su propia frase.
+    frases.push(n >= 3 ? `${cabecera}. ${lista}.` : `${cabecera}${n === 1 ? '' : ':'} ${lista}.`);
+  } else if (citas.length === 0) {
+    frases.push(`${nombre} no tienes nada a una hora fija.`);
+  }
+
   if (tareas.length > 0) {
-    const cuantas = contar(tareas.length, 'una tarea', 'tareas');
-    frases.push(`${citas.length > 0 ? 'Y' : 'Tienes'} ${cuantas} sin hora: ${lista(tareas.map((t) => t.titulo))}.`);
+    const titulos = tareas.slice(0, MAX_EN_VOZ).map((t) => limpiarTitulo(t.titulo));
+    if (tareas.length > MAX_EN_VOZ) titulos.push(`${contar(tareas.length - MAX_EN_VOZ, 'más', 'más')}`);
+    const tienes = citas.length > 0 ? 'Además, tienes' : 'Solo tienes';
+    frases.push(
+      tareas.length === 1
+        ? `${tienes} pendiente ${titulos[0]}.`
+        : `${tienes} ${contar(tareas.length, 'tarea', 'tareas')} pendientes: ${unirConY(titulos)}.`,
+    );
+  }
+
+  // Un comentario al final, como lo haría alguien que mira tu agenda contigo.
+  if (!pasado && citas.length > 0) {
+    const quedaManana = !esHoy || minuto < 12 * 60;
+    if (citas.length >= 4) frases.push(elegir(['Día completito: tómatelo con calma.', 'Vas a ir a tope.'], dia));
+    else if (citas.every((e) => fin(e) <= 14 * 60)) frases.push('La tarde la tienes libre.');
+    else if (quedaManana && citas.every((e) => inicio(e) >= 14 * 60)) frases.push('Por la mañana, libre.');
   }
   return capitalizar(frases.join(' '));
 }
