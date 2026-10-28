@@ -83,6 +83,9 @@ sesión que fuera**:
   - Al terminar algo, basta con que funcione en la web (`npx tsc --noEmit` y verlo en
     `http://localhost:8081/` o en la web publicada).
   - Expo sigue siendo la herramienta con la que se construye la web: eso no cambia.
+- 28/10/2026 — **Las tareas marcadas como hechas se borran solas a las 24 h** si no se
+  desmarcan (`hechaEn` en el evento; `borrarTareasHechasAntiguas` en `data/eventos`). No
+  afecta a las tareas del plan de estudio (`epoca-`).
 - 23/09/2026 — App para todo el mundo con los datos de cada usuario privados; web
   para los demás y app para el dueño (ver "Para quién y dónde funciona").
 - 24/09/2026 — Direcciones en la web con OpenStreetMap.
