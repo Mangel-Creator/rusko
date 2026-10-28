@@ -37,6 +37,8 @@ export function fraseResumen({ eventos, tareasPendientes, huecos }: Datos): stri
   const partes = [
     contar(normales.filter((e) => e.tipo === 'cliente').length, 'un cliente', 'clientes'),
     contar(normales.filter((e) => e.tipo === 'amigos').length, 'un plan con amigos', 'planes con amigos'),
+    contar(normales.filter((e) => e.tipo === 'entreno').length, 'un entreno', 'entrenos'),
+    contar(normales.filter((e) => e.tipo === 'estudios').length, 'algo de estudios', 'cosas de estudios'),
     contar(normales.filter((e) => e.tipo === 'yo').length, 'una cosa tuya', 'cosas tuyas'),
     contar(eventos.length - normales.length, 'un bloque de foco', 'bloques de foco'),
     contar(tareasPendientes, 'una tarea', 'tareas'),

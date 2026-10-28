@@ -52,7 +52,7 @@ export function crearEjemplos(hoy: ClaveDia): Evento[] {
     // Pasado mañana: tranquilo
     fijo(8, dia(2), '19:00', '20:30', { titulo: 'Pádel con los del barrio', tipo: 'amigos' }),
     // Cada semana, a partir de hoy
-    fijo(9, hoy, '07:30', '08:30', { titulo: 'Gimnasio', tipo: 'yo', repeticion: 'semanal' }),
+    fijo(9, hoy, '07:30', '08:30', { titulo: 'Gimnasio', tipo: 'entreno', repeticion: 'semanal' }),
     // Tareas flexibles
     tarea(10, 'Llamar al taller', 15),
     tarea(11, 'Pagar el recibo de la luz', 15),

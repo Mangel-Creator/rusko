@@ -15,12 +15,16 @@ export const ICONO_TIPO: Record<TipoEvento, ComponentProps<typeof Ionicons>['nam
   cliente: 'briefcase-outline',
   amigos: 'people-outline',
   yo: 'person-outline',
+  entreno: 'barbell-outline',
+  estudios: 'school-outline',
 };
 
 export const OPCIONES_TIPO: Opcion<TipoEvento>[] = [
   { valor: 'cliente', etiqueta: 'Cliente' },
   { valor: 'amigos', etiqueta: 'Amigos' },
   { valor: 'yo', etiqueta: 'Yo' },
+  { valor: 'entreno', etiqueta: 'Entreno' },
+  { valor: 'estudios', etiqueta: 'Estudios' },
 ];
 
 export const OPCIONES_REPETICION: Opcion<Repeticion>[] = [

@@ -410,6 +410,8 @@ export function PantallaSemana() {
           <Leyenda color={colorTipo.cliente} texto="Clientes" />
           <Leyenda color={colorTipo.amigos} texto="Amigos" />
           <Leyenda color={colorTipo.yo} texto="Yo" />
+          <Leyenda color={colorTipo.entreno} texto="Entreno" />
+          <Leyenda color={colorTipo.estudios} texto="Estudios" />
         </View>
         ) : null}
 
@@ -628,7 +630,7 @@ const estilos = StyleSheet.create({
     justifyContent: 'center',
   },
   pulsado: { opacity: 0.7 },
-  leyenda: { flexDirection: 'row', gap: espacio.m },
+  leyenda: { flexDirection: 'row', flexWrap: 'wrap', columnGap: espacio.m, rowGap: espacio.xs },
   leyendaItem: { flexDirection: 'row', alignItems: 'center', gap: espacio.xs },
   punto: { width: 10, height: 10, borderRadius: 5 },
   botonHoy: {

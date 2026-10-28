@@ -4,7 +4,7 @@ import type { ClaveDia } from '@/services/fechas';
 // Qué es un evento en Organizy. Lo usan el guardado (SQLite o navegador),
 // las pantallas y la lógica de services/agenda.
 
-export type TipoEvento = 'cliente' | 'amigos' | 'yo';
+export type TipoEvento = 'cliente' | 'amigos' | 'yo' | 'entreno' | 'estudios';
 export type Repeticion = 'nunca' | 'diaria' | 'semanal' | 'mensual';
 
 // Lugar de un evento:

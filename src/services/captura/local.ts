@@ -45,11 +45,11 @@ const ACTIVIDADES: Actividad[] = [
     tipo: 'amigos',
     franja: 'tarde',
   },
-  { re: /\b(gimnasio|gym)\b/, minutos: 90, tipo: 'yo', franja: 'tarde' },
+  { re: /\b(gimnasio|gym|entreno|entrenar|entrenamiento)\b/, minutos: 90, tipo: 'entreno', franja: 'tarde' },
   {
     re: /\b(correr|running|yoga|pilates|nadar|piscina)\b/,
     minutos: 60,
-    tipo: 'yo',
+    tipo: 'entreno',
     franja: 'tarde',
   },
   { re: /\b(cena|cenar)\b/, minutos: 120, tipo: 'amigos', franja: 'noche' },
@@ -108,9 +108,9 @@ const ACTIVIDADES: Actividad[] = [
     tipo: 'yo',
     franja: 'tarde',
   },
-  { re: /\bexamen\b/, minutos: 120, tipo: 'yo', franja: 'manana' },
-  { re: /\bclase\b/, minutos: 60, tipo: 'yo', franja: 'tarde' },
-  { re: /\bestudiar\b/, minutos: 120, tipo: 'yo', franja: 'tarde' },
+  { re: /\bexamen\b/, minutos: 120, tipo: 'estudios', franja: 'manana' },
+  { re: /\bclase\b/, minutos: 60, tipo: 'estudios', franja: 'tarde' },
+  { re: /\bestudiar\b/, minutos: 120, tipo: 'estudios', franja: 'tarde' },
   // Recados: sin franja, así que sin hora salen como tarea flexible.
   {
     re: /\b(llamar|llamada|comprar|compra|recoger|pagar|enviar|mandar)\b/,

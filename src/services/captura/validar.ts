@@ -43,7 +43,7 @@ export const MAX_TITULO = 100;
 const DIAS_ATRAS = 7;
 const DIAS_ADELANTE = 400;
 
-const TIPOS: readonly TipoEvento[] = ['cliente', 'amigos', 'yo'];
+const TIPOS: readonly TipoEvento[] = ['cliente', 'amigos', 'yo', 'entreno', 'estudios'];
 const CONFIANZAS: readonly Confianza[] = ['alta', 'media', 'baja'];
 
 function esFechaValida(valor: unknown): valor is ClaveDia {

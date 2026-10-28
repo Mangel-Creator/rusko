@@ -728,6 +728,8 @@ destacadas; no lo uses para un tipo de evento, ni para errores ni para mensajes 
 | "Clientes" | `clientes` | `#9C8BFF` (violeta) |
 | "Amigos" | `amigos` | `#2BC48A` (verde) |
 | "Yo" (personal) | `yo` | `#D9D1C7` (blanco cálido) |
+| "Entreno" (28/10/2026) | `entreno` | `#FF6FB5` (rosa) |
+| "Estudios" (28/10/2026) | `estudios` | `#3FD0E0` (cian) |
 | Barrita de carga normal y borde de huecos | `cargaNormal` | `#7A6F64` (gris) |
 | Solo la Época dorada (franja, bloques de estudio, días con hito) | `dorado` | `#FFB020` (ámbar; texto oscuro encima) |
 | Solo la papelera que sale al deslizar un correo (28/10) | `eliminar` | `#D90000` (texto blanco encima, `textoSobreEliminar`) |
@@ -1052,6 +1054,11 @@ animaciones infinitas.
   cosas en pastillas (y el festivo en azul); las flechas cambian de mes y **tocar un día lo abre en
   "Día"**. **Tocar cualquier cita o tarea abre una hoja abajo** (`MenuEvento`) con "Abrir",
   "Hecha" (tareas) y "Eliminar" sin entrar en la ficha; al eliminar sale "Deshacer" 6 s.
+- **Tipos Entreno y Estudios** (28/10/2026, lo pidió el usuario): `TipoEvento` suma `entreno`
+  (rosa, pesa) y `estudios` (cian, birrete) a Cliente, Amigos y Yo, en la ficha, la captura
+  rápida (gimnasio, correr… → Entreno; examen, clase, estudiar → Estudios; también la IA de la
+  función `captura`, desplegada), la leyenda, Otros calendarios y la copia. No confundir con
+  `colorBaldosa.estudio` (dorado), que es solo de la Época dorada.
 - Eventos de ejemplo: en modo desarrollo se crean solos la primera vez
   (`organizy:ejemplosCreados`). En Perfil > Pruebas hay botones para crearlos y
   borrarlos también en la web publicada (allí no hay modo desarrollo).

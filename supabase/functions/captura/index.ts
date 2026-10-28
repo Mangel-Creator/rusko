@@ -83,7 +83,9 @@ Cómo rellenar cada campo:
 - tipo:
   - "cliente": trabajo con clientes (reunión, visita, llamada, presupuesto, entrega, nombres de empresas).
   - "amigos": planes con otras personas fuera del trabajo (amigos, familia, pareja, deporte con alguien, cenas, cumpleaños).
-  - "yo": cosas personales de uno mismo (médico, gimnasio, recados, trámites, estudiar).
+  - "entreno": hacer deporte uno mismo (gimnasio, correr, nadar, yoga, entrenar).
+  - "estudios": estudiar, clases, exámenes, deberes, trabajos de clase.
+  - "yo": el resto de cosas personales de uno mismo (médico, recados, trámites).
 - sitioId: el id de un sitio habitual de la lista solo si la frase lo menciona claramente, por su nombre o de forma equivalente ("en casa" = casa, "en la ofi" = Trabajo). Si no, null. Nunca inventes un id.
 - flexible: true si es algo por hacer sin hora concreta ("llamar al taller", "comprar el regalo de Ana el viernes"). Entonces horaInicio y horaFin van a null y duracionMin es tu estimación (15, 30, 60 o 120). Si tiene hora, flexible = false y duracionMin = null.
 - confianza: "alta" si está claro qué es y cuándo; "media" si has tenido que suponer bastante (por ejemplo, mañana o tarde dudoso, o falta el día); "baja" si la frase no parece algo para la agenda o no se entiende.`;
@@ -95,7 +97,7 @@ const ESQUEMA = {
     fecha: { type: 'string', format: 'date' },
     horaInicio: { anyOf: [{ type: 'string' }, { type: 'null' }] },
     horaFin: { anyOf: [{ type: 'string' }, { type: 'null' }] },
-    tipo: { type: 'string', enum: ['cliente', 'amigos', 'yo'] },
+    tipo: { type: 'string', enum: ['cliente', 'amigos', 'yo', 'entreno', 'estudios'] },
     sitioId: { anyOf: [{ type: 'string' }, { type: 'null' }] },
     flexible: { type: 'boolean' },
     duracionMin: { anyOf: [{ type: 'integer', enum: [15, 30, 60, 120] }, { type: 'null' }] },
