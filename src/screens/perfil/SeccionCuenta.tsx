@@ -16,7 +16,7 @@ export function SeccionCuenta() {
         ? 'Falta confirmar el correo'
         : 'Para tener lo mismo en todos tus dispositivos';
   return (
-    <Plegable titulo="Tu cuenta" icono="person-circle-outline" resumen={resumen} abierto={nube.situacion === 'elegir' || undefined}>
+    <Plegable titulo="Tu cuenta" icono="person-circle-outline" color="azul" resumen={resumen} abierto={nube.situacion === 'elegir' || undefined}>
       <PanelCuenta />
     </Plegable>
   );

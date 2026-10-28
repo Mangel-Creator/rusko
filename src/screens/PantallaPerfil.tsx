@@ -127,6 +127,7 @@ export function PantallaPerfil() {
       <Plegable
         titulo="Sobre ti y tu ritmo"
         icono="person-outline"
+        color="naranja"
         resumen={[perfil?.nombre, perfil?.vivienda.direccion].filter(Boolean).join(' · ')}
         abierto={hayErrores(errores)}>
         <Titulo nivel={3}>Sobre ti</Titulo>
@@ -153,7 +154,7 @@ export function PantallaPerfil() {
         </View>
       </Plegable>
 
-      <Plegable titulo="Cómo se ve" icono="contrast-outline" resumen={OPCIONES_DENSIDAD.find((o) => o.valor === densidad)?.etiqueta}>
+      <Plegable titulo="Cómo se ve" icono="contrast-outline" color="blanco" resumen={OPCIONES_DENSIDAD.find((o) => o.valor === densidad)?.etiqueta}>
         <Selector
           etiqueta="Cuánto cabe en Hoy y en Semana"
           opciones={OPCIONES_DENSIDAD}
@@ -165,7 +166,7 @@ export function PantallaPerfil() {
         </Texto>
       </Plegable>
 
-      <Plegable titulo="Permisos" icono="key-outline">
+      <Plegable titulo="Permisos" icono="key-outline" color="azul">
         {PERMISOS_DISPONIBLES.map((permiso) => (
           <TarjetaPermiso
             key={permiso}
@@ -176,34 +177,34 @@ export function PantallaPerfil() {
         ))}
       </Plegable>
 
-      <Plegable titulo="Tu IA" icono="sparkles-outline">
+      <Plegable titulo="Tu IA" icono="sparkles-outline" color="naranja">
         <SeccionIA />
       </Plegable>
 
-      <Plegable titulo="Avisos" icono="notifications-outline">
+      <Plegable titulo="Avisos" icono="notifications-outline" color="rojo">
         <SeccionAvisos
           permiso={permisos.notificaciones}
           alActivarPermiso={() => activar('notificaciones')}
         />
       </Plegable>
 
-      <Plegable titulo="Épocas doradas" icono="star-outline">
+      <Plegable titulo="Épocas doradas" icono="star-outline" color="naranja">
         <SeccionEpocas />
       </Plegable>
 
-      <Plegable titulo="Tus otros calendarios" icono="calendar-outline">
+      <Plegable titulo="Tus otros calendarios" icono="calendar-outline" color="azul">
         <SeccionCalendarios />
       </Plegable>
 
-      <Plegable titulo="Siri" icono="mic-outline">
+      <Plegable titulo="Siri" icono="mic-outline" color="rojo">
         <SeccionSiri />
       </Plegable>
 
-      <Plegable titulo="Copia de seguridad" icono="cloud-upload-outline">
+      <Plegable titulo="Copia de seguridad" icono="cloud-upload-outline" color="azul">
         <SeccionCopia />
       </Plegable>
 
-      <Plegable titulo="Pruebas" icono="construct-outline">
+      <Plegable titulo="Pruebas" icono="construct-outline" color="blanco">
         <Texto secundario>
           Vuelve a mostrar el formulario de bienvenida. Tus datos se conservan.
         </Texto>

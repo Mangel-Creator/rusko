@@ -760,6 +760,15 @@ azules (ver "Fase 6"). Es la única parte clara de la app.
   recordatorio. **La cuenta vinculada es un chip pequeño junto al título** (`ChipCuentas`:
   logo, dirección acortada, punto rojo si hay que volver a entrar); al tocarlo se abre
   "Tus cuentas". Sin la tarjeta grande de «ya está vinculado».
+- **Acentos de color** (28/10/2026, el usuario: "dale algo más de color, solo hay negro y
+  naranja"): la paleta de Correo (`acentos` en el tema: naranja, rojo, azul y blanco, cada
+  uno con su tinte oscuro `suave`) en tres sitios. **Acciones rápidas de Hoy**: Apuntar
+  naranja relleno, Dictar rojo, Planes azul y Alarmas blanco (icono del color sobre su
+  tinte; prop `color` de `DatosAccion`). **Barra inferior**: cada pestaña se enciende con
+  su color (Hoy naranja, Semana azul, Correo rojo, Mapa blanco, Época dorado). **Apartados
+  de Perfil**: prop `color` de `Plegable` (cuenta, permisos, calendarios y copia azul; ritmo,
+  IA y épocas naranja; avisos y Siri rojo; cómo se ve y pruebas blanco). El micrófono
+  (Dictar, Siri) es siempre rojo. Iconos sobre su tinte: 4,9:1 o más.
 - **Todo lo que se pulsa se parece**: botones y chips en píldora; botones de solo icono,
   redondos (micrófono, enviar, "+", − y +); iconos de contenido dentro de un círculo.
   **Para volver, siempre `BotonAtras`** (píldora gris con flecha arriba a la izquierda); no

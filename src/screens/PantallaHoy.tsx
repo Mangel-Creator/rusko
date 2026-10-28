@@ -155,10 +155,11 @@ export function PantallaHoy() {
               icono: 'mic-outline',
               texto: 'Dictar',
               etiqueta: 'Apuntar algo con la voz',
+              color: 'rojo',
               alPulsar: () => setEscucharAlAbrir((n) => (n ?? 0) + 1),
             },
-            { clave: 'planes', icono: 'people-outline', texto: 'Planes', etiqueta: 'Abrir los planes', alPulsar: () => router.push('/planes') },
-            { clave: 'alarmas', icono: 'alarm-outline', texto: 'Alarmas', etiqueta: 'Abrir las alarmas', alPulsar: () => router.push('/alarmas') },
+            { clave: 'planes', icono: 'people-outline', texto: 'Planes', etiqueta: 'Abrir los planes', color: 'azul', alPulsar: () => router.push('/planes') },
+            { clave: 'alarmas', icono: 'alarm-outline', texto: 'Alarmas', etiqueta: 'Abrir las alarmas', color: 'blanco', alPulsar: () => router.push('/alarmas') },
           ]}
         />
 

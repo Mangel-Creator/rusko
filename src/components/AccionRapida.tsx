@@ -2,7 +2,7 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import type { ComponentProps } from 'react';
 import { Pressable, StyleSheet, Text, View } from 'react-native';
 
-import { colores, espacio, fuentes, radio } from '@/theme';
+import { acentos, colores, espacio, fuentes, radio, type Acento } from '@/theme';
 
 type NombreIcono = ComponentProps<typeof Ionicons>['name'];
 
@@ -12,11 +12,13 @@ export type DatosAccion = {
   texto: string; // corto, una palabra: "Apuntar", "Dictar"
   etiqueta?: string; // para el lector de pantalla, si hace falta explicar más
   activa?: boolean; // lo que abre ya está abierto: el círculo se pone en naranja
+  color?: Acento; // icono de ese color sobre su tinte (28/10/2026); sin él, gris
   alPulsar: () => void;
 };
 
 // Fila de acciones rápidas: botones redondos con un icono de línea y una palabra debajo,
-// como los de una app de banco. La primera es la principal (naranja).
+// como los de una app de banco. La primera es la principal (naranja, rellena); las demás
+// llevan el icono de su color de acento sobre un círculo de su tinte.
 export function AccionesRapidas({ acciones }: { acciones: DatosAccion[] }) {
   return (
     <View style={estilos.fila}>
@@ -29,6 +31,7 @@ export function AccionesRapidas({ acciones }: { acciones: DatosAccion[] }) {
 
 function AccionRapida({ datos, principal }: { datos: DatosAccion; principal: boolean }) {
   const naranja = principal || datos.activa;
+  const acento = datos.color ? acentos[datos.color] : null;
   return (
     <Pressable
       accessibilityRole="button"
@@ -41,10 +44,11 @@ function AccionRapida({ datos, principal }: { datos: DatosAccion; principal: boo
           <View
             style={[
               estilos.circulo,
+              acento && { backgroundColor: acento.suave },
               naranja && estilos.circuloPrincipal,
               pressed && (naranja ? estilos.circuloPrincipalPulsado : estilos.circuloPulsado),
             ]}>
-            <Ionicons name={datos.icono} size={24} color={naranja ? colores.textoSobrePrincipal : colores.texto} />
+            <Ionicons name={datos.icono} size={24} color={naranja ? colores.textoSobrePrincipal : (acento?.color ?? colores.texto)} />
           </View>
           <Text style={estilos.texto} numberOfLines={1}>
             {datos.texto}

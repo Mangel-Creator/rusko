@@ -3,7 +3,7 @@ import { useState, type ComponentProps, type ReactNode } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 import Animated, { FadeIn } from 'react-native-reanimated';
 
-import { alturaTactil, colores, espacio, radio } from '@/theme';
+import { acentos, alturaTactil, colores, espacio, radio, type Acento } from '@/theme';
 
 import { Texto } from './Texto';
 
@@ -12,12 +12,14 @@ type Props = {
   resumen?: string; // lo que ya está puesto, para no tener que abrirlo: "Te levantas a las 7:30 · de lunes a viernes"
   abierto?: boolean; // ábrelo desde fuera, por ejemplo si hay un error dentro
   icono?: ComponentProps<typeof Ionicons>['name']; // icono en un círculo a la izquierda (menús como Perfil)
+  color?: Acento; // el icono en ese color sobre su tinte (28/10/2026); sin él, blanco sobre gris
   children: ReactNode;
 };
 
 // Esconde lo opcional detrás de una fila que se toca para abrir. Así un formulario
 // enseña solo lo importante (lo pidió el usuario: "mucho más cortos y visuales").
-export function Plegable({ titulo, resumen, abierto, icono, children }: Props) {
+export function Plegable({ titulo, resumen, abierto, icono, color, children }: Props) {
+  const acento = acentos[color ?? 'blanco'];
   const [abiertoAMano, setAbiertoAMano] = useState(false);
   const visible = abiertoAMano || !!abierto;
 
@@ -29,8 +31,8 @@ export function Plegable({ titulo, resumen, abierto, icono, children }: Props) {
         onPress={() => setAbiertoAMano((actual) => !actual)}
         style={({ pressed }) => [estilos.cabecera, pressed && estilos.pulsado]}>
         {icono ? (
-          <View style={estilos.icono}>
-            <Ionicons name={icono} size={20} color={colores.texto} />
+          <View style={[estilos.icono, { backgroundColor: acento.suave }]}>
+            <Ionicons name={icono} size={20} color={acento.color} />
           </View>
         ) : null}
         <View style={estilos.textos}>

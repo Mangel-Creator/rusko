@@ -79,6 +79,19 @@ export const coloresNivel = {
 
 export type NivelCorreo = keyof typeof coloresNivel;
 
+// Acentos de color (28/10/2026, el usuario: "dale algo más de color, solo hay negro y
+// naranja"): la misma paleta de los recuadros de Correo para los iconos redondos de las
+// acciones rápidas de Hoy, los apartados de Perfil y la pestaña activa de la barra.
+// Icono del color sobre un círculo de su tinte oscuro (el color al ~16 % sobre el fondo).
+export const acentos = {
+  naranja: { color: colores.principal, suave: '#3A1E0F' },
+  rojo: { color: '#FF4D4F', suave: '#3A1719' },
+  azul: { color: '#6EA8FF', suave: '#16233A' },
+  blanco: { color: colores.texto, suave: colores.elevado },
+} as const;
+
+export type Acento = keyof typeof acentos;
+
 // Color de cada tipo de evento (Cliente, Amigos, Yo)
 export const colorTipo = {
   cliente: colores.clientes,

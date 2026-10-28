@@ -3,7 +3,7 @@ import { Tabs } from 'expo-router';
 import type { ComponentProps } from 'react';
 import type { ColorValue } from 'react-native';
 
-import { colores, fuentes } from '@/theme';
+import { acentos, colores, fuentes } from '@/theme';
 
 type NombreIcono = ComponentProps<typeof Ionicons>['name'];
 
@@ -16,6 +16,8 @@ function icono(nombre: NombreIcono, nombreActivo: NombreIcono) {
 
 // Barra inferior con las 5 pestañas de Organizy. Planes y Alarmas no están aquí
 // (lo pidió el usuario el 26/10): se abren desde las acciones rápidas de Hoy.
+// Cada pestaña se enciende con su color (28/10/2026, "dale algo más de color"): Hoy
+// naranja, Semana azul, Correo rojo, Mapa blanco y Época dorado.
 export default function LayoutPestanas() {
   return (
     <Tabs
@@ -37,19 +39,19 @@ export default function LayoutPestanas() {
       />
       <Tabs.Screen
         name="semana"
-        options={{ title: 'Semana', tabBarIcon: icono('calendar-outline', 'calendar') }}
+        options={{ title: 'Semana', tabBarActiveTintColor: acentos.azul.color, tabBarIcon: icono('calendar-outline', 'calendar') }}
       />
       <Tabs.Screen
         name="resumenes"
-        options={{ title: 'Correo', tabBarIcon: icono('mail-outline', 'mail') }}
+        options={{ title: 'Correo', tabBarActiveTintColor: acentos.rojo.color, tabBarIcon: icono('mail-outline', 'mail') }}
       />
       <Tabs.Screen
         name="mapa"
-        options={{ title: 'Mapa', tabBarIcon: icono('map-outline', 'map') }}
+        options={{ title: 'Mapa', tabBarActiveTintColor: acentos.blanco.color, tabBarIcon: icono('map-outline', 'map') }}
       />
       <Tabs.Screen
         name="epoca"
-        options={{ title: 'Época', tabBarIcon: icono('star-outline', 'star') }}
+        options={{ title: 'Época', tabBarActiveTintColor: colores.dorado, tabBarIcon: icono('star-outline', 'star') }}
       />
     </Tabs>
   );
