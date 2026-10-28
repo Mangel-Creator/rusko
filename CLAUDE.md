@@ -769,9 +769,13 @@ azules (ver "Fase 6"). Es la única parte clara de la app.
   oscuro. Orden: fijados arriba, luego por nivel y dentro de cada nivel lo más nuevo
   (`porImportancia`). El recuadro enseña remitente, hora, asunto acortado (2 líneas) y, si
   hay fecha, «Tienes X el día Y» (`textoTienes`, **sin el nombre del usuario**). Al tocarlo
-  dice de qué trata en una o dos frases. Siempre a la vista, tres botones redondos:
-  quitar (de Rusko, con «¿Lo quito de Rusko? En tu correo sigue igual»), fijar y
-  recordatorio (las opciones de `opcionesRecordatorio` salen dentro del recuadro; el que
+  dice de qué trata en una o dos frases. **Las acciones van deslizando** (28/10/2026, lo
+  pidió el usuario para no darles sin querer; antes eran tres botones a la vista): a la
+  **izquierda** salen **fijar** (ámbar, `dorado`) y **recordatorio** (blanco); a la **derecha**,
+  la **papelera** (rojo, `aviso`), que quita de Rusko al tocarla, y si se desliza más de la
+  mitad del ancho se quita directamente. Con `PanResponder` (sin montar gesture-handler) y
+  `touchAction: pan-y` para que la lista siga bajando; con el lector de pantalla son acciones
+  del recuadro. El recordatorio (las opciones de `opcionesRecordatorio` salen dentro del recuadro; el que
   hay, debajo con un reloj). `FilaCorreo` monta el recuadro con los datos de
   `services/correo` (`conNivel`, `asuntoCorto`, `textoTienes`, `quitarCorreo`,
   `fijarCorreo`, `recordarCorreo`) y pasa el «¿Eliminar cita?» siempre a la vista y, al
