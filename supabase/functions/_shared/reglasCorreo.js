@@ -51,6 +51,14 @@ var CITA_FUERTE =
   /\b(cita|reunion|reunirnos|examen|consulta|quedamos|quedada|nos vemos|evento|cena|comida|almuerzo|entrevista|reserva|visita|clase|partido|cumpleanos|cumple|boda|viaje|vuelo|revision|sesion|celebracion|fiesta|tutoria|convocatoria)(s|es)?\b/g;
 var CITA_DEBIL = /\bel dia\b/g;
 
+// Qué correos de Gmail se miran: la bandeja de entrada sin Promociones, Social,
+// Notificaciones ni Foros, y sin lo que mandas tú. Con pestañas es lo mismo que
+// "Principal"; sin pestañas (cuentas de Google Workspace, como las de una universidad,
+// donde suelen estar apagadas) es toda la bandeja. "category:primary" no vale ahí: no
+// devuelve nada (visto el 28/10/2026 con una cuenta de la UMH).
+export const BUSQUEDA_GMAIL =
+  'in:inbox -category:promotions -category:social -category:updates -category:forums -from:me';
+
 // Direcciones vetadas que se guardan como mucho.
 export const MAX_VETADOS = 100;
 // Largo del resumen que sale al abrir un correo en Rusko.
@@ -522,7 +530,7 @@ export function avisosDeCorreos(correos, ahora) {
     importantes.forEach(function (c) {
       avisos.push({
         titulo: recortar(c.de + ': ' + c.titulo, 90),
-        cuerpo: recortar(c.aviso || c.resumen || 'Correo importante en Principal.', 180),
+        cuerpo: recortar(c.aviso || c.resumen || 'Correo importante.', 180),
       });
     });
   }

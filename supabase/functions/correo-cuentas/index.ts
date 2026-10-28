@@ -39,6 +39,7 @@ import {
 import {
   analizarCorreo,
   avisosDeCorreos,
+  BUSQUEDA_GMAIL,
   diaDe,
   direccionRemitente,
   leerSiempre,
@@ -126,7 +127,7 @@ async function mensajesNuevos(cuenta: Cuenta, acceso: string, desde: Date): Prom
   const yo = cuenta.email.toLowerCase();
   let mensajes: MensajeLeido[] = [];
   if (cuenta.proveedor === 'gmail') {
-    const q = `in:inbox category:primary -from:me after:${Math.floor(desde.getTime() / 1000)}`;
+    const q = `${BUSQUEDA_GMAIL} after:${Math.floor(desde.getTime() / 1000)}`;
     const lista = await pedir(
       `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(q)}&maxResults=${MAX_POR_VUELTA}`,
       acceso,
@@ -306,6 +307,12 @@ async function revisarTodas(): Promise<{ revisadas: number; nuevos: number; cadu
     if (!configurado(cuenta.proveedor)) continue;
     try {
       const acceso = await acceder(cuenta);
+      // Una cuenta que aún no ha recogido nada (por ejemplo, porque la búsqueda no
+      // encontraba sus correos) recoge el último día sin avisar, como al vincularla.
+      if (!cuenta.vistos?.length) {
+        nuevos += await revisarCuenta(cuenta, acceso, new Date(Date.now() - 24 * 3600_000), false);
+        continue;
+      }
       const ultima = cuenta.ultima_revision ? new Date(cuenta.ultima_revision).getTime() : Date.now() - 3600_000;
       // Margen hacia atrás: a veces un correo tarda en aparecer en la búsqueda.
       nuevos += await revisarCuenta(cuenta, acceso, new Date(ultima - 20 * 60_000), true);

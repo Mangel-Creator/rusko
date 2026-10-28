@@ -182,7 +182,7 @@ export function PantallaResumenes() {
 
           {bandeja === 'todo' ? (
             correos.length === 0 ? (
-              <Vacio icono="mail-open-outline" texto="Nada nuevo en tu correo. Cuando llegue algo a Principal, lo verás aquí." />
+              <Vacio icono="mail-open-outline" texto="Nada nuevo en tu correo. Cuando llegue algo a tu bandeja de entrada, lo verás aquí." />
             ) : (
               <View style={estilos.seccion}>{porNivel.map(fila)}</View>
             )

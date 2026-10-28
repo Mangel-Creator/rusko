@@ -230,7 +230,8 @@ sesión que fuera**:
   (leer el Gmail de cualquiera exige la verificación de Google con auditoría de seguridad de
   pago), **varias cuentas juntas reenviándolas a ese Gmail** (la app Mail del iPhone no deja
   a otras apps leer correos), **sin IA por ahora** (reglas; la IA se enciende sola cuando
-  ponga la clave de Anthropic) y **solo la pestaña Principal**. Lo hace un ayudante (Google
+  ponga la clave de Anthropic) y **solo la pestaña Principal** (desde el 28/10/2026, la bandeja
+  sin Promociones, Social, Notificaciones ni Foros: ver "Fase 11"). Lo hace un ayudante (Google
   Apps Script) en su propia cuenta de Google: los correos no pasan por el servidor de
   Organizy mientras no haya IA; con IA, el texto pasa por la función `correo` sin guardarse
   (como las frases de la captura).
@@ -1898,7 +1899,7 @@ borran solos a los 7 días.
   (revisión cada 10 min con un disparador y recoge el último día sin avisar) y lo implementa
   como **Aplicación web** ("Ejecutar como: yo", acceso "Cualquier usuario"). La URL `/exec`
   se pega en Organizy (Hoy > Resúmenes) y **es la llave**: quien la tenga lee los
-  resúmenes. Busca `in:inbox category:primary -from:me after:<última revisión − 20 min>`,
+  resúmenes. Busca `BUSQUEDA_GMAIL` (`reglasCorreo.js`) `after:<última revisión − 20 min>`,
   como mucho 25 hilos por vuelta; guarda en las propiedades del script los ids vistos
   (150), 7 días de resúmenes (máx. 200, límite de 500 KB) y los tokens de avisos (5).
   Funciones para el usuario: `instalar`, `probarAviso`, `olvidarMoviles`, `desinstalar`.
@@ -1980,7 +1981,7 @@ borran solos a los 7 días.
     `{accion:'revisar'}` con la cabecera `x-organizy-cron` (contraseña en la bóveda,
     `vault` "correo_cron", y en el secreto `CORREO_CRON_SECRETO`; no está en git). Por cuenta:
     renueva la llave (Microsoft da otra y se guarda), lista la bandeja (Gmail
-    `category:primary`; Outlook solo "Prioritarios", `inferenceClassification`), analiza con
+    `BUSQUEDA_GMAIL`; Outlook solo "Prioritarios", `inferenceClassification`), analiza con
     las reglas o Claude y avisa por Expo como el ayudante. `invalid_grant` o 401 → cuenta
     `caducada` y aviso "Vuelve a entrar en Gmail". Ids de Outlook acortados (`o:` + SHA-256).
   - **Secretos** (los pone el usuario; guía, parte A): `GOOGLE_CLIENT_ID`/`_SECRET` y
@@ -2055,6 +2056,13 @@ borran solos a los 7 días.
     petición) y Resúmenes vacío con la frase de la IA. Tras desplegar, la revisión del servidor
     siguió en marcha. **Falta**: probarlo con su Gmail de verdad (un correo **nuevo**: el de
     11/11 ya se dio por visto y no se vuelve a mirar).
+- **Búsqueda de Gmail sin `category:primary`** (28/10/2026): con una cuenta de Google Workspace
+  (la de la universidad del usuario, `goumh.umh.es`) no se recogía nada: ahí las pestañas suelen
+  estar apagadas y `category:primary` no devuelve nada. Ahora el servidor y el ayudante buscan
+  `BUSQUEDA_GMAIL` (`reglasCorreo.js`): `in:inbox -category:promotions -category:social
+  -category:updates -category:forums -from:me`. Con pestañas es lo mismo que Principal; sin
+  pestañas, toda la bandeja. Y una cuenta vinculada que aún no ha recogido nada (`vistos` vacío)
+  recoge el último día sin avisar en cada revisión hasta que encuentre algo.
 - **Correo por importancia** (27/10/2026, sesión "12 Correo" los datos y "08 Diseño" lo que se
   ve; ver "Decisiones del usuario" y "Diseño" > "Correo por recuadros"):
   - **Datos** (`data/correos.ts`): `CorreoResumido` lleva `fijado`, `oculto` (quitado de Rusko) y

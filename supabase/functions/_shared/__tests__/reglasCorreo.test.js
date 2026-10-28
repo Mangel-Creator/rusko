@@ -171,7 +171,7 @@ describe('analizarCorreo y avisos', () => {
     const avisos = reglas.avisosDeCorreos([imp(1), imp(2), imp(3), imp(4)], RECIBIDO);
     expect(avisos).toHaveLength(1);
     expect(avisos[0].titulo).toBe('4 correos importantes');
-    expect(reglas.avisosDeCorreos([imp(1)], RECIBIDO)[0].cuerpo).toBe('Correo importante en Principal.');
+    expect(reglas.avisosDeCorreos([imp(1)], RECIBIDO)[0].cuerpo).toBe('Correo importante.');
   });
 });
 
@@ -296,5 +296,13 @@ describe('avisarme siempre de', () => {
     expect(reglas.leerSiempre('Ana')).toBeNull();
     expect(reglas.leerSiempre([' Ana ', '', 3, 'x'.repeat(121)])).toEqual(['Ana']);
     expect(reglas.leerSiempre(Array.from({ length: 40 }, (_, i) => `P${i}`))).toHaveLength(30);
+  });
+});
+describe('búsqueda de Gmail', () => {
+  it('vale también sin pestañas (Google Workspace): sin category:primary', () => {
+    expect(reglas.BUSQUEDA_GMAIL).not.toContain('category:primary');
+    expect(reglas.BUSQUEDA_GMAIL).toContain('in:inbox');
+    for (const c of ['promotions', 'social', 'updates', 'forums']) expect(reglas.BUSQUEDA_GMAIL).toContain(`-category:${c}`);
+    expect(reglas.BUSQUEDA_GMAIL).toContain('-from:me');
   });
 });

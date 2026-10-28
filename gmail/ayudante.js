@@ -2,7 +2,8 @@
  * Organizy · Ayudante de Gmail
  *
  * Este código vive en TU cuenta de Google (script.google.com), no en Organizy.
- * Cada 10 minutos mira los correos nuevos de la pestaña "Principal" de tu Gmail y:
+ * Cada 10 minutos mira los correos nuevos de tu bandeja de entrada (sin Promociones,
+ * Social, Notificaciones ni Foros) y:
  *   - si tienen una fecha ("el plazo acaba el 5 de octubre", "cita el 11/11 a las 10"),
  *     avisa al móvil y Organizy lo apunta ese día (con hora, como cita);
  *   - si son importantes (lo dice la IA de Organizy) o de alguien de "Avisarme siempre
@@ -32,11 +33,9 @@
  * reglas, que comparte con el servidor). No lo edites a mano.
  */
 /* global GmailApp, PropertiesService, ScriptApp, UrlFetchApp, ContentService, HtmlService, Utilities, Session, LockService, Logger */
-/* global analizarCorreo, avisosDeCorreos, cabecerasAutomaticas, direccionRemitente, leerSiempre, leerVetados, limpiarCuerpo, nombreRemitente, resultadoDeIA, siempreAvisar, vetado, ZONA_CORREO */
+/* global analizarCorreo, avisosDeCorreos, BUSQUEDA_GMAIL, cabecerasAutomaticas, direccionRemitente, leerSiempre, leerVetados, limpiarCuerpo, nombreRemitente, resultadoDeIA, siempreAvisar, vetado, ZONA_CORREO */
 
 var AJUSTES = {
-  // Qué correos mira: los de "Principal" de la bandeja de entrada que no mandas tú.
-  busqueda: 'in:inbox category:primary -from:me',
   cadaMinutos: 10,
   diasGuardados: 7,
   maxPorVuelta: 25,
@@ -171,7 +170,7 @@ function revisar_(desde, avisar) {
     var inicio = Date.now();
     var yo = (Session.getEffectiveUser().getEmail() || '').toLowerCase();
     var vistos = leerJson_('vistos', []);
-    var consulta = AJUSTES.busqueda + ' after:' + Math.floor(desde.getTime() / 1000);
+    var consulta = BUSQUEDA_GMAIL + ' after:' + Math.floor(desde.getTime() / 1000);
     var hilos = GmailApp.search(consulta, 0, AJUSTES.maxPorVuelta);
     var nuevos = [];
     hilos.forEach(function (hilo) {
