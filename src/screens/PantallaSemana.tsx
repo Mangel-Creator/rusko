@@ -1,6 +1,6 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { PanResponder, Pressable, StyleSheet, View, type PanResponderGestureState } from 'react-native';
 import Animated, {
   FadeIn,
@@ -10,9 +10,10 @@ import Animated, {
   withTiming,
 } from 'react-native-reanimated';
 
-import { BotonFlotante, Pantalla, Tarjeta, Texto, Titulo } from '@/components';
+import { BotonFlotante, Pantalla, Selector, Tarjeta, Texto, Titulo, type Opcion } from '@/components';
+import { leerAjuste, guardarAjuste } from '@/data/ajustes';
 import { useDensidad } from '@/data/densidad';
-import { useEventos, type Evento } from '@/data/eventos';
+import { borrarEvento, guardarEvento, useEventos, type Evento } from '@/data/eventos';
 import { useEnergia } from '@/data/energia';
 import { useEpocas, type Epoca } from '@/data/epocas';
 import { usePerfil } from '@/data/perfil';
@@ -52,9 +53,12 @@ import {
 } from '@/services/fechas';
 import { alturaTactil, cifras, colores, colorEvento, colorTipo, duracion, espacio, fuentes, radio, tamanos } from '@/theme';
 
+import { dejarBorrador } from '@/services/captura/borrador';
 import { DURACION_POR_DEFECTO, horaParaHueco, huecosParaPlan } from '@/services/planes/sugerencias';
 
-import { abrirEvento, nuevoEvento, rangoHoras } from './calendario/textos';
+import { MenuEvento } from './calendario/MenuEvento';
+import { RejillaSemana } from './calendario/RejillaSemana';
+import { nuevoEvento, rangoHoras } from './calendario/textos';
 import { useAhora } from './calendario/useAhora';
 import { HuecoPlan } from './planes/HuecoPlan';
 
@@ -62,6 +66,32 @@ const ALTURA_BARRA = 44;
 // Al cambiar de día, lo de ese día aparece con un fundido corto para que se note el
 // cambio. No se anima al abrir la pantalla ni con "reducir movimiento" activado.
 const CAMBIO_DE_DIA = FadeIn.duration(160);
+
+// Cómo se ve el calendario, como en Google Calendar. Se recuerda (organizy:vistaCalendario).
+type Vista = 'dia' | '3dias' | 'semana';
+const OPCIONES_VISTA: Opcion<Vista>[] = [
+  { valor: 'dia', etiqueta: 'Día' },
+  { valor: '3dias', etiqueta: '3 días' },
+  { valor: 'semana', etiqueta: 'Semana' },
+];
+let vistaEnMemoria: Vista | null = null;
+
+function useVista(): [Vista, (vista: Vista) => void] {
+  const [vista, setVista] = useState<Vista>(vistaEnMemoria ?? 'semana');
+  useEffect(() => {
+    if (vistaEnMemoria) return;
+    leerAjuste<Vista>('vistaCalendario', 'semana').then((guardada) => {
+      vistaEnMemoria = OPCIONES_VISTA.some((o) => o.valor === guardada) ? guardada : 'semana';
+      setVista(vistaEnMemoria);
+    });
+  }, []);
+  const cambiar = (nueva: Vista) => {
+    vistaEnMemoria = nueva;
+    setVista(nueva);
+    guardarAjuste('vistaCalendario', nueva);
+  };
+  return [vista, cambiar];
+}
 
 export function PantallaSemana() {
   const ahora = useAhora();
@@ -71,9 +101,37 @@ export function PantallaSemana() {
   const { eventos } = useEventos();
   const { epocas, registro, planesDelDia } = useEpocas();
   const [energiaHoy] = useEnergia(hoy);
+  const [vista, setVista] = useVista();
+  // Lo tocado en el calendario (abre la hoja con "Eliminar") y lo recién borrado ("Deshacer").
+  const [tocado, setTocado] = useState<{ evento: Evento; dia: ClaveDia } | null>(null);
+  const [borrado, setBorrado] = useState<Evento | null>(null);
+  const temporizador = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const tocar = (evento: Evento, dia: ClaveDia) => setTocado({ evento, dia });
+  const borrar = (evento: Evento) => {
+    borrarEvento(evento.id);
+    setBorrado(evento);
+    if (temporizador.current) clearTimeout(temporizador.current);
+    temporizador.current = setTimeout(() => setBorrado(null), 6000);
+  };
+  const deshacer = () => {
+    if (borrado) guardarEvento(borrado);
+    setBorrado(null);
+  };
+  const crearA = (dia: ClaveDia, minuto: number) => {
+    const propuesta = dejarBorrador({
+      titulo: '',
+      fecha: dia,
+      horaInicio: horaDesdeMinutos(minuto),
+      horaFin: horaDesdeMinutos(Math.min(minuto + 60, 23 * 60 + 59)),
+    });
+    router.push({ pathname: '/evento', params: { fecha: dia, propuesta } });
+  };
 
   const lunes = claveDia(inicioDeSemana(fechaDesdeClave(elegido)));
   const dias = Array.from({ length: 7 }, (_, i) => sumarDias(lunes, i));
+  // Lo que enseña la rejilla: la semana entera o el día elegido y los dos siguientes.
+  const diasRejilla = vista === '3dias' ? [0, 1, 2].map((i) => sumarDias(elegido, i)) : dias;
+  const pasoDias = vista === '3dias' ? 3 : 7;
   const jornada = minutosDeJornada(perfil);
 
   // Época dorada (fase 4b): los días de una época usan su horario para la carga y
@@ -120,11 +178,15 @@ export function PantallaSemana() {
   const desplazamiento = useSharedValue(0);
   const anchoTira = useSharedValue(360);
   const estiloTira = useAnimatedStyle(() => ({ transform: [{ translateX: desplazamiento.get() }] }));
+  // Días que avanza cada flecha o deslizamiento (3 en "3 días", 7 en el resto). Va en un
+  // valor compartido porque el gesto se crea una sola vez.
+  const paso = useSharedValue(7);
+  useEffect(() => paso.set(pasoDias), [paso, pasoDias]);
   const cambiarSemana = (semanas: number) => {
     const ancho = anchoTira.get();
     desplazamiento.set(withTiming(-semanas * ancho, { duration: duracion.corta }));
     setTimeout(() => {
-      setElegido((actual) => sumarDias(actual, 7 * semanas));
+      setElegido((actual) => sumarDias(actual, paso.get() * semanas));
       desplazamiento.set(semanas * ancho);
       desplazamiento.set(withTiming(0, { duration: duracion.normal }));
     }, duracion.corta);
@@ -162,20 +224,18 @@ export function PantallaSemana() {
         <View style={estilos.zonaDeslizable} {...deslizar.panHandlers}>
           <View style={estilos.cabecera}>
             <View style={estilos.textos}>
-              <Titulo>{nombreMes(fechaDesdeClave(sumarDias(lunes, 3)))}</Titulo>
+              <Titulo>{nombreMes(fechaDesdeClave(vista === '3dias' ? elegido : sumarDias(lunes, 3)))}</Titulo>
               <Texto secundario>Semana {numeroSemana(fechaElegida)}</Texto>
             </View>
-            <BotonIcono icono="chevron-back" etiqueta="Semana anterior" onPress={() => cambiarSemana(-1)} />
-            <BotonIcono icono="chevron-forward" etiqueta="Semana siguiente" onPress={() => cambiarSemana(1)} />
+            <BotonIcono icono="chevron-back" etiqueta={vista === '3dias' ? 'Días anteriores' : 'Semana anterior'} onPress={() => cambiarSemana(-1)} />
+            <BotonIcono icono="chevron-forward" etiqueta={vista === '3dias' ? 'Días siguientes' : 'Semana siguiente'} onPress={() => cambiarSemana(1)} />
           </View>
 
           <View style={estilos.leyendaFila}>
-            <View style={estilos.leyenda}>
-              <Leyenda color={colorTipo.cliente} texto="Clientes" />
-              <Leyenda color={colorTipo.amigos} texto="Amigos" />
-              <Leyenda color={colorTipo.yo} texto="Yo" />
+            <View style={estilos.textos}>
+              <Selector opciones={OPCIONES_VISTA} valor={vista} alCambiar={setVista} />
             </View>
-            {elegido !== hoy ? (
+            {!diasRejillaOElegido(vista, diasRejilla, elegido).includes(hoy) ? (
               <Pressable
                 accessibilityRole="button"
                 accessibilityLabel="Volver a hoy"
@@ -188,6 +248,36 @@ export function PantallaSemana() {
             ) : null}
           </View>
 
+          {vista !== 'dia' ? (
+            <View style={estilos.marcoRejilla}>
+              <Animated.View
+                style={estiloTira}
+                onLayout={(e) => {
+                  anchoTira.set(e.nativeEvent.layout.width);
+                }}>
+                <RejillaSemana
+                  dias={diasRejilla.map((dia) => {
+                    const conEpoca = delDiaConEpoca(dia);
+                    return {
+                      dia,
+                      eventos: conEpoca.eventos,
+                      tareas: eventos.filter((e) => e.flexible && e.fecha === dia),
+                      hayHito: conEpoca.epoca?.hitos.some((h) => h.fecha === dia) ?? false,
+                    };
+                  })}
+                  ventana={ventanaDelDia(perfil)}
+                  hoy={hoy}
+                  minutoAhora={minutosDelDia(ahora)}
+                  alTocarDia={(dia) => {
+                    setElegido(dia);
+                    setVista('dia');
+                  }}
+                  alTocarEvento={tocar}
+                  alTocarHueco={crearA}
+                />
+              </Animated.View>
+            </View>
+          ) : (
           <Tarjeta style={estilos.marcoTira}>
             <Animated.View
               style={[estilos.tira, estiloTira]}
@@ -237,8 +327,18 @@ export function PantallaSemana() {
             })}
             </Animated.View>
           </Tarjeta>
+          )}
         </View>
 
+        {vista === 'dia' ? (
+        <View style={estilos.leyenda}>
+          <Leyenda color={colorTipo.cliente} texto="Clientes" />
+          <Leyenda color={colorTipo.amigos} texto="Amigos" />
+          <Leyenda color={colorTipo.yo} texto="Yo" />
+        </View>
+        ) : null}
+
+        {vista === 'dia' ? (
         <LayoutAnimationConfig skipEntering>
           <Animated.View key={elegido} entering={CAMBIO_DE_DIA} style={estilos.contenidoDia}>
             <Titulo nivel={2} style={estilos.seccion}>
@@ -258,6 +358,7 @@ export function PantallaSemana() {
                 eventos={delDia}
                 ventana={diaElegido.ventana}
                 minutoAhora={elegido === hoy ? minutosDelDia(ahora) : null}
+                alTocar={(evento) => tocar(evento, elegido)}
               />
             ) : null}
 
@@ -287,7 +388,7 @@ export function PantallaSemana() {
                   <Pressable
                     key={tarea.id}
                     accessibilityRole="button"
-                    onPress={() => abrirEvento(tarea.id)}
+                    onPress={() => tocar(tarea, elegido)}
                     style={({ pressed }) => [
                     estilos.tarea,
                     { borderLeftColor: colorEvento(tarea) },
@@ -308,8 +409,22 @@ export function PantallaSemana() {
             ) : null}
           </Animated.View>
         </LayoutAnimationConfig>
+        ) : null}
       </Pantalla>
       <BotonFlotante etiqueta="Añadir evento" onPress={() => nuevoEvento(elegido)} />
+      <MenuEvento tocado={tocado} alCerrar={() => setTocado(null)} alBorrar={borrar} />
+      {borrado ? (
+        <View style={estilos.aviso} accessibilityLiveRegion="polite">
+          <Texto numberOfLines={1} style={estilos.textos}>
+            Borrado: {borrado.titulo || 'Sin título'}
+          </Texto>
+          <Pressable accessibilityRole="button" onPress={deshacer} style={estilos.deshacer}>
+            <Texto fuerte style={estilos.textoDeshacer}>
+              Deshacer
+            </Texto>
+          </Pressable>
+        </View>
+      ) : null}
     </View>
   );
 }
@@ -318,10 +433,11 @@ type PropsLinea = {
   eventos: Evento[];
   ventana: { inicio: number; fin: number };
   minutoAhora: number | null;
+  alTocar: (evento: Evento) => void;
 };
 
 // Día con su línea de horas: cada evento ocupa la altura de lo que dura.
-function LineaDeHoras({ eventos, ventana, minutoAhora }: PropsLinea) {
+function LineaDeHoras({ eventos, ventana, minutoAhora, alTocar }: PropsLinea) {
   const tramos = eventos.map(intervaloDe);
   const desde = Math.floor(Math.min(ventana.inicio, ...tramos.map((t) => t.inicio)) / 60) * 60;
   const hasta = Math.ceil(Math.max(ventana.fin, ...tramos.map((t) => t.fin)) / 60) * 60;
@@ -349,7 +465,7 @@ function LineaDeHoras({ eventos, ventana, minutoAhora }: PropsLinea) {
               key={evento.id}
               accessibilityRole="button"
               accessibilityLabel={`${rangoHoras(evento)}, ${evento.titulo}${evento.foco ? ', protegido' : ''}`}
-              onPress={() => abrirEvento(evento.id)}
+              onPress={() => alTocar(evento)}
               style={({ pressed }) => [
                 estilos.bloque,
                 evento.foco ? estilos.bloqueFoco : { borderLeftColor: colorEvento(evento) },
@@ -379,6 +495,11 @@ function LineaDeHoras({ eventos, ventana, minutoAhora }: PropsLinea) {
       </View>
     </View>
   );
+}
+
+// ¿Se ve hoy? En "Día", si es el elegido; en las otras vistas, si está en la rejilla.
+function diasRejillaOElegido(vista: Vista, diasRejilla: ClaveDia[], elegido: ClaveDia): ClaveDia[] {
+  return vista === 'dia' ? [elegido] : diasRejilla;
 }
 
 function Leyenda({ color, texto }: { color: string; texto: string }) {
@@ -442,6 +563,21 @@ const estilos = StyleSheet.create({
     justifyContent: 'center',
   },
   marcoTira: { overflow: 'hidden' },
+  marcoRejilla: { overflow: 'hidden' },
+  aviso: {
+    position: 'absolute',
+    left: espacio.m,
+    right: espacio.m + 72, // sin tapar el botón "+"
+    bottom: espacio.l,
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: espacio.s,
+    paddingLeft: espacio.m,
+    borderRadius: radio.chip,
+    backgroundColor: colores.elevado,
+  },
+  deshacer: { minHeight: alturaTactil, paddingHorizontal: espacio.m, justifyContent: 'center' },
+  textoDeshacer: { color: colores.principal },
   tira: { flexDirection: 'row', paddingHorizontal: espacio.xs, gap: 0 },
   dia: { flex: 1, alignItems: 'center', gap: espacio.xs, paddingVertical: espacio.xs },
   numero: {
