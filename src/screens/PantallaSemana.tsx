@@ -2,7 +2,13 @@ import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useState } from 'react';
 import { PanResponder, Pressable, StyleSheet, View, type PanResponderGestureState } from 'react-native';
-import Animated, { FadeIn, LayoutAnimationConfig } from 'react-native-reanimated';
+import Animated, {
+  FadeIn,
+  LayoutAnimationConfig,
+  useAnimatedStyle,
+  useSharedValue,
+  withTiming,
+} from 'react-native-reanimated';
 
 import { BotonFlotante, Pantalla, Tarjeta, Texto, Titulo } from '@/components';
 import { useDensidad } from '@/data/densidad';
@@ -44,7 +50,7 @@ import {
   sumarDias,
   type ClaveDia,
 } from '@/services/fechas';
-import { alturaTactil, cifras, colores, colorEvento, colorTipo, espacio, fuentes, radio, tamanos } from '@/theme';
+import { alturaTactil, cifras, colores, colorEvento, colorTipo, duracion, espacio, fuentes, radio, tamanos } from '@/theme';
 
 import { DURACION_POR_DEFECTO, horaParaHueco, huecosParaPlan } from '@/services/planes/sugerencias';
 
@@ -109,20 +115,38 @@ export function PantallaSemana() {
   };
   const fechaElegida = fechaDesdeClave(elegido);
 
-  const cambiarSemana = (semanas: number) => setElegido((actual) => sumarDias(actual, 7 * semanas));
+  // La tira de días sigue al dedo y, al cambiar de semana, sale por un lado y la
+  // nueva entra por el otro (también con las flechas).
+  const desplazamiento = useSharedValue(0);
+  const anchoTira = useSharedValue(360);
+  const estiloTira = useAnimatedStyle(() => ({ transform: [{ translateX: desplazamiento.get() }] }));
+  const cambiarSemana = (semanas: number) => {
+    const ancho = anchoTira.get();
+    desplazamiento.set(withTiming(-semanas * ancho, { duration: duracion.corta }));
+    setTimeout(() => {
+      setElegido((actual) => sumarDias(actual, 7 * semanas));
+      desplazamiento.set(semanas * ancho);
+      desplazamiento.set(withTiming(0, { duration: duracion.normal }));
+    }, duracion.corta);
+  };
+  const volverASuSitio = () => desplazamiento.set(withTiming(0, { duration: duracion.corta }));
   // Deslizar a los lados sobre la cabecera (mes, "Semana N", leyenda y tira de días)
   // cambia de semana. Se pide en la fase de captura para ganar a los días, que son
-  // botones, y no se suelta para que el scroll vertical no lo corte a medias.
+  // botones, y no se suelta para que el scroll vertical no lo corte a medias. Las dos
+  // funciones solo usan cosas que no cambian entre pintadas, así que vale la primera.
   const [deslizar] = useState(() => {
     const esHorizontal = (g: PanResponderGestureState) => Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy) * 2;
     return PanResponder.create({
       onMoveShouldSetPanResponder: (_, g) => esHorizontal(g),
       onMoveShouldSetPanResponderCapture: (_, g) => esHorizontal(g),
       onPanResponderTerminationRequest: () => false,
+      onPanResponderMove: (_, g) => desplazamiento.set(g.dx),
       onPanResponderRelease: (_, g) => {
-        if (g.dx < -50) setElegido((actual) => sumarDias(actual, 7));
-        else if (g.dx > 50) setElegido((actual) => sumarDias(actual, -7));
+        if (g.dx < -50) cambiarSemana(1);
+        else if (g.dx > 50) cambiarSemana(-1);
+        else volverASuSitio();
       },
+      onPanResponderTerminate: () => volverASuSitio(),
     });
   });
 
@@ -164,7 +188,12 @@ export function PantallaSemana() {
             ) : null}
           </View>
 
-          <Tarjeta style={estilos.tira}>
+          <Tarjeta style={estilos.marcoTira}>
+            <Animated.View
+              style={[estilos.tira, estiloTira]}
+              onLayout={(e) => {
+                anchoTira.set(e.nativeEvent.layout.width);
+              }}>
             {dias.map((dia, i) => {
               const conEpoca = delDiaConEpoca(dia);
               const ocupados = conEpoca.eventos.map(intervaloDe);
@@ -206,6 +235,7 @@ export function PantallaSemana() {
                 </Pressable>
               );
             })}
+            </Animated.View>
           </Tarjeta>
         </View>
 
@@ -411,6 +441,7 @@ const estilos = StyleSheet.create({
     backgroundColor: colores.elevado,
     justifyContent: 'center',
   },
+  marcoTira: { overflow: 'hidden' },
   tira: { flexDirection: 'row', paddingHorizontal: espacio.xs, gap: 0 },
   dia: { flex: 1, alignItems: 'center', gap: espacio.xs, paddingVertical: espacio.xs },
   numero: {
