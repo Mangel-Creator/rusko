@@ -15,6 +15,7 @@
 
 import Anthropic from 'npm:@anthropic-ai/sdk@0.128.0';
 
+import { CLAVE_ANTHROPIC } from '../_shared/claveAnthropic.ts';
 import { respuestaJson, respuestaPrevia } from '../_shared/cors.ts';
 import { numeroDeEntorno, sumarUso } from '../_shared/limite.ts';
 import { apuntarIA, cuerpoLimiteIA, permitirIA } from '../_shared/limiteIA.ts';
@@ -283,7 +284,6 @@ const MAX_TOKENS: Record<Accion, number> = { preparar: 4000, temario: 3000, repa
 
 // ---------- Servidor ----------
 
-const CLAVE_ANTHROPIC = Deno.env.get('ANTHROPIC_API_KEY') ?? '';
 const anthropic = new Anthropic({ apiKey: CLAVE_ANTHROPIC });
 
 Deno.serve(async (req) => {

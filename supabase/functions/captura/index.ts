@@ -10,6 +10,7 @@
 
 import Anthropic from 'npm:@anthropic-ai/sdk@0.128.0';
 
+import { CLAVE_ANTHROPIC } from '../_shared/claveAnthropic.ts';
 import { respuestaJson, respuestaPrevia } from '../_shared/cors.ts';
 import { numeroDeEntorno, sumarUso } from '../_shared/limite.ts';
 import { apuntarIA, cuerpoLimiteIA, permitirIA } from '../_shared/limiteIA.ts';
@@ -123,7 +124,7 @@ Frase:
 <frase>${p.frase.replace(/[<>]/g, '')}</frase>`;
 }
 
-const anthropic = new Anthropic({ apiKey: Deno.env.get('ANTHROPIC_API_KEY') ?? '' });
+const anthropic = new Anthropic({ apiKey: CLAVE_ANTHROPIC });
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return respuestaPrevia(req);

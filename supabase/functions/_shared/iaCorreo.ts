@@ -1,4 +1,5 @@
 import Anthropic from 'npm:@anthropic-ai/sdk@0.128.0';
+import { CLAVE_ANTHROPIC } from './claveAnthropic.ts';
 
 // IA de los correos (fase 11): qué es, un resumen de una frase (vuelve el 27/10/2026, lo
 // pidió el usuario), la fecha y la hora que importan, si es importante y si lo manda una
@@ -25,9 +26,8 @@ export type AnalisisIA = {
   automatico: boolean;
 };
 
-const CLAVE = Deno.env.get('ANTHROPIC_API_KEY') ?? '';
-export const iaDisponible = CLAVE.length > 0;
-const anthropic = new Anthropic({ apiKey: CLAVE });
+export const iaDisponible = CLAVE_ANTHROPIC.length > 0;
+const anthropic = new Anthropic({ apiKey: CLAVE_ANTHROPIC });
 
 export function leerPeticionIA(datos: unknown): PeticionIA | null {
   if (!datos || typeof datos !== 'object') return null;

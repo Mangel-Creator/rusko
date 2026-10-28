@@ -86,6 +86,15 @@ sesión que fuera**:
 - 28/10/2026 — **Las tareas marcadas como hechas se borran solas a las 24 h** si no se
   desmarcan (`hechaEn` en el evento; `borrarTareasHechasAntiguas` en `data/eventos`). No
   afecta a las tareas del plan de estudio (`epoca-`).
+- 28/10/2026 — **La IA ya está encendida** (cumple la entrada del 26/09 sobre la clave).
+  El usuario creó la clave en la consola de Anthropic (cuenta Individual, 5 $ de saldo
+  prepago, sin recarga automática, clave sin caducidad) y la guardó en Supabase como
+  **`CLAVE_ANTRHOPIC`** (con esa errata): las funciones aceptan ese nombre y
+  `ANTHROPIC_API_KEY` (`_shared/claveAnthropic.ts`). Probado ese día contra el servidor:
+  captura, correo y Época dorada contestan con IA y "Tu IA" apunta el gasto. **La captura
+  se queda como está** (lo eligió el usuario): el móvil lee la frase y la IA solo entra si
+  no ve día, hora ni franja. Pendiente del usuario: bajar el tope de gasto mensual a 5 $
+  en la consola (Gasto > Límites).
 - 23/09/2026 — App para todo el mundo con los datos de cada usuario privados; web
   para los demás y app para el dueño (ver "Para quién y dónde funciona").
 - 24/09/2026 — Direcciones en la web con OpenStreetMap.
@@ -1291,7 +1300,8 @@ borran solos a los 7 días.
   web publicada, variables del repositorio `SUPABASE_URL` y `SUPABASE_KEY` (Settings >
   Secrets and variables > Actions > Variables) que `pages.yml` pasa a `expo export`. Tras
   crear o cambiar `.env`, reinicia el servidor de Expo (túnel incluido). Las secretas
-  (`ANTHROPIC_API_KEY`, `TOMTOM_API_KEY`, la `sb_secret_...`) solo en los secretos de Supabase.
+  (`ANTHROPIC_API_KEY` —guardada como `CLAVE_ANTRHOPIC`, ver 28/10/2026—, `TOMTOM_API_KEY`,
+  la `sb_secret_...`) solo en los secretos de Supabase.
 - **En la app**: `src/data/supabase.ts`: `obtenerSupabase()` (null si no hay `.env`: la
   app funciona igual, sin lo del servidor) y `asegurarSesion(supabase)` (usuario anónimo,
   sin registro; sesión en AsyncStorage). Después `supabase.functions.invoke('nombre',
@@ -2409,7 +2419,7 @@ borran solos a los 7 días.
 - [x] 3. Calendario: pantallas Hoy y Semana.
 - [x] 4. Avisos (notificaciones).
 - [x] 4b. Época dorada: modo para exámenes o épocas de trabajo intenso (prompt en C:\Users\usuario\OneDrive\PERSONAL\RUSKO\Prompts\Organizy-04b-epoca-dorada.md)
-- [x] 5. Captura rápida con IA. Supabase montado y funciones desplegadas (proyecto `hwemrpexabisyueyizjz`). Falta solo la clave de Anthropic: el usuario la pondrá cuando la app esté terminada (ver "Decisiones del usuario", 26/09/2026).
+- [x] 5. Captura rápida con IA. Supabase montado y funciones desplegadas (proyecto `hwemrpexabisyueyizjz`). Clave de Anthropic puesta el 28/10/2026: la IA ya funciona (ver "Decisiones del usuario", esa fecha).
 - [x] 6. Mapa, tráfico y rutas (funcionando con TomTom desde el 27/09/2026; desde el 26/10/2026 sin radares ni guía: abre Waze, Google Maps o Mapas, con parkings cercanos. Ver "Fase 6").
 - [x] 7. Alarmas (en Expo Go son avisos con sonido; las alarmas de verdad están programadas pero sin probar hasta que haya build de EAS: ver "Fase 7").
 - [x] 8. Planes con WhatsApp y votación (servidor y función `votar` ya desplegados: ver "Fase 8").
