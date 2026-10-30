@@ -61,6 +61,45 @@ describe('procesarPendientes (Siri)', () => {
     expect(r.ids).toEqual(['a4']);
   });
 
+  it('usa lo que entendió la IA: un recordatorio con su aviso y una alarma', () => {
+    const r = procesarPendientes([apuntar('c1', 'recuérdame mañana llamar a mamá'), apuntar('c2', 'alarma a las 7')], {
+      ahora: AHORA,
+      perfil: null,
+      eventos: [],
+      leidos: {
+        c1: {
+          accion: 'apuntar',
+          propuesta: {
+            titulo: 'Llamar a mamá',
+            fecha: '2026-10-28',
+            horaInicio: null,
+            horaFin: null,
+            tipo: 'yo',
+            lugar: null,
+            flexible: true,
+            duracionMin: 15,
+            avisarA: '09:00',
+            avisoMin: null,
+            confianza: 'alta',
+          },
+        },
+        c2: { accion: 'alarma', alarma: { fecha: '2026-10-28', hora: '07:00', etiqueta: '', confianza: 'alta' } },
+      },
+    });
+    expect(r.eventos[0]).toMatchObject({ id: 'siri-c1', titulo: 'Llamar a mamá', flexible: true, avisarA: '09:00' });
+    expect(r.alarmas[0]).toMatchObject({ id: 'c2', hora: '07:00', unaVezEl: '2026-10-28' });
+    expect(r.hechos).toEqual(['Llamar a mamá, te aviso mañana a las 09:00', 'Alarma mañana a las 07:00']);
+  });
+
+  it('sin IA, las reglas también entienden «recuérdame…»', () => {
+    const r = procesarPendientes([apuntar('d1', 'recuérdame mañana a las 6 llamar a mamá')], {
+      ahora: AHORA,
+      perfil: null,
+      eventos: [],
+    });
+    expect(r.eventos[0]).toMatchObject({ titulo: 'Llamar a mamá', fecha: '2026-10-28', avisarA: '18:00' });
+  });
+
   it('una alarma futura se añade de una sola vez; una pasada, no', () => {
     const r = procesarPendientes(
       [

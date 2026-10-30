@@ -5,6 +5,7 @@ import { cambiarEventos, leerEventos } from '@/data/eventos';
 import { cargarPerfil } from '@/data/perfil';
 import { anadirRecogidoSiri, cambiarSiri } from '@/data/siri';
 import { asegurarSesion, obtenerSupabase } from '@/data/supabase';
+import { interpretarFrase, type Interpretacion } from '@/services/captura';
 
 import { procesarPendientes, type PendienteSiri } from './procesar';
 
@@ -69,7 +70,17 @@ async function recoger(): Promise<number> {
   const pendientes = respuesta?.pendientes ?? [];
   if (pendientes.length === 0) return 0;
 
-  const resultado = procesarPendientes(pendientes, { ahora: new Date(), perfil, eventos: await leerEventos() });
+  const eventos = await leerEventos();
+  // Cada frase la lee antes la IA, como en la captura rápida (30/10/2026), tomando como
+  // "ahora" cuándo se dijo. Si falla, procesarPendientes usa las reglas.
+  const leidos: Record<string, Interpretacion | null> = {};
+  for (const p of pendientes) {
+    if (p.tipo !== 'apuntar' || !p.texto?.trim()) continue;
+    const dicho = Number.isFinite(Date.parse(p.creado)) ? new Date(p.creado) : new Date();
+    const leido = await interpretarFrase(p.texto, perfil, eventos, dicho).catch(() => null);
+    leidos[p.id] = leido?.estado === 'ok' ? leido.interpretacion : null;
+  }
+  const resultado = procesarPendientes(pendientes, { ahora: new Date(), perfil, eventos, leidos });
   await cambiarEventos(resultado.eventos, []);
   for (const alarma of resultado.alarmas) await guardarAlarma(alarma);
   await llamar({ accion: 'confirmar', ids: resultado.ids }, false);

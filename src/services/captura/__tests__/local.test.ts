@@ -2,7 +2,7 @@ import { describe, expect, it } from '@jest/globals';
 
 import type { Evento } from '@/data/eventos/tipos';
 import type { Perfil } from '@/data/perfil';
-import { interpretarLocal } from '@/services/captura/local';
+import { entenderLocal, interpretarLocal } from '@/services/captura/local';
 
 // Lunes 26 de octubre de 2026, a las 10:00.
 const ahora = new Date(2026, 9, 26, 10, 0);
@@ -44,9 +44,20 @@ describe('interpretarLocal', () => {
       lugar: null,
       flexible: false,
       duracionMin: null,
+      avisarA: null,
+      avisoMin: null,
       confianza: 'alta',
       opcionesHora: ['17:00', '18:00', '19:00'],
     });
+  });
+
+  it('quita «tengo» y pone las siglas en mayúsculas', () => {
+    expect(leer('tengo cita del dni el sabado a las 12')).toMatchObject({
+      titulo: 'Cita del DNI',
+      fecha: '2026-10-31',
+      horaInicio: '12:00',
+    });
+    expect(leer('tengo que pasar la itv el jueves')).toMatchObject({ titulo: 'Pasar la ITV', flexible: true });
   });
 
   it('entiende la frase tal cual la dijo el usuario («a las por la tarde»)', () => {
@@ -141,5 +152,47 @@ describe('interpretarLocal', () => {
       fecha: '2026-10-26',
       horaInicio: '17:00',
     });
+  });
+});
+
+describe('entenderLocal', () => {
+  const entender = (frase: string) =>
+    entenderLocal(frase, {
+      ahora,
+      perfil: { ...perfil, horario: { levantarse: '07:30' } } as unknown as Perfil,
+      eventos: [],
+    });
+
+  it('«recuérdame…»: una tarea de ese día que avisa a la hora dicha', () => {
+    expect(entender('recuérdame mañana a las 6 llamar a mamá')).toEqual({
+      accion: 'apuntar',
+      propuesta: expect.objectContaining({
+        titulo: 'Llamar a mamá',
+        fecha: '2026-10-27',
+        flexible: true,
+        horaInicio: null,
+        avisarA: '18:00',
+      }),
+    });
+  });
+
+  it('un aviso sin hora suena al levantarse; si es hoy y ya pasó, en la próxima hora', () => {
+    expect(entender('ponme un aviso para sacar la basura el jueves')).toMatchObject({
+      propuesta: { titulo: 'Sacar la basura', fecha: '2026-10-29', avisarA: '07:30' },
+    });
+    expect(entender('avísame de regar las plantas')).toMatchObject({
+      propuesta: { titulo: 'Regar las plantas', fecha: '2026-10-26', avisarA: '11:00' },
+    });
+  });
+
+  it('«ponme una alarma a las 7»: alarma de mañana a las 07:00', () => {
+    expect(entender('ponme una alarma a las 7')).toEqual({
+      accion: 'alarma',
+      alarma: { fecha: '2026-10-27', hora: '07:00', etiqueta: '', confianza: 'alta' },
+    });
+    expect(entender('despiértame el sábado a las 9 y media')).toMatchObject({
+      alarma: { fecha: '2026-10-31', hora: '09:30' },
+    });
+    expect(entender('pon una alarma')).toBeNull();
   });
 });

@@ -6,14 +6,16 @@ import { ActivityIndicator, Platform, Pressable, StyleSheet, TextInput, View, ty
 import { Boton, Tarjeta, Texto, Titulo } from '@/components';
 import { useEventos, type Evento } from '@/data/eventos';
 import { usePerfil } from '@/data/perfil';
-import { MAX_FRASE, interpretarFrase, type Propuesta } from '@/services/captura';
+import type { Alarma } from '@/data/alarmas';
+import { MAX_FRASE, interpretarFrase, type Propuesta, type PropuestaAlarma } from '@/services/captura';
 import { dejarBorrador, type BorradorFicha } from '@/services/captura/borrador';
 import { entenderPregunta, respuestaDelDia } from '@/services/consulta';
-import { fechaDesdeClave, formatearDiaCorto, type ClaveDia } from '@/services/fechas';
+import { claveDia, fechaDesdeClave, formatearDiaCorto, type ClaveDia } from '@/services/fechas';
 import { callar, hablar } from '@/services/voz';
 import { alturaTactil, colores, espacio, fuentes, radio, tamanos } from '@/theme';
 
 import { AvisoMicrofono, BotonMicrofono } from './BotonMicrofono';
+import { TarjetaAlarma } from './TarjetaAlarma';
 import { TarjetaConfirmacion } from './TarjetaConfirmacion';
 import { useDictado } from './useDictado';
 
@@ -40,6 +42,11 @@ import { useDictado } from './useDictado';
 // Preguntas por la agenda, sin IA (26/10/2026): «¿qué tengo el miércoles?», «¿tengo algo
 // mañana?», «¿qué hay el 5 de noviembre?»... no van a la IA: se contestan aquí con
 // reglas (services/consulta) y la respuesta se lee en voz alta (services/voz).
+//
+// Todo lo demás va a la IA (30/10/2026), que dice qué se pide: una cita o tarea (tarjeta
+// "¿Lo guardo así?"), un recordatorio (la misma tarjeta, "¿Te lo recuerdo así?", con la
+// hora del aviso), una alarma ("¿Pongo la alarma así?") o una pregunta que las reglas no
+// pillaron (se contesta igual que arriba).
 
 type Props = {
   hoy: ClaveDia;
@@ -65,10 +72,19 @@ function abrirFicha(borrador: BorradorFicha, hoy: ClaveDia) {
   router.push({ pathname: '/evento', params: { fecha: borrador.fecha ?? hoy, propuesta } });
 }
 
+function textoDia(fecha: ClaveDia): string {
+  return formatearDiaCorto(fechaDesdeClave(fecha)).toLocaleLowerCase('es-ES');
+}
+
 function textoGuardado(evento: Evento): string {
-  const dia = formatearDiaCorto(fechaDesdeClave(evento.fecha)).toLocaleLowerCase('es-ES');
+  const dia = textoDia(evento.fecha);
+  if (evento.flexible && evento.avisarA) return `Hecho: te recuerdo «${evento.titulo}» el ${dia} a las ${evento.avisarA}.`;
   const cuando = evento.horaInicio ? `${dia} a las ${evento.horaInicio}` : `${dia}, sin hora fija`;
   return `Apuntado: «${evento.titulo}», ${cuando}.`;
+}
+
+function textoAlarma(alarma: Alarma): string {
+  return `Alarma puesta: ${textoDia(alarma.unaVezEl ?? claveDia(new Date()))} a las ${alarma.hora}.`;
 }
 
 export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano, escucharAlAbrir, enfocar }: Props) {
@@ -77,6 +93,7 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
   const [frase, setFrase] = useState('');
   const [pensando, setPensando] = useState(false);
   const [propuesta, setPropuesta] = useState<Propuesta | null>(null);
+  const [alarma, setAlarma] = useState<PropuestaAlarma | null>(null);
   const [hecho, setHecho] = useState<string | null>(null);
   const [respuesta, setRespuesta] = useState<string | null>(null);
   const [hablando, setHablando] = useState(false);
@@ -97,12 +114,20 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
       return;
     }
     setRespuesta(null);
+    setAlarma(null);
     setPensando(true);
     campo.current?.blur();
     const resultado = await interpretarFrase(limpia, perfil, eventos);
     setPensando(false);
     if (resultado.estado === 'ok') {
-      setPropuesta(resultado.propuesta);
+      const leido = resultado.interpretacion;
+      if (leido.accion === 'apuntar') setPropuesta(leido.propuesta);
+      else if (leido.accion === 'alarma') setAlarma(leido.alarma);
+      else {
+        // La IA ha visto una pregunta que las reglas no pillaron («¿tengo algo el finde?»).
+        setFrase('');
+        decir(respuestaDelDia({ eventos, dia: leido.dia, ahora: new Date(), perfil }));
+      }
       return;
     }
     // Sin conexión, error o poca confianza: la ficha normal con la frase como título.
@@ -162,6 +187,7 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
 
   const terminar = (mensaje: string | null) => {
     setPropuesta(null);
+    setAlarma(null);
     setFrase('');
     setHecho(mensaje);
   };
@@ -169,11 +195,13 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
   const puedeEnviar = frase.trim().length > 0 && !pensando && !escuchando;
 
   // Plegada y sin nada en marcha: no enseña nada (pero sigue escuchando frases de fuera).
-  if (plegada && !pensando && !propuesta && !hecho && !respuesta && dictado.fase === 'quieto') return null;
+  if (plegada && !pensando && !propuesta && !alarma && !hecho && !respuesta && dictado.fase === 'quieto') return null;
 
+  const ejemplos =
+    'Una cita («cita del DNI el sábado a las 12»), un recordatorio («recuérdame mañana a las 6 llamar a mamá»), una alarma («pon una alarma a las 7») o «¿qué tengo el miércoles?».';
   const ayuda = dictado.disponible
-    ? 'Escríbelo como te salga, o toca el micro y dímelo. También puedes preguntarme «¿qué tengo el miércoles?».'
-    : 'Escríbelo como te salga, o díctalo con el micrófono del teclado. También puedes preguntarme «¿qué tengo el miércoles?».';
+    ? `Escríbelo como te salga o toca el micro y dímelo. ${ejemplos}`
+    : `Escríbelo como te salga o díctalo con el micrófono del teclado. ${ejemplos}`;
 
   return (
     <View style={estilos.contenedor}>
@@ -190,7 +218,7 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
           placeholder={escuchando ? 'Te escucho…' : 'mañana pádel por la tarde'}
           placeholderTextColor={colores.textoSecundario}
           accessibilityLabel="Captura rápida"
-          accessibilityHint="Escribe o dicta lo que tienes que hacer y te preparo el evento."
+          accessibilityHint="Escribe o dicta una cita, un recordatorio, una alarma o una pregunta por tu agenda."
           maxLength={MAX_FRASE}
           editable={!pensando && !escuchando}
           returnKeyType="send"
@@ -244,7 +272,7 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
         <Texto pequeno accessibilityLiveRegion="polite">
           {hecho}
         </Texto>
-      ) : !propuesta && !respuesta && dictado.fase === 'quieto' ? (
+      ) : !propuesta && !alarma && !respuesta && dictado.fase === 'quieto' ? (
         <Texto pequeno secundario>{ayuda}</Texto>
       ) : null}
 
@@ -275,7 +303,7 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
         </Tarjeta>
       ) : null}
 
-      {alRellenarAMano && !propuesta && !respuesta && !pensando && !escuchando ? (
+      {alRellenarAMano && !propuesta && !alarma && !respuesta && !pensando && !escuchando ? (
         <Pressable
           accessibilityRole="button"
           onPress={alRellenarAMano}
@@ -298,6 +326,15 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
             terminar(null);
             abrirFicha(borrador, hoy);
           }}
+        />
+      ) : null}
+
+      {alarma ? (
+        <TarjetaAlarma
+          key={`alarma-${alarma.fecha}-${alarma.hora}`}
+          alarma={alarma}
+          alGuardar={(nueva) => terminar(textoAlarma(nueva))}
+          alCancelar={() => terminar(null)}
         />
       ) : null}
     </View>

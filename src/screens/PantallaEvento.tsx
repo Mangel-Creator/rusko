@@ -56,6 +56,7 @@ import {
   OPCIONES_TIPO,
   rangoHoras,
 } from './calendario/textos';
+import { AvisarA } from './calendario/AvisarA';
 import { OrigenEvento } from './calendario/OrigenEvento';
 import { SelectorCuadrante } from './tareas/SelectorCuadrante';
 import { MENSAJE_NO_ENCONTRADO } from './formulario-perfil/borrador';
@@ -125,6 +126,7 @@ type Borrador = {
   flexible: boolean;
   duracion: Duracion;
   cuadrante: Cuadrante | null; // matriz de Eisenhower, solo en tareas
+  avisarA: string | null; // solo en tareas: avisar ese día a esa hora (recordatorio)
   hecha: boolean;
   foco: boolean;
   repeticion: Repeticion;
@@ -172,10 +174,11 @@ function borradorInicial(
       flexible: rellenar?.flexible ?? false,
       duracion: (OPCIONES_DURACION.find((o) => o.valor === String(rellenar?.duracionMin))?.valor ?? '30') as Duracion,
       cuadrante: null,
+      avisarA: rellenar?.avisarA ?? null,
       hecha: false,
       foco: false,
       repeticion: 'nunca',
-      aviso: avisoInicial(null, perfil),
+      aviso: avisoInicial(rellenar?.avisoMin ?? null, perfil),
       lugar: lugarInicial(rellenar?.lugar ?? null, perfil),
       direccion: '',
       direccionTrabajo: '',
@@ -192,6 +195,7 @@ function borradorInicial(
     flexible: evento.flexible,
     duracion: (OPCIONES_DURACION.find((o) => o.valor === String(evento.duracionMin))?.valor ?? '30') as Duracion,
     cuadrante: evento.cuadrante ?? null,
+    avisarA: evento.avisarA ?? null,
     hecha: evento.hecha,
     foco: evento.foco,
     repeticion: evento.repeticion,
@@ -342,6 +346,7 @@ function Formulario({ evento, rellenar, fechaInicial, perfil, eventos }: Props) 
       // lo has cambiado aquí y no se duplica ni se pisa.
       origen: evento?.origen ?? null,
       cuadrante: b.flexible ? b.cuadrante : null,
+      avisarA: b.flexible ? b.avisarA : null,
     };
 
     const bloque = bloqueDeFocoQuePisa(nuevo, eventos);
@@ -422,6 +427,7 @@ function Formulario({ evento, rellenar, fechaInicial, perfil, eventos }: Props) 
             valor={b.cuadrante}
             alCambiar={(cuadrante) => cambiar({ cuadrante })}
           />
+          <AvisarA valor={b.avisarA} alCambiar={(avisarA) => cambiar({ avisarA })} />
           {evento ? (
             <Interruptor etiqueta="Ya está hecha" valor={b.hecha} alCambiar={(hecha) => cambiar({ hecha })} />
           ) : null}

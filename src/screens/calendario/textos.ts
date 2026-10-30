@@ -42,10 +42,12 @@ export const OPCIONES_DURACION: Opcion<'15' | '30' | '60' | '120'>[] = [
 ];
 
 // Antelación del aviso de un evento. "0" = sin aviso.
-export const OPCIONES_AVISO: Opcion<'10' | '30' | '60' | '0'>[] = [
+export const OPCIONES_AVISO: Opcion<'10' | '30' | '60' | '120' | '1440' | '0'>[] = [
   { valor: '10', etiqueta: '10 min' },
   { valor: '30', etiqueta: '30 min' },
   { valor: '60', etiqueta: '1 hora' },
+  { valor: '120', etiqueta: '2 horas' },
+  { valor: '1440', etiqueta: 'El día antes' },
   { valor: '0', etiqueta: 'Sin aviso' },
 ];
 

@@ -85,6 +85,9 @@ export type Evento = {
   origen?: OrigenEvento | null;
   // Solo en tareas flexibles: su sitio en la matriz de Eisenhower. Opcional, como "cliente".
   cuadrante?: Cuadrante | null;
+  // Solo en tareas flexibles: a qué hora de su día avisar ("HH:MM"). Es un recordatorio
+  // («recuérdame mañana a las 6 llamar a mamá», 30/10/2026). Opcional, como "cliente".
+  avisarA?: Hora | null;
 };
 
 // De dónde viene un evento traído de otro calendario (services/calendarios).

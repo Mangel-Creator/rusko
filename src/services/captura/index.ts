@@ -6,18 +6,26 @@ import { asegurarSesion, obtenerSupabase } from '@/data/supabase';
 import { claveDia, formatearHora } from '@/services/fechas';
 import { limiteDelError, mensajeLimite } from '@/services/ia';
 
-import { interpretarLocal } from './local';
-import { ID_CASA, validarPropuesta, type Propuesta } from './validar';
+import { entenderLocal } from './local';
+import { ID_CASA, validarInterpretacion, type Interpretacion } from './validar';
 
-export { interpretarLocal } from './local';
+export { entenderLocal, interpretarLocal } from './local';
 
-export { validarPropuesta, type Confianza, type Propuesta } from './validar';
+export {
+  validarInterpretacion,
+  validarPropuesta,
+  type Confianza,
+  type Interpretacion,
+  type Propuesta,
+  type PropuestaAlarma,
+} from './validar';
 
-// Captura rápida: primero la lee la app sola (local.ts): si ve el día o la hora, ya
-// está, sin gastar IA ni necesitar conexión. Si no, manda la frase al servidor propio
-// (Edge Function "captura" de Supabase), que pregunta a Claude y devuelve los datos
-// del evento en JSON. La app lo comprueba (validar.ts) y lo enseña para que el usuario lo confirme:
-// aquí nunca se guarda nada.
+// Captura rápida (desde el 30/10/2026, lo pidió el usuario): la frase va siempre a la IA
+// (Edge Function "captura" de Supabase, con Claude Haiku), que dice qué se pide —apuntar
+// una cita o una tarea, un recordatorio, una alarma o una pregunta por la agenda— y lo
+// devuelve en JSON con un título limpio («Cita DNI», no «Tengo cita dni»). La app lo
+// comprueba (validar.ts) y lo enseña para que el usuario lo confirme: aquí nunca se
+// guarda nada. Sin conexión, sin clave o si la IA falla, lo lee la app sola (local.ts).
 
 export const MAX_FRASE = 300;
 const ESPERA_MAX_MS = 20000;
@@ -25,7 +33,7 @@ const ESPERA_MAX_MS = 20000;
 export type MotivoFallo = 'sin-configurar' | 'sin-conexion' | 'limite' | 'limite-ia' | 'no-entendido' | 'error';
 
 export type ResultadoCaptura =
-  | { estado: 'ok'; propuesta: Propuesta }
+  | { estado: 'ok'; interpretacion: Interpretacion }
   | { estado: 'fallo'; motivo: MotivoFallo; mensaje: string };
 
 // Mensajes cortos para el formulario que se abre cuando algo falla.
@@ -57,19 +65,22 @@ export function datosPeticion(frase: string, ahora: Date, perfil: Perfil | null)
   };
 }
 
+// "ahora": cuándo se dijo la frase (lo de Siri se recoge más tarde).
 export async function interpretarFrase(
   frase: string,
   perfil: Perfil | null,
   eventos: readonly Evento[] = [],
+  ahora: Date = new Date(),
 ): Promise<ResultadoCaptura> {
-  const ahora = new Date();
-  const local = interpretarLocal(frase, { ahora, perfil, eventos });
-  if (local?.confianza === 'alta') return { estado: 'ok', propuesta: local };
-
-  // La IA no está o falla: vale lo que haya sacado la app sola, para revisarlo.
   const resultado = await interpretarConIA(frase, perfil, ahora);
-  if (resultado.estado === 'fallo' && local) return { estado: 'ok', propuesta: { ...local, confianza: 'media' } };
-  return resultado;
+  // Si la IA lo ha leído y no lo ve claro, mejor la ficha con la frase que adivinar.
+  if (resultado.estado === 'ok' || resultado.motivo === 'no-entendido') return resultado;
+
+  // La IA no está o falla: vale lo que saque la app sola, para revisarlo.
+  const local = entenderLocal(frase, { ahora, perfil, eventos });
+  if (!local) return resultado;
+  if (local.accion === 'apuntar' && local.propuesta.confianza === 'baja') return resultado;
+  return { estado: 'ok', interpretacion: local };
 }
 
 async function interpretarConIA(frase: string, perfil: Perfil | null, ahora: Date): Promise<ResultadoCaptura> {
@@ -94,12 +105,17 @@ async function interpretarConIA(frase: string, perfil: Perfil | null, ahora: Dat
       return fallo(await motivoDelError(error));
     }
 
-    const propuesta = validarPropuesta((data as { propuesta?: unknown } | null)?.propuesta, {
+    const interpretacion = validarInterpretacion((data as { propuesta?: unknown } | null)?.propuesta, {
       hoy: peticion.hoy,
       sitiosIds: peticion.sitios.map((s) => s.id),
+      ahora: peticion.ahora,
+      horaAviso: perfil?.horario.levantarse,
     });
-    if (!propuesta || propuesta.confianza === 'baja') return fallo('no-entendido');
-    return { estado: 'ok', propuesta };
+    if (!interpretacion) return fallo('no-entendido');
+    if (interpretacion.accion === 'apuntar' && interpretacion.propuesta.confianza === 'baja') {
+      return fallo('no-entendido');
+    }
+    return { estado: 'ok', interpretacion };
   } catch (error) {
     return fallo(await motivoDelError(error));
   }

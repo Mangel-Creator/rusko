@@ -1,15 +1,18 @@
 import type { Alarma } from '@/data/alarmas';
 import type { Evento } from '@/data/eventos/tipos';
 import type { Perfil } from '@/data/perfil';
-import { interpretarLocal } from '@/services/captura/local';
-import { MAX_TITULO } from '@/services/captura/validar';
+import { entenderLocal } from '@/services/captura/local';
+import { MAX_TITULO, type Interpretacion } from '@/services/captura/validar';
 import { claveDia, fechaDesdeClave, formatearDiaCorto, type ClaveDia } from '@/services/fechas';
 
 // Siri con Atajos (27/10/2026): qué hacer con lo que espera en el buzón del servidor
 // (función siri). Puro, con pruebas.
-//   - "apuntar": la frase se lee como en la captura rápida (local.ts, sin IA), tomando
-//     como "ahora" el momento en que se dijo ("mañana" es el día siguiente a ese). Si no
-//     se entiende, va como tarea de ese día con la frase de título: nunca se pierde.
+//   - "apuntar": la frase se lee como en la captura rápida, tomando como "ahora" el
+//     momento en que se dijo ("mañana" es el día siguiente a ese). Desde el 30/10/2026 la
+//     lee antes la IA (index.ts la pasa en "leidos"); sin ella, las reglas (local.ts). Puede
+//     ser una cita, una tarea, un recordatorio (tarea con aviso) o una alarma. Si no se
+//     entiende, va como tarea de ese día con la frase de título: nunca se pierde. Una
+//     pregunta («¿qué tengo mañana?») no se apunta.
 //   - "alarma": una alarma de una sola vez (el Atajo ya la puso en el Reloj). Si ya ha
 //     pasado, no se añade.
 // Los ids salen del buzón, así que recoger dos veces lo mismo no lo duplica.
@@ -44,7 +47,18 @@ function cuandoTexto(fecha: ClaveDia, hora: string | null, ahora: Date): string 
 
 export function procesarPendientes(
   pendientes: readonly PendienteSiri[],
-  { ahora, perfil, eventos }: { ahora: Date; perfil: Perfil | null; eventos: readonly Evento[] },
+  {
+    ahora,
+    perfil,
+    eventos,
+    leidos = {},
+  }: {
+    ahora: Date;
+    perfil: Perfil | null;
+    eventos: readonly Evento[];
+    // Lo que ha entendido la IA de cada frase, por id del buzón (null si no pudo).
+    leidos?: Record<string, Interpretacion | null>;
+  },
 ): ResultadoSiri {
   const resultado: ResultadoSiri = { eventos: [], alarmas: [], hechos: [], ids: [] };
   const todos = [...eventos];
@@ -75,7 +89,29 @@ export function procesarPendientes(
     const dicho = Number.isFinite(Date.parse(p.creado)) ? new Date(p.creado) : ahora;
     // Ya existe (se recogió antes pero no se pudo borrar del buzón): no se toca.
     if (todos.some((e) => e.id === `siri-${p.id}`)) continue;
-    const propuesta = interpretarLocal(texto, { ahora: dicho, perfil, eventos: todos });
+    const leido = leidos[p.id] ?? entenderLocal(texto, { ahora: dicho, perfil, eventos: todos });
+    if (leido?.accion === 'pregunta') continue;
+    if (leido?.accion === 'alarma') {
+      const { fecha, hora, etiqueta } = leido.alarma;
+      // Se recoge tarde y ya ha sonado su hora: no se añade (como las del Atajo).
+      const suena = fechaDesdeClave(fecha);
+      suena.setHours(Number(hora.slice(0, 2)), Number(hora.slice(3, 5)));
+      if (suena.getTime() <= ahora.getTime()) continue;
+      resultado.alarmas.push({
+        id: p.id,
+        tipo: 'despertador',
+        hora,
+        dias: [],
+        unaVezEl: fecha,
+        etiqueta,
+        sonido: 'alarma',
+        activada: true,
+        adelantoMaxMin: 20,
+      });
+      resultado.hechos.push(`Alarma ${cuandoTexto(fecha, hora, ahora)}`);
+      continue;
+    }
+    const propuesta = leido?.accion === 'apuntar' ? leido.propuesta : null;
     const evento: Evento = propuesta
       ? {
           id: `siri-${p.id}`,
@@ -91,8 +127,9 @@ export function procesarPendientes(
           duracionMin: propuesta.flexible ? (propuesta.duracionMin ?? 30) : null,
           hecha: false,
           foco: false,
-          avisoMin: null,
+          avisoMin: propuesta.flexible ? null : propuesta.avisoMin,
           ejemplo: false,
+          avisarA: propuesta.flexible ? propuesta.avisarA : null,
         }
       : {
           id: `siri-${p.id}`,
@@ -113,7 +150,11 @@ export function procesarPendientes(
         };
     todos.push(evento);
     resultado.eventos.push(evento);
-    resultado.hechos.push(`${evento.titulo}, ${cuandoTexto(evento.fecha, evento.horaInicio, ahora)}`);
+    resultado.hechos.push(
+      evento.avisarA
+        ? `${evento.titulo}, te aviso ${cuandoTexto(evento.fecha, evento.avisarA, ahora)}`
+        : `${evento.titulo}, ${cuandoTexto(evento.fecha, evento.horaInicio, ahora)}`,
+    );
   }
   return resultado;
 }

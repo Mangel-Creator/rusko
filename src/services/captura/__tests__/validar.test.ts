@@ -1,6 +1,6 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { normalizarHora, validarPropuesta } from '@/services/captura/validar';
+import { normalizarHora, validarInterpretacion, validarPropuesta } from '@/services/captura/validar';
 
 const contexto = { hoy: '2026-09-24', sitiosIds: ['s-gimnasio', 's-trabajo'] };
 
@@ -28,6 +28,8 @@ describe('validarPropuesta', () => {
       lugar: null,
       flexible: false,
       duracionMin: null,
+      avisarA: null,
+      avisoMin: null,
       confianza: 'alta',
     });
   });
@@ -108,5 +110,63 @@ describe('validarPropuesta', () => {
   it('si la confianza no es válida, la toma como baja', () => {
     expect(validarPropuesta({ ...buena, confianza: 'muy alta' }, contexto)?.confianza).toBe('baja');
     expect(validarPropuesta({ ...buena, confianza: 'media' }, contexto)?.confianza).toBe('media');
+  });
+
+  it('guarda la antelación pedida para el aviso de una cita, redondeada', () => {
+    expect(validarPropuesta({ ...buena, avisoAntesMin: 1440 }, contexto)?.avisoMin).toBe(1440);
+    expect(validarPropuesta({ ...buena, avisoAntesMin: 50 }, contexto)?.avisoMin).toBe(60);
+    expect(validarPropuesta({ ...buena, avisoAntesMin: null }, contexto)?.avisoMin).toBeNull();
+  });
+});
+
+describe('validarInterpretacion', () => {
+  const ahora = { ...contexto, ahora: '10:00', horaAviso: '07:30' };
+
+  it('un recordatorio es una tarea con aviso a esa hora', () => {
+    expect(
+      validarInterpretacion(
+        { ...buena, accion: 'recordatorio', titulo: 'Llamar a mamá', fecha: '2026-09-25', horaInicio: '18:00' },
+        ahora,
+      ),
+    ).toEqual({
+      accion: 'apuntar',
+      propuesta: expect.objectContaining({ titulo: 'Llamar a mamá', flexible: true, horaInicio: null, avisarA: '18:00' }),
+    });
+  });
+
+  it('un recordatorio sin hora avisa al levantarse, o en la próxima hora si hoy ya pasó', () => {
+    const sinHora = { ...buena, accion: 'recordatorio', horaInicio: null };
+    expect(validarInterpretacion({ ...sinHora, fecha: '2026-09-25' }, ahora)).toMatchObject({
+      propuesta: { avisarA: '07:30' },
+    });
+    expect(validarInterpretacion({ ...sinHora, fecha: '2026-09-24' }, ahora)).toMatchObject({
+      propuesta: { avisarA: '11:00' },
+    });
+  });
+
+  it('una tarea no lleva hora aunque la IA la ponga', () => {
+    expect(validarInterpretacion({ ...buena, accion: 'tarea' }, ahora)).toMatchObject({
+      propuesta: { flexible: true, horaInicio: null, avisarA: null },
+    });
+  });
+
+  it('una alarma necesita hora; si hoy ya pasó, es la de mañana', () => {
+    const alarma = { ...buena, accion: 'alarma', titulo: '', fecha: '2026-09-24', horaInicio: '7:00' };
+    expect(validarInterpretacion(alarma, ahora)).toEqual({
+      accion: 'alarma',
+      alarma: { fecha: '2026-09-25', hora: '07:00', etiqueta: '', confianza: 'alta' },
+    });
+    expect(validarInterpretacion({ ...alarma, horaInicio: '12:00', titulo: 'gimnasio' }, ahora)).toMatchObject({
+      alarma: { fecha: '2026-09-24', hora: '12:00', etiqueta: 'Gimnasio' },
+    });
+    expect(validarInterpretacion({ ...alarma, horaInicio: null }, ahora)).toBeNull();
+  });
+
+  it('una pregunta devuelve el día; lo que no es de la agenda, nada', () => {
+    expect(validarInterpretacion({ ...buena, accion: 'pregunta', fecha: '2026-09-30' }, ahora)).toEqual({
+      accion: 'pregunta',
+      dia: '2026-09-30',
+    });
+    expect(validarInterpretacion({ ...buena, accion: 'otra' }, ahora)).toBeNull();
   });
 });

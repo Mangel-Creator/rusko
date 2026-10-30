@@ -12,10 +12,14 @@ import {
 // La IA casi siempre responde bien, pero nunca nos fiamos: si algo no cuadra se
 // corrige (hora de fin, tipo, lugar...) o, si no tiene arreglo, se descarta y la
 // app abre el formulario normal con la frase como título.
+//
+// Desde el 30/10/2026 la captura no solo apunta citas: también recordatorios («ponme un
+// aviso para…»: una tarea con aviso a una hora), alarmas y preguntas por la agenda.
 
 export type Confianza = 'alta' | 'media' | 'baja';
 
-// Lo que la app entiende de una frase, ya comprobado.
+// Lo que la app entiende de una frase para apuntar, ya comprobado: una cita, una tarea
+// o un recordatorio (tarea con aviso a una hora).
 export type Propuesta = {
   titulo: string;
   fecha: ClaveDia;
@@ -25,18 +29,41 @@ export type Propuesta = {
   lugar: LugarEvento | null; // solo Casa o un sitio habitual (por referencia)
   flexible: boolean;
   duracionMin: number | null; // solo en tareas flexibles: 15, 30, 60 o 120
+  avisarA: string | null; // solo en tareas: la hora del aviso ese día (recordatorio)
+  avisoMin: number | null; // solo en citas: la antelación que ha pedido; null = la del perfil
   confianza: Confianza;
   opcionesHora?: string[]; // solo dijo la franja ("por la tarde"): las horas que se ofrecen
 };
+
+// "Ponme una alarma mañana a las 7".
+export type PropuestaAlarma = {
+  fecha: ClaveDia;
+  hora: string;
+  etiqueta: string; // puede ir vacía
+  confianza: Confianza;
+};
+
+// Qué quiere la persona con la frase.
+export type Interpretacion =
+  | { accion: 'apuntar'; propuesta: Propuesta }
+  | { accion: 'alarma'; alarma: PropuestaAlarma }
+  | { accion: 'pregunta'; dia: ClaveDia };
 
 export type ContextoValidacion = {
   hoy: ClaveDia;
   // Ids de los sitios habituales del perfil. "casa" es la vivienda.
   sitiosIds: readonly string[];
+  // "HH:MM" de ahora: un recordatorio para hoy no puede avisar en una hora ya pasada.
+  ahora?: string;
+  // Hora del aviso de un recordatorio sin hora ("recuérdame mañana llamar a mamá"):
+  // la de levantarse. Por defecto, las 09:00.
+  horaAviso?: string;
 };
 
 export const ID_CASA = 'casa';
 export const DURACIONES = [15, 30, 60, 120] as const;
+// Antelaciones de aviso que se pueden pedir para una cita (las mismas que la ficha).
+export const ANTELACIONES = [10, 30, 60, 120, 1440] as const;
 export const MAX_TITULO = 100;
 
 // Días hacia atrás y hacia delante que se aceptan (lo de fuera es un error).
@@ -52,6 +79,12 @@ function esFechaValida(valor: unknown): valor is ClaveDia {
   return claveDia(fechaDesdeClave(valor)) === valor;
 }
 
+function fechaCercana(valor: unknown, hoy: ClaveDia): ClaveDia | null {
+  if (!esFechaValida(valor)) return null;
+  if (valor < sumarDias(hoy, -DIAS_ATRAS) || valor > sumarDias(hoy, DIAS_ADELANTE)) return null;
+  return valor;
+}
+
 // "8:05" o "08:05" -> "08:05". Cualquier otra cosa -> null.
 export function normalizarHora(valor: unknown): string | null {
   if (typeof valor !== 'string') return null;
@@ -63,9 +96,18 @@ export function normalizarHora(valor: unknown): string | null {
   return horaDesdeMinutos(h * 60 + m);
 }
 
+function masCercana(valor: number, opciones: readonly number[]): number {
+  return opciones.reduce((mejor, d) => (Math.abs(d - valor) < Math.abs(mejor - valor) ? d : mejor), opciones[0]);
+}
+
 function duracionMasCercana(valor: unknown): number {
   if (typeof valor !== 'number' || !Number.isFinite(valor)) return 30;
-  return DURACIONES.reduce((mejor, d) => (Math.abs(d - valor) < Math.abs(mejor - valor) ? d : mejor), 30);
+  return masCercana(valor, DURACIONES);
+}
+
+function antelacion(valor: unknown): number | null {
+  if (typeof valor !== 'number' || !Number.isFinite(valor) || valor <= 0) return null;
+  return masCercana(valor, ANTELACIONES);
 }
 
 function limpiarTitulo(valor: unknown): string | null {
@@ -81,7 +123,18 @@ function lugarDesdeId(valor: unknown, sitiosIds: readonly string[]): LugarEvento
   return sitiosIds.includes(valor) ? { tipo: 'sitio', sitioId: valor } : null;
 }
 
-// Devuelve la propuesta comprobada, o null si no se puede usar.
+// Hora del aviso de un recordatorio: la dicha o la de por defecto. Si es para hoy y esa
+// hora ya ha pasado, en la próxima hora en punto (o, si ya no cabe, a las 23:45).
+export function horaDelRecordatorio(dicha: string | null, fecha: ClaveDia, contexto: ContextoValidacion): string {
+  const hora = dicha ?? contexto.horaAviso ?? '09:00';
+  if (fecha !== contexto.hoy || !contexto.ahora) return hora;
+  const ahora = minutosDesdeHora(contexto.ahora);
+  if (minutosDesdeHora(hora) > ahora) return hora;
+  return horaDesdeMinutos(Math.min(Math.ceil((ahora + 1) / 60) * 60, 23 * 60 + 45));
+}
+
+// Devuelve la propuesta comprobada, o null si no se puede usar. "accion" (desde el
+// 30/10/2026): "evento", "tarea" o "recordatorio"; sin ella, se mira "flexible".
 export function validarPropuesta(datos: unknown, contexto: ContextoValidacion): Propuesta | null {
   if (!datos || typeof datos !== 'object' || Array.isArray(datos)) return null;
   const d = datos as Record<string, unknown>;
@@ -89,30 +142,35 @@ export function validarPropuesta(datos: unknown, contexto: ContextoValidacion): 
   const titulo = limpiarTitulo(d.titulo);
   if (!titulo) return null;
 
-  if (!esFechaValida(d.fecha)) return null;
-  const fecha = d.fecha;
-  if (fecha < sumarDias(contexto.hoy, -DIAS_ATRAS) || fecha > sumarDias(contexto.hoy, DIAS_ADELANTE)) return null;
+  const fecha = fechaCercana(d.fecha, contexto.hoy);
+  if (!fecha) return null;
 
   const tipo = TIPOS.includes(d.tipo as TipoEvento) ? (d.tipo as TipoEvento) : 'yo';
   const confianza = CONFIANZAS.includes(d.confianza as Confianza) ? (d.confianza as Confianza) : 'baja';
   const lugar = lugarDesdeId(d.sitioId, contexto.sitiosIds);
   const horaInicio = normalizarHora(d.horaInicio);
+  const tarea = {
+    titulo,
+    fecha,
+    horaInicio: null,
+    horaFin: null,
+    tipo,
+    lugar,
+    flexible: true,
+    duracionMin: duracionMasCercana(d.duracionMin),
+    avisarA: null,
+    avisoMin: null,
+    confianza,
+  };
+
+  // Recordatorio: una tarea de ese día con un aviso a la hora dicha.
+  if (d.accion === 'recordatorio') {
+    return { ...tarea, avisarA: horaDelRecordatorio(horaInicio, fecha, contexto) };
+  }
 
   // Sin hora de inicio no puede ser un evento con hora: pasa a tarea flexible
   // ("llamar al taller mañana").
-  if (d.flexible === true || !horaInicio) {
-    return {
-      titulo,
-      fecha,
-      horaInicio: null,
-      horaFin: null,
-      tipo,
-      lugar,
-      flexible: true,
-      duracionMin: duracionMasCercana(d.duracionMin),
-      confianza,
-    };
-  }
+  if (d.accion === 'tarea' || d.flexible === true || !horaInicio) return tarea;
 
   // Hora de fin: la que diga, si es después del inicio; si no, 1 hora después.
   // Los eventos no cruzan la medianoche: como tarde, a las 23:59.
@@ -130,6 +188,38 @@ export function validarPropuesta(datos: unknown, contexto: ContextoValidacion): 
     lugar,
     flexible: false,
     duracionMin: null,
+    avisarA: null,
+    avisoMin: antelacion(d.avisoAntesMin),
     confianza,
   };
+}
+
+// Toda la respuesta de la IA: qué quiere hacer y sus datos. null si no se puede usar
+// (o si no es nada de la agenda: "accion" = "otra").
+export function validarInterpretacion(datos: unknown, contexto: ContextoValidacion): Interpretacion | null {
+  if (!datos || typeof datos !== 'object' || Array.isArray(datos)) return null;
+  const d = datos as Record<string, unknown>;
+  const confianza = CONFIANZAS.includes(d.confianza as Confianza) ? (d.confianza as Confianza) : 'baja';
+
+  if (d.accion === 'otra') return null;
+
+  if (d.accion === 'pregunta') {
+    const dia = fechaCercana(d.fecha, contexto.hoy);
+    return dia ? { accion: 'pregunta', dia } : null;
+  }
+
+  if (d.accion === 'alarma') {
+    let fecha = fechaCercana(d.fecha, contexto.hoy);
+    const hora = normalizarHora(d.horaInicio);
+    if (!fecha || !hora || fecha < contexto.hoy) return null;
+    // "A las 7" cuando ya son las 8: la de mañana.
+    if (fecha === contexto.hoy && contexto.ahora && minutosDesdeHora(hora) <= minutosDesdeHora(contexto.ahora)) {
+      fecha = sumarDias(fecha, 1);
+    }
+    const etiqueta = typeof d.titulo === 'string' ? (limpiarTitulo(d.titulo) ?? '') : '';
+    return { accion: 'alarma', alarma: { fecha, hora, etiqueta: etiqueta.slice(0, 40), confianza } };
+  }
+
+  const propuesta = validarPropuesta(d, contexto);
+  return propuesta ? { accion: 'apuntar', propuesta } : null;
 }

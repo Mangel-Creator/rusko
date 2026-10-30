@@ -21,7 +21,8 @@ export type TipoAviso =
   | 'dormir'
   | 'plan-recordatorio' // "Recordar a todos 3 h antes" (fase 8)
   | 'plazo-correo' // la víspera de un plazo que llegó por correo (fase 11)
-  | 'recordatorio-correo'; // "Recuérdamelo" de un correo, a la hora elegida (27/10/2026)
+  | 'recordatorio-correo' // "Recuérdamelo" de un correo, a la hora elegida (27/10/2026)
+  | 'recordatorio'; // tarea con aviso a una hora, desde la captura rápida (30/10/2026)
 
 // Los que van primero al recortar a MAX_AVISOS: una alarma nunca se queda fuera.
 export const TIPOS_ALARMA: readonly TipoAviso[] = ['alarma', 'alarma-salida'];

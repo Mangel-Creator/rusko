@@ -347,6 +347,8 @@ function FilaTarea({ tarea, detalle, apagada }: FilaTareaLista) {
         </Texto>
         <Texto pequeno secundario>
           {detalle}
+          {/* Recordatorio (30/10/2026): la hora del aviso, solo el día de la tarea. */}
+          {tarea.avisarA && !tarea.hecha && tarea.fecha === claveDia(new Date()) ? ` · Te aviso a las ${tarea.avisarA}` : null}
           {tarea.cuadrante && !apagada ? (
             <Texto pequeno style={tarea.cuadrante === 'hazlo' ? estilos.hazlo : undefined}>
               {' · '}

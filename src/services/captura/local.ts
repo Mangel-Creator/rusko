@@ -10,12 +10,19 @@ import {
   type ClaveDia,
 } from '@/services/fechas';
 
-import { DURACIONES, MAX_TITULO, type Propuesta } from './validar';
+import {
+  DURACIONES,
+  MAX_TITULO,
+  horaDelRecordatorio,
+  type Interpretacion,
+  type Propuesta,
+} from './validar';
 
 // Captura rápida sin IA ni conexión (26/10, lo pidió el usuario: "mañana pádel por la
 // tarde" tiene que entenderse). Lee el día, la hora o la franja ("por la tarde" = 17, 18
-// o 19, la primera libre) y cuánto suele durar cada cosa (el pádel, unas 2 horas). Si ve
-// un día o una hora, la propuesta sale con confianza "alta" y no hace falta la IA.
+// o 19, la primera libre) y cuánto suele durar cada cosa (el pádel, unas 2 horas).
+// Desde el 30/10/2026 es solo el respaldo de la IA (sin conexión, sin clave o si falla):
+// también entiende «recuérdame…» / «ponme un aviso…» (recordatorio) y «ponme una alarma…».
 
 type Franja = 'manana' | 'mediodia' | 'tarde' | 'noche';
 
@@ -137,6 +144,17 @@ const CON_TILDE: Record<string, string> = {
   papa: 'papá',
 };
 
+// Siglas que van en mayúsculas en el título ("cita del dni" -> "Cita del DNI").
+const SIGLAS = new Set(['dni', 'nie', 'itv', 'ibi', 'iva', 'irpf', 'tfg', 'tfm', 'pcr', 'dgt', 'sepe', 'ebau', 'mir']);
+
+// Lo que se dice para pedir algo y no forma parte del título: «tengo cita…», «recuérdame
+// llamar…», «ponme un aviso para…».
+const RE_PEDIR =
+  /\b(?:recuerdame(?: que)?|recordarme|acuerdame(?: de)?|(?:ponme|pon|crea|creame) un (?:aviso|recordatorio)(?: para| de)?|avisame(?: para| de)?|que me avises(?: para| de)?|tengo que|tengo|me toca|hay que|apuntame|apunta)\b/g;
+const RE_RECORDATORIO =
+  /\b(?:recuerdame|recordarme|acuerdame|(?:ponme|pon|crea|creame) un (?:aviso|recordatorio)|avisame|que me avises)\b/;
+const RE_ALARMA = /\b(?:(?:ponme|pon|programa|programame|crea|creame) (?:una |la )?alarma|despiertame)\b|^alarma\b/;
+
 const DIAS = ['lunes', 'martes', 'miercoles', 'jueves', 'viernes', 'sabado', 'domingo'];
 const MESES = [
   'enero',
@@ -206,13 +224,25 @@ export type ContextoLocal = {
   eventos: readonly Evento[];
 };
 
-export function interpretarLocal(frase: string, { ahora, perfil, eventos }: ContextoLocal): Propuesta | null {
+// Solo lo que se apunta (cita, tarea o recordatorio): las alarmas no.
+export function interpretarLocal(frase: string, contexto: ContextoLocal): Propuesta | null {
+  const leido = entenderLocal(frase, contexto);
+  return leido?.accion === 'apuntar' ? leido.propuesta : null;
+}
+
+export function entenderLocal(frase: string, { ahora, perfil, eventos }: ContextoLocal): Interpretacion | null {
   const original = frase.normalize('NFC').replace(/\s+/g, ' ').trim().slice(0, 300);
   if (!original) return null;
   const t = normalizar(original);
   const hoy = claveDia(ahora);
   const quitar: Tramo[] = [];
   const marcar = (m: RegExpExecArray, desde = 0) => quitar.push([m.index + desde, m.index + m[0].length]);
+
+  // --- Qué pide: una alarma, un recordatorio o apuntarlo ---
+  const esAlarma = RE_ALARMA.test(t);
+  const esRecordatorio = !esAlarma && RE_RECORDATORIO.test(t);
+  const rePedir = new RegExp(RE_PEDIR.source, 'g');
+  for (let m = rePedir.exec(t); m; m = rePedir.exec(t)) marcar(m);
 
   // --- Qué es ---
   const actividad = ACTIVIDADES.find((a) => a.re.test(t)) ?? null;
@@ -278,6 +308,8 @@ export function interpretarLocal(frase: string, { ahora, perfil, eventos }: Cont
   }
 
   // --- Hora: "de 5 a 7", "a las 8", "17:30" ---
+  // Una alarma "a las 7" es de la mañana, salvo que diga otra franja.
+  const franjaHora = franja ?? (esAlarma ? 'manana' : null);
   let inicio: number | null = null;
   let fin: number | null = null;
   const reRango = new RegExp(`\\b(?:de|desde las?) ${RE_HORA} (?:a|hasta) (?:las? )?${RE_HORA}\\b`).exec(t);
@@ -286,22 +318,32 @@ export function interpretarLocal(frase: string, { ahora, perfil, eventos }: Cont
   if (reRango) {
     const [h1, m1] = leerHora(reRango, 1);
     const [h2, m2] = leerHora(reRango, 5);
-    const a = horaDel(h1, franja, actividad);
-    let b = horaDel(h2, franja, actividad);
+    const a = horaDel(h1, franjaHora, actividad);
+    let b = horaDel(h2, franjaHora, actividad);
     if (b < a && b < 12) b += 12;
     inicio = a * 60 + m1;
     fin = b * 60 + m2;
     marcar(reRango);
   } else if (reALas) {
     const [h, m] = leerHora(reALas, 1);
-    inicio = horaDel(h, franja, actividad) * 60 + m;
+    inicio = horaDel(h, franjaHora, actividad) * 60 + m;
     marcar(reALas);
   } else if (reSuelta) {
-    inicio = horaDel(Number(reSuelta[1]), franja, actividad) * 60 + Number(reSuelta[2]);
+    inicio = horaDel(Number(reSuelta[1]), franjaHora, actividad) * 60 + Number(reSuelta[2]);
     marcar(reSuelta);
   }
   if (inicio !== null && (inicio < 0 || inicio > 23 * 60 + 59)) inicio = null;
   const horaDicha = inicio !== null;
+
+  if (esAlarma) {
+    if (inicio === null) return null;
+    let fechaAlarma = fechaDicha ?? hoy;
+    if (fechaAlarma === hoy && inicio <= minutosDelDia(ahora)) fechaAlarma = sumarDias(hoy, 1);
+    return {
+      accion: 'alarma',
+      alarma: { fecha: fechaAlarma, hora: horaDesdeMinutos(inicio), etiqueta: '', confianza: 'alta' },
+    };
+  }
 
   // --- Duración dicha: "2 horas", "hora y media", "media hora", "45 minutos" ---
   let duracion: number | null = null;
@@ -355,7 +397,8 @@ export function interpretarLocal(frase: string, { ahora, perfil, eventos }: Cont
 
   let fecha = fechaDicha ?? hoy;
   let opcionesHora: string[] | undefined;
-  const franjaFinal = franja ?? (inicio === null ? (actividad?.franja ?? null) : null);
+  // Un recordatorio solo usa la franja que se dice ("recuérdame pagar la cena" no es de noche).
+  const franjaFinal = franja ?? (inicio === null && !esRecordatorio ? (actividad?.franja ?? null) : null);
 
   if (inicio === null && franjaFinal) {
     // Solo la franja: la primera hora libre (y que no haya pasado) de las de esa franja.
@@ -374,39 +417,54 @@ export function interpretarLocal(frase: string, { ahora, perfil, eventos }: Cont
   // Si ha visto un día, una hora o una franja, va sin dudas; si solo lo supone por la
   // actividad ("cena con Ana"), que lo revise.
   const confianza = fechaDicha !== null || horaDicha || franjaDicha ? 'alta' : 'media';
+  const estimada = DURACIONES.reduce((mejor, d) => (Math.abs(d - minutos) < Math.abs(mejor - minutos) ? d : mejor), 30);
+  const tarea = {
+    titulo,
+    fecha,
+    horaInicio: null,
+    horaFin: null,
+    tipo,
+    lugar,
+    flexible: true,
+    duracionMin: estimada,
+    avisarA: null,
+    avisoMin: null,
+  };
+
+  if (esRecordatorio) {
+    // Una tarea de ese día que avisa a la hora dicha (o a la de levantarse).
+    const avisarA = horaDelRecordatorio(inicio === null ? null : horaDesdeMinutos(inicio), fecha, {
+      hoy,
+      sitiosIds: [],
+      ahora: horaDesdeMinutos(minutosDelDia(ahora)),
+      horaAviso: perfil?.horario.levantarse,
+    });
+    return { accion: 'apuntar', propuesta: { ...tarea, avisarA, confianza } };
+  }
 
   if (inicio === null) {
     // Sin hora ni franja: algo por hacer ese día, sin hora fija.
-    const estimada = DURACIONES.reduce(
-      (mejor, d) => (Math.abs(d - minutos) < Math.abs(mejor - minutos) ? d : mejor),
-      30,
-    );
-    return {
-      titulo,
-      fecha,
-      horaInicio: null,
-      horaFin: null,
-      tipo,
-      lugar,
-      flexible: true,
-      duracionMin: estimada,
-      confianza: fechaDicha ? 'alta' : 'media',
-    };
+    return { accion: 'apuntar', propuesta: { ...tarea, confianza: fechaDicha ? 'alta' : 'media' } };
   }
 
   const finFinal = Math.min(fin !== null && fin > inicio ? fin : inicio + minutos, 23 * 60 + 59);
   if (finFinal <= inicio) return null;
   return {
-    titulo,
-    fecha,
-    horaInicio: horaDesdeMinutos(inicio),
-    horaFin: horaDesdeMinutos(finFinal),
-    tipo,
-    lugar,
-    flexible: false,
-    duracionMin: null,
-    confianza,
-    ...(opcionesHora && opcionesHora.length > 1 ? { opcionesHora } : {}),
+    accion: 'apuntar',
+    propuesta: {
+      titulo,
+      fecha,
+      horaInicio: horaDesdeMinutos(inicio),
+      horaFin: horaDesdeMinutos(finFinal),
+      tipo,
+      lugar,
+      flexible: false,
+      duracionMin: null,
+      avisarA: null,
+      avisoMin: null,
+      confianza,
+      ...(opcionesHora && opcionesHora.length > 1 ? { opcionesHora } : {}),
+    },
   };
 }
 
@@ -433,6 +491,7 @@ function limpiarTitulo(original: string, quitar: Tramo[]): string {
   const arreglado = palabras
     .map((p) => {
       const limpio = normalizar(p).replace(/[,.;:]/g, '');
+      if (SIGLAS.has(limpio)) return p.toLocaleUpperCase('es-ES');
       const tilde = CON_TILDE[limpio];
       return tilde && limpio === p.toLowerCase().replace(/[,.;:]/g, '') ? p.replace(/[^,.;:]+/, tilde) : p;
     })

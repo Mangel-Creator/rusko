@@ -21,15 +21,19 @@ import type { Propuesta } from '@/services/captura';
 import { horaDesdeMinutos, minutosDesdeHora } from '@/services/fechas';
 import { colores, espacio, radio } from '@/theme';
 
-import { OPCIONES_DURACION, OPCIONES_TIPO, rangoHoras } from '../calendario/textos';
+import { AvisarA } from '../calendario/AvisarA';
+import { OPCIONES_AVISO, OPCIONES_DURACION, OPCIONES_TIPO, rangoHoras } from '../calendario/textos';
 
 // Tarjeta "¿Lo guardo así?" con lo que ha entendido la app (o la IA). Si solo se dijo
 // la franja ("por la tarde"), ofrece sus horas a un toque. Todo se puede cambiar
 // antes de guardar; con "Cancelar" no se guarda nada. Lo menos habitual
 // (repetición, notas, aviso, otra dirección) está en "Más opciones", que abre
-// la ficha normal ya rellena.
+// la ficha normal ya rellena. Un recordatorio («recuérdame mañana a las 6 llamar a
+// mamá») es una tarea con "Avisarme ese día": la tarjeta pregunta "¿Te lo recuerdo así?".
+// Si en una cita se pidió el aviso ("avísame el día antes"), sale con cuánto antes.
 
 type Duracion = (typeof OPCIONES_DURACION)[number]['valor'];
+type Aviso = (typeof OPCIONES_AVISO)[number]['valor'];
 
 type Props = {
   propuesta: Propuesta;
@@ -64,6 +68,12 @@ export function TarjetaConfirmacion({ propuesta, perfil, alGuardar, alCancelar, 
     (OPCIONES_DURACION.find((o) => o.valor === String(propuesta.duracionMin))?.valor ?? '30') as Duracion,
   );
   const [lugar, setLugar] = useState(claveLugar(propuesta.lugar));
+  const [avisarA, setAvisarA] = useState(propuesta.avisarA);
+  const [aviso, setAviso] = useState<Aviso | null>(
+    propuesta.avisoMin === null
+      ? null
+      : (OPCIONES_AVISO.find((o) => o.valor === String(propuesta.avisoMin))?.valor ?? null),
+  );
   const [error, setError] = useState<string | null>(null);
   const [focoPisado, setFocoPisado] = useState<{ bloque: Evento; nuevo: Evento } | null>(null);
   const [guardando, setGuardando] = useState(false);
@@ -92,6 +102,8 @@ export function TarjetaConfirmacion({ propuesta, perfil, alGuardar, alCancelar, 
     horaFin: flexible ? null : horaFin,
     duracionMin: flexible ? Number(duracion) : null,
     lugar: lugarDesdeClave(lugar),
+    avisarA: flexible ? avisarA : null,
+    avisoMin: !flexible && aviso !== null ? Number(aviso) : null,
   });
 
   const guardar = async () => {
@@ -117,8 +129,10 @@ export function TarjetaConfirmacion({ propuesta, perfil, alGuardar, alCancelar, 
       duracionMin: flexible ? Number(duracion) : null,
       hecha: false,
       foco: false,
-      avisoMin: null, // la antelación del perfil
+      // La antelación pedida en la frase o, si no se dijo nada, la del perfil (null).
+      avisoMin: !flexible && aviso !== null ? Number(aviso) : null,
       ejemplo: false,
+      avisarA: flexible ? avisarA : null,
     };
     const bloque = bloqueDeFocoQuePisa(nuevo, eventos);
     if (bloque) {
@@ -136,7 +150,7 @@ export function TarjetaConfirmacion({ propuesta, perfil, alGuardar, alCancelar, 
 
   return (
     <Tarjeta style={estilos.tarjeta} accessibilityLiveRegion="polite">
-      <Titulo nivel={3}>¿Lo guardo así?</Titulo>
+      <Titulo nivel={3}>{flexible && avisarA ? '¿Te lo recuerdo así?' : '¿Lo guardo así?'}</Titulo>
       {propuesta.confianza === 'media' ? (
         <Texto pequeno secundario>
           No lo tengo del todo claro: échale un ojo antes de guardar.
@@ -166,7 +180,10 @@ export function TarjetaConfirmacion({ propuesta, perfil, alGuardar, alCancelar, 
         }}
       />
       {flexible ? (
-        <Selector etiqueta="Duración estimada" opciones={OPCIONES_DURACION} valor={duracion} alCambiar={setDuracion} />
+        <>
+          <AvisarA valor={avisarA} alCambiar={setAvisarA} />
+          <Selector etiqueta="Duración estimada" opciones={OPCIONES_DURACION} valor={duracion} alCambiar={setDuracion} />
+        </>
       ) : (
         <>
           {propuesta.opcionesHora ? (
@@ -189,6 +206,9 @@ export function TarjetaConfirmacion({ propuesta, perfil, alGuardar, alCancelar, 
               }}
             />
           </View>
+          {aviso !== null ? (
+            <Selector etiqueta="Aviso antes" opciones={OPCIONES_AVISO} valor={aviso} alCambiar={setAviso} />
+          ) : null}
         </>
       )}
       <Selector etiqueta="Lugar" opciones={opcionesLugar} valor={lugar} alCambiar={setLugar} />

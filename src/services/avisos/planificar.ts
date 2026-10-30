@@ -103,6 +103,7 @@ export function momento(dia: ClaveDia, minutos: number): Date {
 
 // 10 -> "En 10 min", 60 -> "En 1 hora", 90 -> "En 1 h 30 min"
 export function textoAntelacion(minutos: number): string {
+  if (minutos === 24 * 60) return 'Mañana';
   if (minutos === 60) return 'En 1 hora';
   if (minutos % 60 === 0) return `En ${minutos / 60} horas`;
   if (minutos > 60) return `En ${Math.floor(minutos / 60)} h ${minutos % 60} min`;
@@ -141,6 +142,26 @@ function avisosDeEventos({ eventos, perfil }: ContextoAvisos, dia: ClaveDia): Av
       },
     ];
   });
+}
+
+// --- Recordatorios: tareas con aviso a una hora (captura rápida, 30/10/2026) ---
+
+// "Llamar a mamá" / "Me pediste que te lo recordara." Solo el día de la tarea y si
+// sigue sin hacer. Lo pidió la persona, así que siempre está activo.
+export const CUERPO_RECORDATORIO = 'Me pediste que te lo recordara.';
+
+function avisosDeTareasConAviso({ eventos }: ContextoAvisos, dia: ClaveDia): AvisoPlanificado[] {
+  return eventos
+    .filter((e) => e.flexible && !e.hecha && e.avisarA && e.fecha === dia)
+    .map((tarea) => ({
+      id: `recordatorio:${tarea.id}:${dia}`,
+      tipo: 'recordatorio' as const,
+      dia,
+      cuando: momento(dia, minutosDesdeHora(tarea.avisarA!)),
+      titulo: tarea.titulo,
+      cuerpo: CUERPO_RECORDATORIO,
+      destino: { pantalla: 'evento' as const, id: tarea.id },
+    }));
 }
 
 // --- Resumen de la mañana ---
@@ -327,6 +348,7 @@ function avisoDormir({ alarmas, perfil, epoca }: ContextoAvisos, dia: ClaveDia):
 
 const GENERADORES: Generador[] = [
   { activo: (a) => a.eventos, generar: avisosDeEventos },
+  { activo: () => true, generar: avisosDeTareasConAviso },
   { activo: (a) => a.resumenManana, generar: avisoResumenManana },
   { activo: (a) => a.cierreDia, generar: avisoCierreDia },
   // Época dorada: cada aviso se apaga desde la sección de la época (Epoca.avisos).

@@ -16,6 +16,8 @@ export type BorradorFicha = {
   lugar?: LugarEvento | null;
   flexible?: boolean;
   duracionMin?: number | null;
+  avisarA?: string | null; // tarea con aviso a esa hora (recordatorio)
+  avisoMin?: number | null; // cita: antelación del aviso pedida; null = la del perfil
   mensaje?: string; // se enseña arriba de la ficha
 };
 

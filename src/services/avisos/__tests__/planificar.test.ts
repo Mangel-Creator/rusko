@@ -80,6 +80,29 @@ function planificar(eventos: Evento[], ajustes: Partial<AjustesAvisos> = {}, cua
 
 const hora = (d: Date) => `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`;
 
+describe('recordatorios (tareas con aviso a una hora)', () => {
+  it('avisa ese día a esa hora con el título de la tarea, y no si ya está hecha', () => {
+    const llamar = { ...tarea('Llamar a mamá'), id: 't1', avisarA: '18:00' };
+    const avisos = planificar([llamar, { ...tarea('Hecha'), avisarA: '19:00', hecha: true }], {
+      eventos: false,
+      resumenManana: false,
+      cierreDia: false,
+    });
+    expect(avisos).toHaveLength(1);
+    expect(avisos[0]).toMatchObject({
+      id: 'recordatorio:t1:2026-09-24',
+      tipo: 'recordatorio',
+      titulo: 'Llamar a mamá',
+      destino: { pantalla: 'evento', id: 't1' },
+    });
+    expect(hora(avisos[0].cuando)).toBe('18:00');
+  });
+
+  it('una antelación de un día se dice «Mañana»', () => {
+    expect(textoAntelacion(1440)).toBe('Mañana');
+  });
+});
+
 describe('aviso antes de cada evento', () => {
   it('usa la antelación del perfil y dice el lugar', () => {
     const reunion = evento({
