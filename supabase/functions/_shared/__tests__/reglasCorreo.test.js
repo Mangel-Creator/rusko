@@ -306,3 +306,31 @@ describe('búsqueda de Gmail', () => {
     expect(reglas.BUSQUEDA_GMAIL).toContain('-from:me');
   });
 });
+
+describe('notificacionDeEstudios', () => {
+  it('entran las de una asignatura o del Erasmus', () => {
+    const si = [
+      { asunto: '[Notificación de CAMPUS] TM_2208_P_2026: ejercicio 1', de: 'Campus <campus@umh.es>', cuerpo: '' },
+      { asunto: 'Nueva calificación publicada', de: 'Moodle <noreply@uni.es>', cuerpo: '' },
+      { asunto: 'Convocatoria Erasmus+ 2027/28', de: 'Relaciones Internacionales <ri@umh.es>', cuerpo: '' },
+      { asunto: 'Aviso', de: 'x@umh.es', cuerpo: 'Tienes pendiente firmar el Learning Agreement.' },
+      { asunto: 'Cambio de aula del examen', de: 'Secretaría <s@umh.es>', cuerpo: '' },
+    ];
+    for (const correo of si) expect(reglas.notificacionDeEstudios(correo)).toBe(true);
+  });
+
+  it('las demás no', () => {
+    const no = [
+      { asunto: 'Tu pedido ha sido enviado', de: 'Amazon <envios@amazon.es>', cuerpo: 'Llega el jueves.' },
+      { asunto: '¿Quieres mejorar el ambiente y las clases en la universidad?', de: 'Vicerrectorado de Cultura <c@umh.es>', cuerpo: '' },
+      { asunto: 'Nuevo inicio de sesión', de: 'Google <no-reply@accounts.google.com>', cuerpo: 'ID: ABC_12' },
+    ];
+    for (const correo of no) expect(reglas.notificacionDeEstudios(correo)).toBe(false);
+  });
+
+  it('las cuentas vinculadas miran también Notificaciones y Foros; el ayudante no', () => {
+    expect(reglas.BUSQUEDA_GMAIL_CUENTAS).not.toContain('category:updates');
+    expect(reglas.BUSQUEDA_GMAIL_CUENTAS).toContain('-category:promotions');
+    expect(reglas.BUSQUEDA_GMAIL).toContain('-category:updates');
+  });
+});

@@ -200,6 +200,23 @@ export function textoParaDia(dia: ClaveDia, hoy: ClaveDia, hora?: string | null)
   return `${dia < hoy ? 'Era' : 'Para'} el ${textoDiaCorto(dia)}${a}`;
 }
 
+// Filtro con IA (28/10/2026, lo pidió el usuario): reglas en palabras ("aunque sean
+// notificaciones, si son de mi carrera, que lleguen") que la IA aplica al revisar el
+// correo, en los dos sentidos: dejar pasar lo que hoy se queda fuera o quitar lo que entra.
+// El servidor guarda las mismas.
+export const MAX_FILTRO = 10;
+export const MAX_LARGO_FILTRO = 200;
+
+// Pone o quita una regla. null si está vacía, es demasiado larga, ya está o no caben más.
+export function cambiarFiltro(filtro: string[], regla: string, poner: boolean): string[] | null {
+  const limpia = regla.replace(/\s+/g, ' ').trim();
+  if (!poner) return filtro.filter((r) => r !== limpia);
+  if (!limpia || limpia.length > MAX_LARGO_FILTRO) return null;
+  if (filtro.some((r) => r.toLocaleLowerCase('es') === limpia.toLocaleLowerCase('es'))) return null;
+  if (filtro.length >= MAX_FILTRO) return null;
+  return [...filtro, limpia];
+}
+
 // Máximo de remitentes en "Avisarme siempre de…" (el servidor guarda 30).
 export const MAX_SIEMPRE = 30;
 

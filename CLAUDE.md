@@ -2115,6 +2115,23 @@ borran solos a los 7 días.
   (claves `VAPID_CLAVES`, como `avisos-web`; al tocarlos abren Correo). Hace falta tener los
   avisos activados en Perfil > Avisos. Antes solo iban por Expo y en la web no llegaba nada.
   El ayudante de Gmail (Apps Script) sigue avisando solo por Expo.
+- **Filtro con IA** (28/10/2026, lo pidió el usuario: «aunque sean notificaciones, si son de
+  mi carrera que sí lleguen»): en Correo, Plegable "Filtro con IA" (`screens/correo/FiltroIA.tsx`)
+  con reglas en lenguaje normal (hasta 10, de 200 letras; `organizy:correoFiltroIA`, viaja en la
+  copia; por defecto la de la carrera y el Erasmus, `FILTRO_INICIAL`). Valen en los dos sentidos:
+  dejar entrar lo que hoy no entra o quitar lo que entra. **Los vetados mandan siempre.** La
+  lista va con cada petición (`filtro`, junto a `siempre` y `vetados`) y el servidor la guarda en
+  `correo_cuentas.filtro` (migración `20261028010000_correo_filtro.sql`, aplicada). Las cuentas
+  vinculadas de Gmail buscan `BUSQUEDA_GMAIL_CUENTAS` (`in:inbox -category:promotions
+  -category:social -from:me`: también Notificaciones y Foros) y `revisarCuenta` decide qué entra
+  (`elegirMensajes`): sin reglas, solo lo de Principal; con reglas, **una llamada a Haiku por
+  vuelta** (`_shared/iaFiltroCorreo.ts`: remitente, asunto y 300 letras; contesta pasa/fuera/igual
+  por correo; las reglas son las únicas instrucciones, los correos son datos) y
+  `entraConFiltro` (`_shared/filtroCorreo.js`, con pruebas). Si la IA falla, Principal más
+  `notificacionDeEstudios` (códigos de asignatura o palabras de estudios, en `reglasCorreo.js`).
+  Lo que no entra se da por visto. Gasto apuntado como `correo-filtro` (`apuntarGasto`); tope
+  `CORREO_FILTRO_LIMITE_USUARIO` (400) y `_GLOBAL` (5000) al día; el dueño sin límite. El
+  ayudante de Gmail no usa el filtro.
 - **Correo por importancia** (27/10/2026, sesión "12 Correo" los datos y "08 Diseño" lo que se
   ve; ver "Decisiones del usuario" y "Diseño" > "Correo por recuadros"):
   - **Datos** (`data/correos.ts`): `CorreoResumido` lleva `fijado`, `oculto` (quitado de Rusko) y

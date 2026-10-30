@@ -147,3 +147,15 @@ describe('cifrado', () => {
     await expect(descifrar(a, Buffer.alloc(32, 8).toString('base64'))).rejects.toThrow();
   });
 });
+
+describe('notificaciones de Gmail', () => {
+  const mensaje = (labelIds) =>
+    mensajeDeGmail({ id: 'n', threadId: 't', internalDate: '0', labelIds, payload: { headers: [] } }, 'yo@gmail.com');
+
+  it('Notificaciones y Foros son notificación; Promociones y Principal, no', () => {
+    expect(mensaje(['INBOX', 'CATEGORY_UPDATES'])).toMatchObject({ principal: false, notificacion: true });
+    expect(mensaje(['INBOX', 'CATEGORY_FORUMS'])).toMatchObject({ principal: false, notificacion: true });
+    expect(mensaje(['INBOX', 'CATEGORY_PROMOTIONS'])).toMatchObject({ principal: false, notificacion: false });
+    expect(mensaje(['INBOX'])).toMatchObject({ principal: true, notificacion: false });
+  });
+});

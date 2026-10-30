@@ -58,6 +58,22 @@ var CITA_DEBIL = /\bel dia\b/g;
 // devuelve nada (visto el 28/10/2026 con una cuenta de la UMH).
 export const BUSQUEDA_GMAIL =
   'in:inbox -category:promotions -category:social -category:updates -category:forums -from:me';
+// Las cuentas vinculadas (28/10/2026, lo pidió el usuario) miran también Notificaciones y
+// Foros, pero de ahí solo entra lo de estudios (`notificacionDeEstudios`). El ayudante de
+// Gmail sigue con BUSQUEDA_GMAIL.
+export const BUSQUEDA_GMAIL_CUENTAS = 'in:inbox -category:promotions -category:social -from:me';
+
+// Código de una asignatura en el campus virtual: "TM_2208_P_2026", "TC_2206".
+var CODIGO_ASIGNATURA = /\b[A-Z]{2,5}_\d{3,5}(_[A-Z0-9]{1,6})*\b/;
+var PALABRAS_ESTUDIOS =
+  /\b(erasmus|asignaturas?|campus virtual|aula virtual|moodle|guia docente|examen(es)?|tutorias?|calificacion(es)?|practicas? (n|no|numero|de laboratorio)|learning agreement|acuerdo de aprendizaje|movilidad (internacional|de estudiantes|erasmus)|mobility.online)\b/;
+
+// ¿Una notificación (Notificaciones o Foros de Gmail) va de una asignatura o del Erasmus?
+// Las demás notificaciones no entran en Rusko.
+export function notificacionDeEstudios(correo) {
+  var texto = [correo.asunto, correo.de, String(correo.cuerpo || '').slice(0, 2000)].join('\n');
+  return CODIGO_ASIGNATURA.test(texto) || PALABRAS_ESTUDIOS.test(normalizar(texto));
+}
 
 // Direcciones vetadas que se guardan como mucho.
 export const MAX_VETADOS = 100;

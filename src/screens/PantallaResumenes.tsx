@@ -23,6 +23,7 @@ import { ChipCuentas } from './correo/ChipCuentas';
 import { CuentasCorreo } from './correo/CuentasCorreo';
 import { FilaCorreo } from './correo/FilaCorreo';
 import { porImportancia } from './correo/RecuadroCorreo';
+import { FiltroIA } from './correo/FiltroIA';
 import { VetadosCorreo } from './correo/VetadosCorreo';
 import { VincularAyudante, VincularCorreo } from './correo/VincularCorreo';
 
@@ -228,6 +229,7 @@ export function PantallaResumenes() {
             </View>
           ) : null}
 
+          <FiltroIA />
           <VetadosCorreo />
 
         </>

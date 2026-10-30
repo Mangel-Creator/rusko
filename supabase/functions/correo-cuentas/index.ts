@@ -6,9 +6,10 @@
 //   - GET ?code=&state= : vuelta del inicio de sesión. Canjea el código por la llave
 //     (refresh token), la guarda CIFRADA, recoge el último día sin avisar y vuelve a la
 //     app con ?correo=ok (o cancelado / error).
-//   - POST { accion: 'estado', tokenPush?, siempre?, vetados? } (con sesión): cuentas
+//   - POST { accion: 'estado', tokenPush?, siempre?, vetados?, filtro? } (con sesión): cuentas
 //     vinculadas y correos de los últimos 7 días (sin los de direcciones vetadas). Apunta
-//     el móvil para los avisos y guarda las listas de "Avisarme siempre de…" y de vetados.
+//     el móvil para los avisos y guarda las listas de "Avisarme siempre de…", de vetados y
+//     las reglas del filtro con IA.
 //   - POST { accion: 'quitar', id } (con sesión): desvincula y borra todo lo de la cuenta.
 //   - POST { accion: 'revisar' } con la cabecera x-organizy-cron: lo lanza pg_cron cada
 //     5 minutos (supabase/migrations/20260927000000_correo_cuentas.sql). Mira los correos
@@ -23,6 +24,8 @@
 import { respuestaJson, respuestaPrevia } from '../_shared/cors.ts';
 import { cifrar, descifrar } from '../_shared/cifrado.ts';
 import { analizarConClaude, iaDisponible } from '../_shared/iaCorreo.ts';
+import { entraConFiltro, leerFiltro } from '../_shared/filtroCorreo.js';
+import { decidirFiltro } from '../_shared/iaFiltroCorreo.ts';
 import { numeroDeEntorno, sumarUso } from '../_shared/limite.ts';
 import { esDueno, SIN_LIMITE } from '../_shared/limiteIA.ts';
 import { enviarPush, type ClavesVapid } from '../_shared/webPush.ts';
@@ -41,13 +44,14 @@ import {
 import {
   analizarCorreo,
   avisosDeCorreos,
-  BUSQUEDA_GMAIL,
+  BUSQUEDA_GMAIL_CUENTAS,
   diaDe,
   direccionRemitente,
   leerSiempre,
   leerVetados,
   limpiarCuerpo,
   nombreRemitente,
+  notificacionDeEstudios,
   resultadoDeIA,
   siempreAvisar,
   vetado,
@@ -65,6 +69,9 @@ const CLIENTES: Record<Proveedor, { id: string; secreto: string }> = {
 const LIMITE_IA_USUARIO = numeroDeEntorno('CORREO_LIMITE_USUARIO', 100);
 const LIMITE_IA_GLOBAL = numeroDeEntorno('CORREO_LIMITE_GLOBAL', 3000);
 const MAX_POR_VUELTA = 25;
+// Tandas al día con el filtro con IA por persona (una por revisión con correos nuevos).
+const LIMITE_FILTRO_USUARIO = numeroDeEntorno('CORREO_FILTRO_LIMITE_USUARIO', 400);
+const LIMITE_FILTRO_GLOBAL = numeroDeEntorno('CORREO_FILTRO_LIMITE_GLOBAL', 5000);
 const MAX_TOKENS_PUSH = 5;
 
 const configurado = (p: Proveedor) => !!(CLIENTES[p].id && CLIENTES[p].secreto && CLAVE_CIFRADO);
@@ -81,6 +88,7 @@ type Cuenta = {
   vistos: string[];
   siempre_avisar: string[]; // "Avisarme siempre de…" (nombres, direcciones o dominios)
   vetados: string[]; // direcciones vetadas: sus correos no salen nada en Rusko
+  filtro: string[]; // reglas del filtro con IA, en palabras de la persona
 };
 
 class LlaveCaducada extends Error {}
@@ -123,13 +131,15 @@ async function resumenCorto(texto: string): Promise<string> {
   return [...new Uint8Array(hash)].slice(0, 16).map((b) => b.toString(16).padStart(2, '0')).join('');
 }
 
-// Los mensajes nuevos de la bandeja de entrada desde "desde", sin los ya vistos.
+// Los mensajes nuevos de la bandeja de entrada desde "desde", sin los ya vistos ni los
+// propios. También los que hoy se quedan fuera (Notificaciones y Foros de Gmail, "Otros"
+// de Outlook): qué entra lo decide elegirMensajes.
 async function mensajesNuevos(cuenta: Cuenta, acceso: string, desde: Date): Promise<MensajeLeido[]> {
   const vistos = new Set(cuenta.vistos);
   const yo = cuenta.email.toLowerCase();
   let mensajes: MensajeLeido[] = [];
   if (cuenta.proveedor === 'gmail') {
-    const q = `${BUSQUEDA_GMAIL} after:${Math.floor(desde.getTime() / 1000)}`;
+    const q = `${BUSQUEDA_GMAIL_CUENTAS} after:${Math.floor(desde.getTime() / 1000)}`;
     const lista = await pedir(
       `https://gmail.googleapis.com/gmail/v1/users/me/messages?q=${encodeURIComponent(q)}&maxResults=${MAX_POR_VUELTA}`,
       acceso,
@@ -152,8 +162,37 @@ async function mensajesNuevos(cuenta: Cuenta, acceso: string, desde: Date): Prom
       if (!vistos.has(id)) mensajes.push(mensajeDeOutlook(msg, id));
     }
   }
-  mensajes = mensajes.filter((m) => m.principal && m.recibido >= desde && !m.de.toLowerCase().includes(yo));
+  mensajes = mensajes.filter((m) => m.recibido >= desde && !m.de.toLowerCase().includes(yo));
   return mensajes.sort((a, b) => a.recibido.getTime() - b.recibido.getTime());
+}
+
+// Qué mensajes entran en Rusko. Sin reglas, lo de siempre: Principal (Prioritarios en
+// Outlook). Con reglas del filtro con IA, una llamada a Claude por tanda decide en los dos
+// sentidos. Si la IA no está (sin clave, límite o fallo), entra Principal y, de lo demás,
+// solo lo de estudios (`notificacionDeEstudios`, la regla fija de antes del filtro). Los
+// vetados ya vienen quitados.
+async function elegirMensajes(cuenta: Cuenta, mensajes: MensajeLeido[]): Promise<MensajeLeido[]> {
+  const reglas = cuenta.filtro ?? [];
+  if (!reglas.length || !mensajes.length) return mensajes.filter((m) => m.principal);
+  let decisiones: Record<number, 'pasa' | 'fuera'> | null = null;
+  if (iaDisponible) {
+    const limite = (await esDueno(cuenta.usuario)) ? SIN_LIMITE : LIMITE_FILTRO_USUARIO;
+    const uso = await sumarUso(cuenta.usuario, 'correo-filtro', limite, LIMITE_FILTRO_GLOBAL).catch(() => null);
+    if (uso?.permitido) {
+      decisiones = await decidirFiltro(
+        reglas,
+        mensajes.map((m) => ({
+          de: m.de.slice(0, 160),
+          asunto: m.asunto.slice(0, 200),
+          fragmento: limpiarCuerpo(m.cuerpo).slice(0, 300),
+          entra: m.principal,
+        })),
+      );
+    }
+  }
+  if (!decisiones) return mensajes.filter((m) => m.principal || notificacionDeEstudios(m));
+  const elegidas = decisiones;
+  return mensajes.filter((m, n) => entraConFiltro(m.principal, elegidas[n]));
 }
 
 // --- Analizar y guardar ---
@@ -296,9 +335,11 @@ async function mandarAvisos(cuenta: Cuenta, avisos: { titulo: string; cuerpo: st
 async function revisarCuenta(cuenta: Cuenta, acceso: string, desde: Date, avisar: boolean): Promise<number> {
   const inicio = new Date();
   const nuevos = await mensajesNuevos(cuenta, acceso, desde);
+  // Los de direcciones vetadas y los que el filtro deja fuera se dan por vistos, sin
+  // guardarlos ni avisar (así no se vuelven a pedir en cada vuelta).
+  const entran = await elegirMensajes(cuenta, nuevos.filter((m) => !vetado(m.de, cuenta.vetados ?? [])));
   const resumenes: Resumen[] = [];
-  // Los de direcciones vetadas se dan por vistos, sin guardarlos ni avisar.
-  for (const m of nuevos) if (!vetado(m.de, cuenta.vetados ?? [])) resumenes.push(await analizar(cuenta, m));
+  for (const m of entran) resumenes.push(await analizar(cuenta, m));
   const db = clienteAdmin();
   if (resumenes.length) {
     await db.from('correo_resumenes').upsert(
@@ -324,7 +365,10 @@ async function revisarCuenta(cuenta: Cuenta, acceso: string, desde: Date, avisar
   }
   await db
     .from('correo_cuentas')
-    .update({ vistos: [...cuenta.vistos, ...nuevos.map((m) => m.id)].slice(-150), ultima_revision: inicio.toISOString() })
+    .update({
+      vistos: [...cuenta.vistos, ...nuevos.map((m) => m.id)].slice(-150),
+      ultima_revision: inicio.toISOString(),
+    })
     .eq('id', cuenta.id);
   if (avisar && resumenes.length) await mandarAvisos(cuenta, avisosDeCorreos(resumenes, new Date()));
   return resumenes.length;
@@ -450,7 +494,7 @@ async function vuelta(req: Request): Promise<Response> {
 
 const tokenPushValido = (t: unknown): t is string => typeof t === 'string' && /^Expo(nent)?PushToken\[.+\]$/.test(t) && t.length < 200;
 
-async function estadoDelUsuario(usuario: string, tokenPush: unknown, siempre: unknown, vetadosApp: unknown) {
+async function estadoDelUsuario(usuario: string, tokenPush: unknown, siempre: unknown, vetadosApp: unknown, filtroApp: unknown) {
   const db = clienteAdmin();
   const { data } = await db
     .from('correo_cuentas')
@@ -464,6 +508,9 @@ async function estadoDelUsuario(usuario: string, tokenPush: unknown, siempre: un
   // Las direcciones vetadas, igual. Lo ya guardado de ellas no se devuelve.
   const vetados = leerVetados(vetadosApp);
   if (vetados && cuentas.length) await db.from('correo_cuentas').update({ vetados }).eq('usuario', usuario);
+  // Y las reglas del filtro con IA.
+  const filtro = leerFiltro(filtroApp);
+  if (filtro && cuentas.length) await db.from('correo_cuentas').update({ filtro }).eq('usuario', usuario);
   const fuera = new Set(vetados ?? []);
   if (tokenPushValido(tokenPush)) {
     for (const c of cuentas) {
@@ -536,7 +583,7 @@ Deno.serve(async (req) => {
   if (!usuario) return respuestaJson(req, { error: 'sin-sesion' }, 401);
 
   try {
-    if (datos.accion === 'estado') return respuestaJson(req, await estadoDelUsuario(usuario, datos.tokenPush, datos.siempre, datos.vetados));
+    if (datos.accion === 'estado') return respuestaJson(req, await estadoDelUsuario(usuario, datos.tokenPush, datos.siempre, datos.vetados, datos.filtro));
 
     if (datos.accion === 'empezar') {
       const proveedor = datos.proveedor as Proveedor;

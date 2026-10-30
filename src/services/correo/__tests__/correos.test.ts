@@ -5,6 +5,8 @@ import type { Perfil } from '@/data/perfil';
 import { avisosDePlazos, avisosDeRecordatorios } from '@/services/avisos/correos';
 
 import {
+  cambiarFiltro,
+  MAX_FILTRO,
   asuntoCorto,
   avisaSiempre,
   bandejasCorreo,
@@ -365,5 +367,20 @@ describe('fijados, quitados y recordatorios', () => {
     expect(correosSinTarea([oculto], '2026-10-27')).toEqual([]);
     const b = bandejasCorreo([oculto, local({ id: 'y' })], '2026-10-27', (iso) => iso.slice(0, 10));
     expect(JSON.stringify(b)).not.toContain('"id":"x"');
+  });
+});
+
+describe('filtro con IA', () => {
+  it('añade reglas limpias y sin repetir', () => {
+    expect(cambiarFiltro([], '  Lo de   la carrera, que llegue ', true)).toEqual(['Lo de la carrera, que llegue']);
+    expect(cambiarFiltro(['Lo de la carrera'], 'lo de la CARRERA', true)).toBeNull();
+    expect(cambiarFiltro([], '   ', true)).toBeNull();
+    expect(cambiarFiltro([], 'x'.repeat(201), true)).toBeNull();
+  });
+
+  it('no pasa del máximo y quita la que se pide', () => {
+    const llenas = Array.from({ length: MAX_FILTRO }, (_, i) => `regla ${i}`);
+    expect(cambiarFiltro(llenas, 'otra', true)).toBeNull();
+    expect(cambiarFiltro(['a', 'b'], 'a', false)).toEqual(['b']);
   });
 });

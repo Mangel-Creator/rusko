@@ -14,8 +14,8 @@ import { guardarAjuste, leerAjuste } from './ajustes';
 //
 //   - En pantallas: const { cargado, conexion, cuentas, proveedores, correos } = useCorreos();
 //   - Fuera de pantallas: await leerCorreos(); suscribirseCorreos(...)
-//   - Para cambiar: guardarConexion, guardarCuentas, guardarCorreos, guardarSiempre y
-//     guardarVetados (services/correo hace el resto: quitarCorreo, fijarCorreo,
+//   - Para cambiar: guardarConexion, guardarCuentas, guardarCorreos, guardarSiempre,
+//     guardarVetados y guardarFiltro (services/correo hace el resto: quitarCorreo, fijarCorreo,
 //     recordarCorreo…).
 
 export type ProveedorCorreo = 'gmail' | 'outlook';
@@ -85,6 +85,7 @@ type Estado = {
   correos: CorreoResumido[];
   siempre: string[]; // "Avisarme siempre de…": remitentes tal como salen en la lista
   vetados: string[]; // direcciones vetadas: sus correos no salen nada en Rusko
+  filtro: string[]; // reglas del filtro con IA, en palabras de la persona
 };
 
 const CLAVE_CONEXION = 'correo';
@@ -92,13 +93,21 @@ const CLAVE_CORREOS = 'correos';
 const CLAVE_CUENTAS = 'cuentasCorreo';
 const CLAVE_SIEMPRE = 'correoSiempre';
 const CLAVE_VETADOS = 'correoVetados';
+const CLAVE_FILTRO = 'correoFiltroIA';
+
+// La primera regla del filtro con IA (28/10/2026): lo que antes hacía una regla fija del
+// servidor (de las notificaciones solo entran las de la carrera y el Erasmus). Sale si la
+// persona aún no ha tocado el filtro; la puede cambiar o quitar.
+export const FILTRO_INICIAL = [
+  'Aunque sean notificaciones, si son de mi carrera (asignaturas, campus virtual, exámenes, notas) o del Erasmus, que lleguen',
+];
 
 // Los guardados antes del 27/10/2026 no traen fijado, oculto ni recordatorio.
 function completarCorreo(c: CorreoResumido): CorreoResumido {
   return { ...c, fijado: c.fijado === true, oculto: c.oculto === true, recordatorio: c.recordatorio ?? null };
 }
 
-let estado: Estado = { cargado: false, conexion: null, cuentas: [], proveedores: null, correos: [], siempre: [], vetados: [] };
+let estado: Estado = { cargado: false, conexion: null, cuentas: [], proveedores: null, correos: [], siempre: [], vetados: [], filtro: [] };
 let cargando: Promise<void> | null = null;
 const oyentes = new Set<() => void>();
 
@@ -115,13 +124,15 @@ export function cargarCorreos(): Promise<void> {
       leerAjuste<CuentaCorreo[]>(CLAVE_CUENTAS, []),
       leerAjuste<string[]>(CLAVE_SIEMPRE, []),
       leerAjuste<string[]>(CLAVE_VETADOS, []),
-    ]).then(([conexion, correos, cuentas, siempre, vetados]) =>
+      leerAjuste<string[]>(CLAVE_FILTRO, FILTRO_INICIAL),
+    ]).then(([conexion, correos, cuentas, siempre, vetados, filtro]) =>
       cambiar({
         conexion,
         correos: Array.isArray(correos) ? correos.map(completarCorreo) : [],
         cuentas: Array.isArray(cuentas) ? cuentas : [],
         siempre: Array.isArray(siempre) ? siempre.filter((s) => typeof s === 'string') : [],
         vetados: Array.isArray(vetados) ? vetados.filter((s) => typeof s === 'string') : [],
+        filtro: Array.isArray(filtro) ? filtro.filter((s) => typeof s === 'string') : [],
       }),
     );
   }
@@ -162,6 +173,12 @@ export async function guardarVetados(vetados: string[]): Promise<void> {
   await cargarCorreos();
   cambiar({ vetados });
   await guardarAjuste(CLAVE_VETADOS, vetados);
+}
+
+export async function guardarFiltro(filtro: string[]): Promise<void> {
+  await cargarCorreos();
+  cambiar({ filtro });
+  await guardarAjuste(CLAVE_FILTRO, filtro);
 }
 
 function suscribirse(avisar: () => void) {

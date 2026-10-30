@@ -49,10 +49,11 @@ const esCuenta = (c: unknown): c is CuentaCorreo => {
 export type EstadoServidor = { proveedores: ProveedoresCorreo; cuentas: CuentaCorreo[]; correos: CorreoRemoto[] };
 
 // Cuentas vinculadas y correos de los últimos 7 días. De paso apunta este móvil
-// para los avisos (tokenPush) y las listas de "Avisarme siempre de…" y de vetados.
+// para los avisos (tokenPush) y las listas de "Avisarme siempre de…", de vetados y el
+// filtro con IA.
 export async function estadoEnServidor(
   tokenPush: string | null,
-  listas: { siempre: string[]; vetados: string[] },
+  listas: { siempre: string[]; vetados: string[]; filtro: string[] },
 ): Promise<Resultado<EstadoServidor>> {
   const r = await pedir<{ proveedores?: Partial<ProveedoresCorreo>; cuentas?: unknown[]; correos?: unknown[] }>({
     accion: 'estado',

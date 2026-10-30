@@ -6,6 +6,7 @@ import {
   guardarConexion,
   guardarCorreos,
   guardarCuentas,
+  guardarFiltro,
   guardarSiempre,
   guardarVetados,
   leerCorreos,
@@ -20,6 +21,7 @@ import { claveDia } from '@/services/fechas';
 import { escucharPush, tokenDeAvisos } from '@/services/planes/push';
 
 import {
+  cambiarFiltro,
   cambiarSiempre,
   cambiarVetados,
   correosSinTarea,
@@ -51,9 +53,14 @@ type Respuesta =
   | { ok: true; correos: ReturnType<typeof validarRemoto>[]; ultimaRevision: string | null }
   | { ok: false; motivo: 'sin-conexion' | 'no-responde' };
 
-// "Avisarme siempre de…" y los vetados: se mandan con cada petición, al ayudante y al
-// servidor, que los guardan para la revisión siguiente.
-const listas = ({ siempre, vetados }: { siempre: string[]; vetados: string[] }) => ({ siempre, vetados });
+// "Avisarme siempre de…", los vetados y el filtro con IA: se mandan con cada petición, al
+// ayudante y al servidor, que los guardan para la revisión siguiente (el filtro solo lo
+// aplica el servidor, en las cuentas vinculadas).
+const listas = ({ siempre, vetados, filtro }: { siempre: string[]; vetados: string[]; filtro: string[] }) => ({
+  siempre,
+  vetados,
+  filtro,
+});
 
 async function pedirAlAyudante(enlace: string): Promise<Respuesta> {
   const token = await tokenDeAvisos().catch(() => null);
@@ -309,6 +316,16 @@ export async function quitarVeto(direccion: string): Promise<void> {
   const nuevos = cambiarVetados(vetados, direccion, false) ?? vetados.filter((v) => v !== direccion);
   await guardarVetados(nuevos);
   await actualizarCorreos({ servidor: cuentas.length > 0 }).catch(() => {});
+}
+
+// Filtro con IA: pone o quita una regla y se la manda al servidor. false si no vale.
+export async function cambiarReglaFiltro(regla: string, poner: boolean): Promise<boolean> {
+  const { filtro, cuentas } = await leerCorreos();
+  const nuevo = cambiarFiltro(filtro, regla, poner);
+  if (!nuevo) return false;
+  await guardarFiltro(nuevo);
+  await actualizarCorreos({ servidor: cuentas.length > 0 }).catch(() => {});
+  return true;
 }
 
 // Se llama una vez al arrancar la app: trae los correos al abrirla, al volver a ella

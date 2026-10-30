@@ -16,6 +16,7 @@ export type MensajeLeido = {
   cuerpo: string; // texto plano
   enlace: string; // abre el correo en Gmail u Outlook
   principal: boolean; // en "Principal" (Gmail) o "Prioritarios" (Outlook)
+  notificacion: boolean; // en Notificaciones o Foros (Gmail): solo entra si es de estudios
   automatico: boolean; // las cabeceras dicen que es un envío masivo (List-Unsubscribe...)
 };
 
@@ -131,6 +132,9 @@ export function mensajeDeGmail(
     cuerpo: (plano ?? (html ? textoDeHtml(html) : '')).slice(0, 20000),
     enlace: `https://mail.google.com/mail/?authuser=${encodeURIComponent(email)}#all/${msg.threadId}`,
     principal: !etiquetas.some((e) => /^CATEGORY_(PROMOTIONS|SOCIAL|UPDATES|FORUMS)$/.test(e)),
+    notificacion:
+      etiquetas.some((e) => /^CATEGORY_(UPDATES|FORUMS)$/.test(e)) &&
+      !etiquetas.some((e) => /^CATEGORY_(PROMOTIONS|SOCIAL)$/.test(e)),
     automatico: cabecerasAutomaticas(cabecera),
   };
 }
@@ -161,6 +165,7 @@ export function mensajeDeOutlook(
     cuerpo: (msg.body?.contentType === 'html' ? textoDeHtml(contenido) : contenido).slice(0, 20000),
     enlace: msg.webLink?.startsWith('https://') ? msg.webLink : '',
     principal: msg.inferenceClassification !== 'other',
+    notificacion: false,
     automatico: false, // Graph no da las cabeceras sin pedirlas: lo miran las reglas
   };
 }
