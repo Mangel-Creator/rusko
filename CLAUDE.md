@@ -91,10 +91,19 @@ sesión que fuera**:
   prepago, sin recarga automática, clave sin caducidad) y la guardó en Supabase como
   **`CLAVE_ANTRHOPIC`** (con esa errata): las funciones aceptan ese nombre y
   `ANTHROPIC_API_KEY` (`_shared/claveAnthropic.ts`). Probado ese día contra el servidor:
-  captura, correo y Época dorada contestan con IA y "Tu IA" apunta el gasto. **La captura
-  se queda como está** (lo eligió el usuario): el móvil lee la frase y la IA solo entra si
-  no ve día, hora ni franja. Pendiente del usuario: bajar el tope de gasto mensual a 5 $
-  en la consola (Gasto > Límites).
+  captura, correo y Época dorada contestan con IA y "Tu IA" apunta el gasto. (La captura
+  se quedó ese día leyendo la frase en el móvil; **cambiado el 01/11/2026**: ver esa
+  fecha.) Pendiente del usuario: bajar el tope de gasto mensual a 5 $ en la consola
+  (Gasto > Límites).
+- 01/11/2026 — **La captura rápida (Hoy y los Atajos de Siri) siempre pasa por Haiku y
+  entiende más que citas** (lo pidió el usuario: "tengo cita del dni el sábado a las 12"
+  salía como "Tengo cita dni"). Ahora distingue **cita, tarea, recordatorio** ("ponme un
+  aviso para…", "recuérdame…": tarea con `avisarA`, aviso ese día a esa hora), **alarma**
+  ("despiértame a las 6": despertador de una vez) y **pregunta** ("¿tengo algo el finde?").
+  **Títulos limpios**: "Cita DNI", "Cena con Laura", "Llamar a mamá" (sin "tengo", "recuérdame"…;
+  siglas en mayúsculas). "Avísame el día antes" pone el aviso de la cita a 1440 min. Sin
+  conexión, sin clave o al llegar al límite, las reglas del móvil (`entenderLocal`) hacen lo
+  mismo. Ver "Fase 5" > "Qué entiende la captura".
 - 23/09/2026 — App para todo el mundo con los datos de cada usuario privados; web
   para los demás y app para el dueño (ver "Para quién y dónde funciona").
 - 24/09/2026 — Direcciones en la web con OpenStreetMap.
@@ -1333,6 +1342,28 @@ borran solos a los 7 días.
   Se escribe o se dicta con el micrófono del teclado. `accesorio` deja poner otro botón
   junto al de enviar (micrófono de la fase 9) y `enviarFraseACaptura(frase)` manda una
   frase desde fuera por el mismo camino.
+- **Qué entiende la captura** (01/11/2026; sustituye a "Primero, sin IA" de abajo en
+  cuándo se llama a la IA): `interpretarFrase(frase, perfil, eventos, ahora)` llama
+  **siempre** a la función `captura` (Haiku) y devuelve una `Interpretacion`
+  (`services/captura/validar.ts`): `apuntar` (propuesta de cita o tarea), `alarma`
+  (`PropuestaAlarma`) o `pregunta` (un día). Si la IA falla (sin conexión, sin clave,
+  límite o error; no si no entiende), usa `entenderLocal` (`local.ts`) con las mismas tres
+  salidas. La función devuelve `accion` (`evento`, `tarea`, `recordatorio`, `alarma`,
+  `pregunta`, `otra`) y `avisoAntesMin` (10, 30, 60, 120 o 1440); `validarInterpretacion`
+  lo comprueba.
+  - **Recordatorio** = tarea flexible con `Evento.avisarA` ("HH:MM"): la hora dicha o, si
+    no, la de levantarse (hoy y ya pasada: la siguiente hora en punto, `horaDelRecordatorio`).
+    Aviso tipo `recordatorio` (`avisosDeTareasConAviso`, siempre activo; también por Web
+    Push): "Me pediste que te lo recordara." En la ficha de tarea, "Avisarme ese día"
+    (`screens/calendario/AvisarA.tsx`); en Hoy, "· Te aviso a las HH:MM".
+  - **Alarma**: `TarjetaAlarma` ("¿Pongo la alarma así?") y `guardarAlarma` como
+    despertador de una vez (`unaVezEl`). En la web llega al Reloj del iPhone con el Atajo.
+  - **Pregunta**: la contesta `respuestaDelDia` como "¿qué tengo el miércoles?".
+  - **Horas**: "a las 6" de un recordatorio o una cita es por la tarde si toca; solo las
+    alarmas son por la mañana.
+  - **Siri**: `recogerSiri` pasa cada frase por `interpretarFrase` (con el "ahora" de cuando
+    se dijo) antes de `procesarPendientes`, que usa `entenderLocal` si la IA no pudo y no
+    apunta las preguntas.
 - **Primero, sin IA** (26/10/2026, lo pidió el usuario): `services/captura/local.ts`
   (`interpretarLocal`, con pruebas) entiende el día (hoy, mañana, pasado mañana, el jueves,
   el 5 de noviembre), la hora ("a las 8", "de 5 a 7 y media"), la franja (mañana 9-11,

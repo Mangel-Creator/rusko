@@ -100,7 +100,7 @@ Cómo rellenar el resto:
 - horaInicio (HH:MM, 24 h): "a las 8" puede ser 08:00 o 20:00; decide por la actividad y el contexto:
   - Cenas, copas, cine, planes con amigos, pádel o deporte con alguien después del trabajo: tarde-noche (20:00).
   - Desayunos, trabajo, reuniones, clientes, médico, trámites: mañana (08:00), salvo que diga "de la tarde".
-  - De la 1 a las 7 sin "de la mañana" ni "de la madrugada": tarde (a las 3 = 15:00).
+  - De la 1 a las 7 sin "de la mañana" ni "de la madrugada": tarde (a las 3 = 15:00). Vale también para los recordatorios: "recuérdame a las 6 llamar a mamá" = 18:00. Solo las alarmas ("despiértame a las 6") son por la mañana.
   - "Mediodía" = 12:00 (en plan comida, 14:00). "Y media" = :30, "y cuarto" = :15, "menos cuarto" = :45 de la hora anterior.
   - En un recordatorio sin hora o una tarea: null.
 - horaFin: solo en "evento": la que diga, o la hora de inicio más la duración que diga ("dos horas"). Si no dice nada, 1 hora después del inicio. Nunca después de las 23:59. En lo demás, null.
