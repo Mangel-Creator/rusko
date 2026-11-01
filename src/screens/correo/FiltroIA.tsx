@@ -1,11 +1,10 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
 import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Boton, CampoTexto, Plegable, Texto } from '@/components';
 import { useCorreos } from '@/data/correos';
 import { cambiarReglaFiltro, MAX_FILTRO, MAX_LARGO_FILTRO } from '@/services/correo';
-import { acentos, alturaTactil, colores, espacio, radio } from '@/theme';
+import { colores, espacio, radio } from '@/theme';
 
 // "Filtro con IA" (28/10/2026, lo pidió el usuario): reglas en palabras que la IA aplica
 // al revisar las cuentas vinculadas, para dejar pasar lo que hoy se queda fuera
@@ -55,27 +54,6 @@ export function FiltroIA() {
         Dile con tus palabras qué correos quieres ver y cuáles no. La IA lo mira con el remitente, el asunto y el
         principio de cada correo nuevo de tus cuentas vinculadas. Los vetados no salen nunca.
       </Texto>
-      {filtro.length > 0 ? (
-        <View style={estilos.lista}>
-          {filtro.map((regla) => (
-            <View key={regla} style={estilos.fila}>
-              <View style={estilos.iconoRegla}>
-                <Ionicons name="sparkles" size={16} color={acentos.naranja.color} />
-              </View>
-              <Texto style={estilos.regla}>
-                {regla}
-              </Texto>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Quitar la regla: ${regla}`}
-                onPress={() => cambiarReglaFiltro(regla, false).catch(() => {})}
-                style={({ pressed }) => [estilos.quitar, pressed && estilos.pulsado]}>
-                <Ionicons name="close" size={20} color={colores.texto} />
-              </Pressable>
-            </View>
-          ))}
-        </View>
-      ) : null}
       <CampoTexto
         etiqueta="Nueva regla"
         placeholder="Los de la academia de inglés, que no salgan"
@@ -124,32 +102,5 @@ const estilos = StyleSheet.create({
     borderColor: colores.bordeCampo,
   },
   textoEjemplo: { color: colores.textoSecundario },
-  lista: { gap: espacio.s },
-  fila: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: espacio.m - 4,
-    paddingVertical: espacio.s,
-    paddingLeft: espacio.m - 4,
-    paddingRight: espacio.s,
-    borderRadius: radio.normal,
-    backgroundColor: colores.elevado,
-  },
-  iconoRegla: {
-    width: 32,
-    height: 32,
-    borderRadius: radio.chip,
-    alignItems: 'center',
-    justifyContent: 'center',
-    backgroundColor: acentos.naranja.suave,
-  },
-  regla: { flex: 1 },
-  quitar: {
-    width: alturaTactil,
-    height: alturaTactil,
-    alignItems: 'center',
-    justifyContent: 'center',
-    borderRadius: radio.chip,
-  },
   pulsado: { opacity: 0.8 },
 });

@@ -24,6 +24,7 @@ import { CuentasCorreo } from './correo/CuentasCorreo';
 import { FilaCorreo } from './correo/FilaCorreo';
 import { porImportancia } from './correo/RecuadroCorreo';
 import { FiltroIA } from './correo/FiltroIA';
+import { NormasActivas } from './correo/NormasActivas';
 import { VetadosCorreo } from './correo/VetadosCorreo';
 import { VincularAyudante, VincularCorreo } from './correo/VincularCorreo';
 
@@ -229,6 +230,7 @@ export function PantallaResumenes() {
             </View>
           ) : null}
 
+          <NormasActivas />
           <FiltroIA />
           <VetadosCorreo />
 

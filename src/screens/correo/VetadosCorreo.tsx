@@ -1,11 +1,8 @@
-import Ionicons from '@expo/vector-icons/Ionicons';
 import { useState } from 'react';
-import { Pressable, StyleSheet, View } from 'react-native';
 
 import { Boton, CampoTexto, Plegable, Texto } from '@/components';
 import { useCorreos } from '@/data/correos';
-import { esDireccion, quitarVeto, vetarDireccion } from '@/services/correo';
-import { alturaTactil, colores, espacio, radio } from '@/theme';
+import { esDireccion, vetarDireccion } from '@/services/correo';
 
 // "Remitentes vetados" (27/10/2026, lo pidió el usuario): escribes una dirección y sus
 // correos no salen nada en Rusko (ni aquí, ni avisos, ni tareas ni citas). En Gmail
@@ -60,41 +57,7 @@ export function VetadosCorreo() {
         error={error}
       />
       <Boton titulo={guardando ? 'Vetando…' : 'Vetar'} disabled={guardando || !texto.trim()} onPress={vetar} />
-      {vetados.length > 0 ? (
-        <View style={estilos.lista}>
-          {vetados.map((direccion) => (
-            <View key={direccion} style={estilos.fila}>
-              <Ionicons name="ban-outline" size={18} color={colores.textoSecundario} />
-              <Texto pequeno style={estilos.direccion} numberOfLines={1}>
-                {direccion}
-              </Texto>
-              <Pressable
-                accessibilityRole="button"
-                accessibilityLabel={`Quitar el veto a ${direccion}`}
-                onPress={() => quitarVeto(direccion).catch(() => {})}
-                style={({ pressed }) => [estilos.quitar, pressed && estilos.pulsado]}>
-                <Texto pequeno fuerte>
-                  Quitar
-                </Texto>
-              </Pressable>
-            </View>
-          ))}
-        </View>
-      ) : null}
     </Plegable>
   );
 }
 
-const estilos = StyleSheet.create({
-  lista: { gap: espacio.xs },
-  fila: { flexDirection: 'row', alignItems: 'center', gap: espacio.s, minHeight: alturaTactil },
-  direccion: { flex: 1 },
-  quitar: {
-    minHeight: alturaTactil,
-    justifyContent: 'center',
-    paddingHorizontal: espacio.m,
-    borderRadius: radio.chip,
-    backgroundColor: colores.elevado,
-  },
-  pulsado: { opacity: 0.8 },
-});

@@ -71,6 +71,7 @@ export const colores = {
 export const degradados = {
   naranja: ['#FF6B1A', '#FFB020'], // naranja → ámbar: 'Lo siguiente' en Hoy
   teja: ['#FF6B1A', '#C2361B'], // naranja → rojo teja
+  azul: ['#8FBEFF', '#4D8BF5'], // "Tus normas" de Correo (30/10/2026); texto oscuro encima, 5,4:1 o más
 } as const;
 
 // Recuadros de la pestaña Correo por importancia (27/10/2026, a petición del usuario):
