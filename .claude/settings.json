@@ -3,5 +3,29 @@
     "expo@claude-plugins-official": true
   },
   "autoCompactEnabled": true,
-  "autoCompactWindow": 400000
+  "autoCompactWindow": 400000,
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash|Grep",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "C:/Users/usuario/.local/bin/graphify.EXE hook-guard search",
+            "timeout": 10
+          }
+        ]
+      },
+      {
+        "matcher": "Read|Glob",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "C:/Users/usuario/.local/bin/graphify.EXE hook-guard read",
+            "timeout": 10
+          }
+        ]
+      }
+    ]
+  }
 }

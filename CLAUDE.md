@@ -550,6 +550,15 @@ sesión que fuera**:
     noviembre» / «Tienes que pagar el IBI mañana» (también en los avisos).
   Ver "Fase 11" > "Correo por importancia".
 
+- 02/11/2026 — **graphify instalado** (lo pidió el usuario): la herramienta y el comando
+  `/graphify` están a nivel de usuario (`uv tool install graphifyy` + `graphify install`) y
+  cada proyecto tiene su propio grafo en su `graphify-out/` (en Organizy, fuera de git). Aquí
+  se hizo solo con el código y sin IA (`graphify extract . --code-only`), con el hook de
+  Claude en `.claude/settings.json` y los hooks de git que lo rehacen solos en cada commit
+  (`graphify update`, sin coste). Para otro proyecto: en su carpeta, `graphify extract .
+  --code-only`, `graphify claude install` y `graphify hook install`. Ver la sección
+  "graphify" al final.
+
 ## Cómo prueba el usuario en el iPhone
 
 - **Al terminar cada parte del proyecto** (una fase, un bloque de trabajo, un arreglo),
@@ -2492,3 +2501,14 @@ borran solos a los 7 días.
 - [x] 10. Recordatorios a clientes por WhatsApp (hecha el 27/09/2026 y **quitada el 26/10/2026**: ver "Fase 10").
 - [x] 11. Correo: plazos al calendario y resúmenes con aviso (27/09/2026; "Vincular con Gmail / Outlook" y QR del ayudante el 28/09; falta que el usuario registre Organizy en Google y Microsoft y lo pruebe: ver "Fase 11").
 - [x] 15. Organizy grupal como plan extra ("Plan empresa", 29/09/2026; **quitado el 26/10/2026**: ver "Fase 15").
+
+## graphify
+
+This project has a knowledge graph at graphify-out/ with god nodes, community structure, and cross-file relationships.
+
+Rules:
+- When graphify-out/graph.json exists, run `graphify query "<question>"` before your first grep, search or source-file read for a codebase question, and put this rule in every subagent prompt that explores code. Read raw files only for lines the graph or an earlier read already located. Use `graphify path "<A>" "<B>"` for relationships and `graphify explain "<concept>"` for focused concepts. These return a scoped subgraph, usually much smaller than GRAPH_REPORT.md or raw grep output.
+- If graphify-out/wiki/index.md exists, use it for broad navigation instead of raw source browsing.
+- Read graphify-out/GRAPH_REPORT.md only for broad architecture review or when query/path/explain do not surface enough context.
+- After modifying code, run `graphify update .` to keep the graph current (AST-only, no API cost).
+- A committed graphify-out/graph.json is rewritten whole on every build, so a large diff to it in a pull request is expected. Do not flag it as churn or suggest skipping the graph rebuild or its hooks.
