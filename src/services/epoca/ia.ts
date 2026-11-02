@@ -10,8 +10,11 @@ import { diasEntre } from './estado';
 import type { PlanEpoca } from './plan';
 import {
   datosRepaso,
+  MAX_INDICE,
+  MAX_OTROS,
   MAX_TEXTO_EPOCA,
   MAX_TEXTO_TEMARIO,
+  propuestaDeCuestionario,
   propuestaUtil,
   validarPreparacion,
   validarRepaso,
@@ -19,6 +22,7 @@ import {
   type PropuestaEpoca,
   type PropuestaTemas,
   type Repaso,
+  type RespuestasCuestionario,
 } from './validarIA';
 
 // La IA ayuda a planificar la Época dorada: manda lo necesario a la función
@@ -28,6 +32,8 @@ import {
 // pruebas) no carguen la conexión con el servidor.
 
 const ESPERA_MAX_MS = 30000;
+// El plan del cuestionario es largo (temas de todos los exámenes): se le da más tiempo.
+const ESPERA_CUESTIONARIO_MS = 90000;
 
 export type MotivoFalloIA =
   | 'sin-configurar'
@@ -54,12 +60,12 @@ function fallo<T>(motivo: MotivoFalloIA): ResultadoIA<T> {
   return { estado: 'fallo', motivo, mensaje: MENSAJES[motivo] };
 }
 
-async function llamar(cuerpo: Record<string, unknown>): Promise<ResultadoIA<unknown>> {
+async function llamar(cuerpo: Record<string, unknown>, espera = ESPERA_MAX_MS): Promise<ResultadoIA<unknown>> {
   const supabase = obtenerSupabase();
   if (!supabase) return fallo('sin-configurar');
   try {
     await asegurarSesion(supabase);
-    const { data, error } = await supabase.functions.invoke('epoca', { body: cuerpo, timeout: ESPERA_MAX_MS });
+    const { data, error } = await supabase.functions.invoke('epoca', { body: cuerpo, timeout: espera });
     if (error) {
       // Se ha acabado la IA de las 5 horas o de la semana: se dice cuándo vuelve.
       const limite = await limiteDelError(error);
@@ -90,6 +96,26 @@ async function motivoDelError(error: unknown): Promise<MotivoFalloIA> {
   const mensaje = error instanceof Error ? error.message.toLowerCase() : '';
   if (mensaje.includes('network') || mensaje.includes('fetch') || mensaje.includes('timeout')) return 'sin-conexion';
   return 'error';
+}
+
+// 0. "Cuestionario": las respuestas (sin el id de cada examen) y el horario normal.
+export async function cuestionarioConIA(
+  respuestas: RespuestasCuestionario,
+  perfil: Perfil | null,
+): Promise<ResultadoIA<PropuestaEpoca>> {
+  const hoy = claveDia(new Date());
+  const asignaturas = [...respuestas.asignaturas]
+    .sort((a, b) => a.fecha.localeCompare(b.fecha) || a.hora.localeCompare(b.hora))
+    .map(({ id: _id, ...a }) => ({ ...a, indice: a.indice.trim().slice(0, MAX_INDICE) }));
+  const r = await llamar({
+    accion: 'cuestionario',
+    hoy,
+    respuestas: { ...respuestas, asignaturas, otros: respuestas.otros.trim().slice(0, MAX_OTROS) },
+    horario: perfil ? { levantarse: perfil.horario.levantarse, acostarse: perfil.horario.acostarse } : null,
+  }, ESPERA_CUESTIONARIO_MS);
+  if (r.estado === 'fallo') return r;
+  const propuesta = validarPreparacion(r.datos, { hoy, sitiosIds: [] });
+  return propuesta ? { estado: 'ok', datos: propuestaDeCuestionario(respuestas, propuesta) } : fallo('no-entendido');
 }
 
 // 1. "Cuéntamelo y lo preparo": manda el texto, el día, el horario normal y los

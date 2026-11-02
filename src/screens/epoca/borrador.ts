@@ -56,6 +56,7 @@ export type BorradorEpoca = {
   avisos: AvisosEpoca;
   ejemplo: boolean;
   resumenVisto: boolean;
+  consejos: string[];
 };
 
 export type CampoConError = 'nombre' | 'tipo' | 'fin' | 'acostarse' | 'direccion' | 'rindeMas' | 'descanso' | 'hitos';
@@ -104,6 +105,7 @@ export function borradorDesdeEpoca(
       avisos: AVISOS_POR_DEFECTO,
       ejemplo: false,
       resumenVisto: false,
+      consejos: [],
     };
   }
   const { ritmo } = epoca;
@@ -138,6 +140,7 @@ export function borradorDesdeEpoca(
     avisos: epoca.avisos,
     ejemplo: epoca.ejemplo,
     resumenVisto: epoca.resumenVisto,
+    consejos: epoca.consejos ?? [],
   };
 }
 
@@ -177,8 +180,9 @@ export function borradorConPropuesta(b: BorradorEpoca, p: PropuestaEpoca): Borra
   ];
   nuevo.hitos = [
     ...b.hitos,
-    ...p.hitos.map((h) => ({ ...h, id: nuevoIdEpoca(), lugar: null, temas: [] })),
+    ...p.hitos.map((h) => ({ ...h, id: nuevoIdEpoca(), lugar: null, temas: h.temas.map((t) => ({ ...t, id: nuevoIdEpoca() })) })),
   ];
+  if (p.consejos.length > 0) nuevo.consejos = p.consejos;
   // Si la época empezaba más tarde que algún hito, empieza antes (sin pasar de hoy).
   const primero = nuevo.hitos.map((h) => h.fecha).sort()[0];
   if (primero && primero < nuevo.inicio) nuevo.inicio = primero;
@@ -295,5 +299,6 @@ function montarEpoca(
     dorada: b.dorada,
     ejemplo: b.ejemplo,
     resumenVisto: b.resumenVisto,
+    ...(b.consejos.length > 0 ? { consejos: b.consejos } : {}),
   };
 }

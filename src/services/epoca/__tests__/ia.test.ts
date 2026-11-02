@@ -5,6 +5,7 @@ import {
   aplicarPropuesta,
   datosRepaso,
   planificarEpoca,
+  propuestaDeCuestionario,
   propuestaUtil,
   temaActual,
   temaEnMinuto,
@@ -169,6 +170,76 @@ describe('IA: "Cuéntamelo y lo preparo"', () => {
     const vacia = validarPreparacion({ hitos: [], notas: 'No sé qué es esto' }, ctx);
     expect(vacia && propuestaUtil(vacia)).toBe(false);
     expect(validarPreparacion('hola', ctx)).toBeNull();
+  });
+});
+
+describe('IA: cuestionario (COIE de la UNED)', () => {
+  const ctx = { hoy: HOY, sitiosIds: [] };
+  const respuestaIA = {
+    nombre: 'Exámenes de octubre',
+    tipo: 'examenes',
+    inicio: null,
+    fin: '2026-10-20',
+    lugar: null,
+    diasVas: null,
+    horasDia: 8,
+    rindeMas: 'noche',
+    descanso: '25-5',
+    diaLibre: null,
+    levantarse: null,
+    acostarse: null,
+    imprescindibles: [],
+    hitos: [
+      {
+        nombre: 'álgebra',
+        fecha: '2026-10-21',
+        hora: '12:00',
+        dificultad: 'facil',
+        horasPreparacion: 99,
+        temas: [
+          { nombre: 'T1: Matrices', horas: 3 },
+          { nombre: 'T2: Determinantes', horas: 2.6 },
+          { nombre: 'Repaso T1-T2', horas: 1 },
+          { nombre: '', horas: 2 },
+        ],
+      },
+      { nombre: 'Historia', fecha: '2026-10-05', hora: '09:00', dificultad: 'media', horasPreparacion: 12, temas: [] },
+    ],
+    consejos: ['  Deja el móvil en otra habitación. ', '', 'Repasa al día siguiente.'],
+    notas: 'He calculado 3 horas por tema.',
+  };
+  const respuestas = {
+    asignaturas: [
+      { id: 'a', nombre: 'Álgebra', fecha: '2026-10-20', hora: '10:00', tipoExamen: 'problemas' as const, temas: 2, avance: 'nada' as const, dificultad: 'dificil' as const, anteriores: true, indice: '' },
+      { id: 'b', nombre: 'Historia', fecha: '2026-10-05', hora: '09:00', tipoExamen: 'trabajo' as const, temas: 4, avance: 'poco' as const, dificultad: 'media' as const, anteriores: false, indice: '' },
+    ],
+    horasDia: 4,
+    rindeMas: 'manana' as const,
+    diaLibre: 6 as const,
+    habitos: { constancia: null, concentracion: 'corta' as const, arrancar: null, sintesis: null, repasos: null, lectura: null, nervios: null, distraccion: null, memoria: null },
+    otros: '',
+  };
+
+  it('guarda los temas de cada examen y los consejos', () => {
+    const p = validarPreparacion(respuestaIA, ctx);
+    const algebra = p?.hitos.find((x) => x.nombre === 'álgebra');
+    expect(algebra?.temas.map((t) => t.horas)).toEqual([3, 2.5, 1]);
+    expect(p?.consejos).toEqual(['Deja el móvil en otra habitación.', 'Repasa al día siguiente.']);
+  });
+
+  it('lo que contestó manda sobre lo que diga la IA', () => {
+    const ia = validarPreparacion(respuestaIA, ctx);
+    if (!ia) throw new Error('sin propuesta');
+    const p = propuestaDeCuestionario(respuestas, ia);
+    expect(p.hitos.map((x) => [x.nombre, x.fecha, x.hora, x.dificultad])).toEqual([
+      ['Historia', '2026-10-05', '09:00', 'media'],
+      ['Álgebra', '2026-10-20', '10:00', 'dificil'],
+    ]);
+    // Las horas son la suma de los temas; sin temas, las que diga la IA.
+    expect(p.hitos[1].horasPreparacion).toBe(6.5);
+    expect(p.hitos[0].horasPreparacion).toBe(12);
+    expect(p).toMatchObject({ tipo: 'examenes', fin: '2026-10-20', horasDia: 4, rindeMas: 'manana', diaLibre: 6, descanso: '25-5' });
+    expect(p.consejos).toHaveLength(2);
   });
 });
 

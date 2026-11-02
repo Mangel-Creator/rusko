@@ -13,8 +13,9 @@ import { diasEntre } from './estado';
 import type { PlanEpoca } from './plan';
 import { progresoHitos, progresoSemana, textoHoras } from './progreso';
 
-// La IA ayuda a planificar la Época dorada de tres formas (ver
+// La IA ayuda a planificar la Época dorada de cuatro formas (ver
 // services/epoca/ia.ts y supabase/functions/epoca):
+//   0. "Cuestionario": de las respuestas, el plan entero con temas, repasos y consejos.
 //   1. "Cuéntamelo y lo preparo": de un texto libre, los datos del formulario.
 //   2. "Temario por temas": parte el temario de un hito en temas con horas.
 //   3. "Repaso de cómo vas": mira el progreso y propone cambios.
@@ -33,6 +34,8 @@ const MAX_HITOS = 20;
 const MAX_IMPRESCINDIBLES = 10;
 const MAX_TEMAS = 20;
 const MAX_PROPUESTAS = 4;
+const MAX_CONSEJOS = 6;
+export const MAX_ASIGNATURAS = 10;
 
 // ---------- Utilidades ----------
 
@@ -104,7 +107,10 @@ export type HitoPropuesto = {
   hora: string;
   dificultad: Dificultad;
   horasPreparacion: number;
+  temas: TemaPropuesto[]; // solo con el cuestionario: temas y repasos en orden
 };
+
+export type TemaPropuesto = Omit<TemaHito, 'id'>;
 
 export type ImprescindiblePropuesto = {
   nombre: string;
@@ -131,6 +137,7 @@ export type PropuestaEpoca = {
   imprescindibles: ImprescindiblePropuesto[];
   hitos: HitoPropuesto[];
   notas: string | null; // lo que ha tenido que suponer, para que lo revise
+  consejos: string[]; // solo con el cuestionario: cómo estudiar cada cosa
 };
 
 export type ContextoPreparacion = { hoy: ClaveDia; sitiosIds: string[] };
@@ -162,6 +169,7 @@ export function validarPreparacion(datos: unknown, { hoy, sitiosIds }: ContextoP
         hora: hora(h.hora) ?? '09:00',
         dificultad: uno(h.dificultad, DIFICULTADES) ?? 'media',
         horasPreparacion: numero(h.horasPreparacion, 1, 200, 1) ?? 6,
+        temas: listaTemas(h.temas),
       };
     })
     .filter((h): h is HitoPropuesto => h !== null)
@@ -213,6 +221,10 @@ export function validarPreparacion(datos: unknown, { hoy, sitiosIds }: ContextoP
     imprescindibles,
     hitos,
     notas: texto(datos.notas, 400),
+    consejos: (Array.isArray(datos.consejos) ? datos.consejos : [])
+      .map((c) => texto(c, 300))
+      .filter((c): c is string => c !== null)
+      .slice(0, MAX_CONSEJOS),
   };
 }
 
@@ -225,17 +237,21 @@ export function propuestaUtil(p: PropuestaEpoca): boolean {
 
 export type PropuestaTemas = { temas: TemaHito[]; consejo: string | null };
 
-export function validarTemas(datos: unknown, crearId: () => string): PropuestaTemas | null {
-  if (!esObjeto(datos) || !Array.isArray(datos.temas)) return null;
-  const temas = datos.temas
+function listaTemas(v: unknown): TemaPropuesto[] {
+  return (Array.isArray(v) ? v : [])
     .filter(esObjeto)
     .map((t) => {
       const nombre = texto(t.nombre, 80);
       const horas = numero(t.horas, 0.5, 100, 0.5);
-      return nombre && horas ? { id: crearId(), nombre, horas } : null;
+      return nombre && horas ? { nombre, horas } : null;
     })
-    .filter((t): t is TemaHito => t !== null)
+    .filter((t): t is TemaPropuesto => t !== null)
     .slice(0, MAX_TEMAS);
+}
+
+export function validarTemas(datos: unknown, crearId: () => string): PropuestaTemas | null {
+  if (!esObjeto(datos)) return null;
+  const temas = listaTemas(datos.temas).map((t) => ({ id: crearId(), ...t }));
   if (temas.length === 0) return null;
   return { temas, consejo: texto(datos.consejo, 300) };
 }
@@ -362,4 +378,75 @@ export function textoPropuesta(epoca: Epoca, p: PropuestaRepaso): string {
     case 'dificultad':
       return `${hito?.nombre ?? 'Hito'}: marcarlo como ${NOMBRE_DIFICULTAD[p.dificultad]}`;
   }
+}
+
+// ---------- 0. Cuestionario (02/11/2026) ----------
+// Preguntas basadas en las guías del COIE de la UNED: cada examen con su tipo, el
+// tiempo real que tiene y sus hábitos de estudio. La IA devuelve, por examen, los
+// temas en orden con repasos intercalados y los consejos. Lo que ha dicho manda:
+// nombres, fechas, horas al día... salen de las respuestas, no de la IA.
+
+export type TipoExamen = 'test' | 'test-resta' | 'desarrollo' | 'cortas' | 'problemas' | 'oral' | 'trabajo';
+export type Avance = 'nada' | 'poco' | 'mitad' | 'casi';
+
+export type AsignaturaCuestionario = {
+  id: string;
+  nombre: string;
+  fecha: ClaveDia;
+  hora: string;
+  tipoExamen: TipoExamen;
+  temas: number;
+  avance: Avance;
+  dificultad: Dificultad;
+  anteriores: boolean; // tiene exámenes de otros años
+  indice: string; // el índice del temario, si lo pega
+};
+
+// null = no ha contestado.
+export type HabitosCuestionario = {
+  constancia: 'siempre' | 'a-veces' | 'nunca' | null; // mismo sitio y hora
+  concentracion: 'corta' | 'media' | 'larga' | null;
+  arrancar: 'facil' | 'a-veces' | 'cuesta' | null;
+  sintesis: 'esquemas' | 'a-veces' | 'releo' | null;
+  repasos: 'varios' | 'final' | 'no' | null;
+  lectura: 'lenta' | 'normal' | 'rapida' | null;
+  nervios: 'no' | 'algo' | 'mucho' | null;
+  distraccion: 'movil' | 'ruido' | 'cansancio' | 'nada' | null;
+  memoria: 'viendo' | 'escuchando' | 'haciendo' | null;
+};
+
+export type RespuestasCuestionario = {
+  asignaturas: AsignaturaCuestionario[];
+  horasDia: number;
+  rindeMas: MomentoDelDia;
+  diaLibre: DiaSemana | null;
+  habitos: HabitosCuestionario;
+  otros: string;
+};
+
+export const MAX_INDICE = 1500;
+export const MAX_OTROS = 500;
+
+// Una por examen, en el mismo orden: la IA solo pone las horas, los temas y los repasos.
+export function propuestaDeCuestionario(r: RespuestasCuestionario, ia: PropuestaEpoca): PropuestaEpoca {
+  const hitos = [...r.asignaturas]
+    .sort((a, b) => a.fecha.localeCompare(b.fecha) || a.hora.localeCompare(b.hora))
+    .map((a, i) => {
+      const deIA = ia.hitos.find((h) => h.nombre.toLocaleLowerCase('es-ES') === a.nombre.toLocaleLowerCase('es-ES')) ?? ia.hitos[i];
+      const temas = deIA?.temas ?? [];
+      const horas = temas.length > 0 ? Math.max(1, temas.reduce((t, x) => t + x.horas, 0)) : (deIA?.horasPreparacion ?? 10);
+      return { nombre: a.nombre, fecha: a.fecha, hora: a.hora, dificultad: a.dificultad, horasPreparacion: horas, temas };
+    });
+  const soloTrabajos = r.asignaturas.every((a) => a.tipoExamen === 'trabajo');
+  return {
+    ...ia,
+    tipo: soloTrabajos ? 'entregas' : 'examenes',
+    inicio: null,
+    fin: hitos[hitos.length - 1]?.fecha ?? ia.fin,
+    lugar: null,
+    horasDia: r.horasDia,
+    rindeMas: r.rindeMas,
+    diaLibre: r.diaLibre ?? 'ninguno',
+    hitos,
+  };
 }

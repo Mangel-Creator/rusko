@@ -48,6 +48,7 @@ import {
 } from './epoca/borrador';
 import { CuandoEmpezar } from './epoca/CuandoEmpezar';
 import { CuentameloIA } from './epoca/CuentameloIA';
+import { CuestionarioIA } from './epoca/CuestionarioIA';
 import { EditorHitos } from './epoca/EditorHitos';
 import { EditorImprescindibles } from './epoca/EditorImprescindibles';
 import { SelectorLugarEpoca } from './epoca/SelectorLugarEpoca';
@@ -67,8 +68,10 @@ import { MensajeError } from './formulario-perfil/MensajeError';
 // opcional va plegado en "Más ajustes" con un resumen de lo que ya está puesto.
 // Sirve para crear una época (/epoca-editar) y para editarla (/epoca-editar?id=...,
 // y ?paso=3 para ir directo a los hitos). Al guardar, el plan se recalcula solo.
+// Una nueva empieza por el cuestionario (paso 0, 02/11/2026): la IA prepara el plan
+// y rellena los tres pasos; también se puede saltar y rellenarlo a mano.
 
-type Paso = 1 | 2 | 3;
+type Paso = 0 | 1 | 2 | 3;
 
 function volver() {
   if (router.canGoBack()) router.back();
@@ -104,7 +107,7 @@ export function PantallaEpocaFormulario() {
       epocas={epocas}
       registro={registro}
       perfil={perfil}
-      pasoInicial={paso === '3' ? 3 : paso === '2' ? 2 : 1}
+      pasoInicial={paso === '3' ? 3 : paso === '2' ? 2 : paso === '1' || epoca ? 1 : 0}
       dorada={modo !== 'plan'}
     />
   );
@@ -127,6 +130,8 @@ function Formulario({ epoca, epocas, registro, perfil, pasoInicial, dorada }: Pr
   const [paso, setPaso] = useState<Paso>(pasoInicial);
   const [ocupado, setOcupado] = useState(false);
   const [solapes, setSolapes] = useState<Epoca[]>([]);
+  // Lo que ha supuesto la IA al preparar el plan con el cuestionario.
+  const [notasIA, setNotasIA] = useState<string | null>(null);
   const scroll = useRef<ScrollViewInstance>(null);
   const b = borrador;
   // El día recomendado para empezar solo hace falta en el paso 3 (donde se elige).
@@ -204,7 +209,22 @@ function Formulario({ epoca, epocas, registro, perfil, pasoInicial, dorada }: Pr
   return (
     <Pantalla ref={scroll}>
       <BotonVolver />
-      <BarraProgreso paso={paso} total={3} />
+      {paso > 0 ? <BarraProgreso paso={paso} total={3} /> : null}
+
+      {paso === 0 ? (
+        <CuestionarioIA
+          perfil={perfil}
+          hoy={hoy}
+          alPreparar={(propuesta) => {
+            setBorrador((actual) => borradorConPropuesta(actual, propuesta));
+            setErrores({});
+            setSolapes([]);
+            setNotasIA(propuesta.notas || 'Plan preparado.');
+            irA(1);
+          }}
+          alSaltar={() => irA(1)}
+        />
+      ) : null}
 
       {paso === 1 ? (
         <>
@@ -212,7 +232,13 @@ function Formulario({ epoca, epocas, registro, perfil, pasoInicial, dorada }: Pr
             <Texto secundario fuerte>{b.dorada ? 'Nueva Época dorada' : 'Nuevo plan de estudio'}</Texto>
           ) : null}
           <Titulo>¿Qué se viene?</Titulo>
-          {!epoca ? (
+          {notasIA ? (
+            <Tarjeta>
+              <Texto fuerte>Tu plan está preparado. Revisa los tres pasos y guárdalo.</Texto>
+              <Texto>{notasIA}</Texto>
+            </Tarjeta>
+          ) : null}
+          {!epoca && !notasIA ? (
             <CuentameloIA
               perfil={perfil}
               alPreparar={(propuesta) => {

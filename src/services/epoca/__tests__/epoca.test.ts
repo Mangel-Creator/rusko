@@ -195,6 +195,16 @@ describe('plan automático', () => {
     expect(plan.faltanMin).toEqual({ h1: 180 }); // solo cabe hoy (2 h de 5)
   });
 
+  it('la víspera, como mucho 2 h de repaso de ese examen', () => {
+    const e = epoca({
+      ritmo: { ...epoca().ritmo, horasDia: 4 },
+      hitos: [hito({ fecha: '2026-09-25', horasPreparacion: 5 })],
+    });
+    const plan = planificarEpoca({ epoca: e, eventos: [], registro: [], hoy: HOY });
+    expect(minutos(plan.bloques)).toBe(120);
+    expect(plan.faltanMin).toEqual({ h1: 180 });
+  });
+
   it('con "Tranqui" hoy baja a la mitad y el resto pasa a otros días', () => {
     const plan = planificarEpoca({ epoca: epoca(), eventos: [], registro: [], hoy: HOY, energias: { [HOY]: 'tranqui' } });
     // La mitad de 2 h es 1 h: cabe un bloque de 50 min (los 10 que sobran no llegan

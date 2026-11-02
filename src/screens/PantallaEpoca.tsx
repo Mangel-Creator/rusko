@@ -312,6 +312,14 @@ function DetalleEpoca({ epoca, plan, registro, planesDelDia, eventos, perfil, ah
         onPress={() => router.push({ pathname: '/epoca-editar', params: { id: epoca.id, paso: '3' } })}
       />
 
+      {epoca.consejos?.length ? (
+        <Plegable titulo="Cómo estudiarlo" resumen="Consejos para ti, según el COIE de la UNED">
+          {epoca.consejos.map((c) => (
+            <Texto key={c}>{c}</Texto>
+          ))}
+        </Plegable>
+      ) : null}
+
       {estado === 'activa' && hitos.some((p) => p.hito.fecha >= hoy) ? (
         <>
           <Titulo nivel={2} style={estilos.seccion}>

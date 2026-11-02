@@ -1,4 +1,4 @@
-import type { BloqueGuardado, Descanso, Dificultad, Epoca, PlanesDelDia, RegistroBloque } from '@/data/epocas/tipos';
+import type { BloqueGuardado, Descanso, Dificultad, Epoca, Hito, PlanesDelDia, RegistroBloque } from '@/data/epocas/tipos';
 import type { Evento } from '@/data/eventos/tipos';
 import {
   calcularHuecos,
@@ -23,6 +23,8 @@ import { diasEntre, esDiaLibre, imprescindiblesDelDia, PREFIJO_EPOCA, ventanaEpo
 // - Primero los huecos del momento en que rinde más.
 // - Cada bloque va al hito que más lo necesita: cercano, difícil y con muchas
 //   horas por hacer (ver puntuacion).
+// - La víspera de un hito, como mucho VISPERA_MAX_MIN de ese hito: un repaso
+//   ligero y nada nuevo (COIE de la UNED, "Preparación de exámenes").
 // - Lo hecho y lo saltado se guardan (RegistroBloque). El plan de hoy se calcula
 //   desde que empieza el día, así los bloques no cambian de hora mientras lo usas.
 //   Los bloques de días pasados sin marcar y los saltados se reparten solos en los
@@ -38,6 +40,8 @@ export const DESCANSOS: Record<Descanso, { trabajo: number; descanso: number }> 
   '50-10': { trabajo: 50, descanso: 10 },
   '90-15': { trabajo: 90, descanso: 15 },
 };
+
+export const VISPERA_MAX_MIN = 120;
 
 export const PESO_DIFICULTAD: Record<Dificultad, number> = { facil: 1, media: 1.5, dificil: 2 };
 
@@ -207,11 +211,19 @@ export function planificarEpoca({
       desde = { inicio: Math.max(ventana.inicio, Math.ceil(ahora / 5) * 5), fin: ventana.fin };
     }
     const huecos = porMomento(calcularHuecos(ocupados, desde, BLOQUE_MINIMO), MOMENTOS[epoca.ritmo.rindeMas]);
+    // Minutos que le caben hoy a cada hito: sin tope, salvo la víspera.
+    const delDia = (h: Hito) =>
+      diasEntre(dia, h.fecha) !== 1
+        ? Infinity
+        : VISPERA_MAX_MIN -
+          bloques.filter((b) => b.dia === dia && b.hitoId === h.id).reduce((t, b) => t + (b.fin - b.inicio), 0);
 
     for (const hueco of huecos) {
       let cursor = hueco.inicio;
       while (cuota >= BLOQUE_MINIMO && hueco.fin - cursor >= BLOQUE_MINIMO) {
-        const candidatos = hitos.filter((h) => h.fecha > dia && (restante.get(h.id) ?? 0) > 0);
+        const candidatos = hitos.filter(
+          (h) => h.fecha > dia && (restante.get(h.id) ?? 0) > 0 && delDia(h) >= BLOQUE_MINIMO,
+        );
         if (candidatos.length === 0) break;
         const hito = candidatos.reduce((mejor, h) =>
           puntuacion(h.dificultad, restante.get(h.id) ?? 0, diasEntre(dia, h.fecha)) >
@@ -219,7 +231,7 @@ export function planificarEpoca({
             ? h
             : mejor,
         );
-        const minutos = Math.min(trabajo, cuota, restante.get(hito.id) ?? 0, hueco.fin - cursor);
+        const minutos = Math.min(trabajo, cuota, restante.get(hito.id) ?? 0, hueco.fin - cursor, delDia(hito));
         if (minutos < BLOQUE_MINIMO) break;
         bloques.push({
           id: idBloque(epoca.id, dia, cursor),

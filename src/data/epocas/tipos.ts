@@ -96,6 +96,8 @@ export type Epoca = {
   dorada: boolean;
   ejemplo: boolean;
   resumenVisto: boolean; // ya se enseñó el resumen final en Hoy
+  // Consejos de estudio de la IA al preparar el plan con el cuestionario (COIE de la UNED).
+  consejos?: string[];
 };
 
 // Lo que el usuario ha hecho con un bloque del plan. Los bloques pendientes no
