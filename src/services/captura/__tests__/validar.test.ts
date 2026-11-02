@@ -1,6 +1,11 @@
 import { describe, expect, it } from '@jest/globals';
 
-import { normalizarHora, validarInterpretacion, validarPropuesta } from '@/services/captura/validar';
+import {
+  normalizarHora,
+  validarInterpretacion,
+  validarInterpretaciones,
+  validarPropuesta,
+} from '@/services/captura/validar';
 
 const contexto = { hoy: '2026-09-24', sitiosIds: ['s-gimnasio', 's-trabajo'] };
 
@@ -82,12 +87,21 @@ describe('validarPropuesta', () => {
 
   it('sin hora de inicio lo convierte en tarea flexible', () => {
     const p = validarPropuesta({ ...buena, horaInicio: null, horaFin: null, duracionMin: null }, contexto);
-    expect(p).toMatchObject({ flexible: true, horaInicio: null, horaFin: null, duracionMin: 30 });
+    expect(p).toMatchObject({
+      flexible: true,
+      horaInicio: null,
+      horaFin: null,
+      duracionMin: 30,
+    });
   });
 
   it('en tareas flexibles quita las horas y ajusta la duración a 15, 30, 60 o 120 min', () => {
     const p = validarPropuesta({ ...buena, flexible: true, duracionMin: 45 }, contexto);
-    expect(p).toMatchObject({ flexible: true, horaInicio: null, horaFin: null });
+    expect(p).toMatchObject({
+      flexible: true,
+      horaInicio: null,
+      horaFin: null,
+    });
     expect([30, 60]).toContain(p?.duracionMin);
     expect(validarPropuesta({ ...buena, flexible: true, duracionMin: 500 }, contexto)?.duracionMin).toBe(120);
     expect(validarPropuesta({ ...buena, flexible: true, duracionMin: 'mucho' }, contexto)?.duracionMin).toBe(30);
@@ -125,12 +139,23 @@ describe('validarInterpretacion', () => {
   it('un recordatorio es una tarea con aviso a esa hora', () => {
     expect(
       validarInterpretacion(
-        { ...buena, accion: 'recordatorio', titulo: 'Llamar a mamá', fecha: '2026-09-25', horaInicio: '18:00' },
+        {
+          ...buena,
+          accion: 'recordatorio',
+          titulo: 'Llamar a mamá',
+          fecha: '2026-09-25',
+          horaInicio: '18:00',
+        },
         ahora,
       ),
     ).toEqual({
       accion: 'apuntar',
-      propuesta: expect.objectContaining({ titulo: 'Llamar a mamá', flexible: true, horaInicio: null, avisarA: '18:00' }),
+      propuesta: expect.objectContaining({
+        titulo: 'Llamar a mamá',
+        flexible: true,
+        horaInicio: null,
+        avisarA: '18:00',
+      }),
     });
   });
 
@@ -151,10 +176,21 @@ describe('validarInterpretacion', () => {
   });
 
   it('una alarma necesita hora; si hoy ya pasó, es la de mañana', () => {
-    const alarma = { ...buena, accion: 'alarma', titulo: '', fecha: '2026-09-24', horaInicio: '7:00' };
+    const alarma = {
+      ...buena,
+      accion: 'alarma',
+      titulo: '',
+      fecha: '2026-09-24',
+      horaInicio: '7:00',
+    };
     expect(validarInterpretacion(alarma, ahora)).toEqual({
       accion: 'alarma',
-      alarma: { fecha: '2026-09-25', hora: '07:00', etiqueta: '', confianza: 'alta' },
+      alarma: {
+        fecha: '2026-09-25',
+        hora: '07:00',
+        etiqueta: '',
+        confianza: 'alta',
+      },
     });
     expect(validarInterpretacion({ ...alarma, horaInicio: '12:00', titulo: 'gimnasio' }, ahora)).toMatchObject({
       alarma: { fecha: '2026-09-24', hora: '12:00', etiqueta: 'Gimnasio' },
@@ -168,5 +204,68 @@ describe('validarInterpretacion', () => {
       dia: '2026-09-30',
     });
     expect(validarInterpretacion({ ...buena, accion: 'otra' }, ahora)).toBeNull();
+  });
+});
+
+describe('validarInterpretaciones', () => {
+  it('una frase con varias cosas da varias tarjetas y quita las que no valen', () => {
+    const lista = validarInterpretaciones(
+      [
+        { ...buena, accion: 'apuntar' },
+        { ...buena, accion: 'otra' },
+        {
+          ...buena,
+          accion: 'apuntar',
+          titulo: 'Comida con Ana',
+          fecha: '2026-09-24',
+        },
+      ],
+      contexto,
+    );
+    expect(lista.map((i) => i.accion === 'apuntar' && i.propuesta.titulo)).toEqual([
+      'Pádel con Javi',
+      'Comida con Ana',
+    ]);
+  });
+
+  it('una sola respuesta (sin lista) también vale', () => {
+    expect(validarInterpretaciones({ ...buena, accion: 'apuntar' }, contexto)).toHaveLength(1);
+  });
+
+  it('lunes y jueves hasta fin de mes: días y fin, y empieza el primero de esos días', () => {
+    const [i] = validarInterpretaciones(
+      [
+        {
+          ...buena,
+          accion: 'apuntar',
+          fecha: '2026-09-25', // viernes
+          repeticion: 'semanal',
+          diasSemana: ['jueves', 'lunes', 'Lunes', 'nada'],
+          hasta: '2026-09-30',
+        },
+      ],
+      contexto,
+    );
+    expect(i.accion === 'apuntar' && i.propuesta).toMatchObject({
+      fecha: '2026-09-28',
+      repeticion: 'semanal',
+      dias: [0, 3],
+      hasta: '2026-09-30',
+    });
+  });
+
+  it('si el fin es antes del primer día, no se repite', () => {
+    const [i] = validarInterpretaciones(
+      [
+        {
+          ...buena,
+          accion: 'apuntar',
+          repeticion: 'diaria',
+          hasta: '2026-09-25',
+        },
+      ],
+      contexto,
+    );
+    expect(i.accion === 'apuntar' && i.propuesta.repeticion).toBeUndefined();
   });
 });

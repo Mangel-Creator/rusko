@@ -8,11 +8,27 @@ import { ETIQUETA_SIRI, procesarPendientes, type PendienteSiri } from '../proces
 const AHORA = new Date(2026, 9, 27, 21, 0);
 
 function apuntar(id: string, texto: string, creado = AHORA): PendienteSiri {
-  return { id, tipo: 'apuntar', texto, dia: null, hora: null, cuando: null, creado: creado.toISOString() };
+  return {
+    id,
+    tipo: 'apuntar',
+    texto,
+    dia: null,
+    hora: null,
+    cuando: null,
+    creado: creado.toISOString(),
+  };
 }
 
 function alarma(id: string, dia: string, hora: string, cuando: Date): PendienteSiri {
-  return { id, tipo: 'alarma', texto: null, dia, hora, cuando: cuando.toISOString(), creado: AHORA.toISOString() };
+  return {
+    id,
+    tipo: 'alarma',
+    texto: null,
+    dia,
+    hora,
+    cuando: cuando.toISOString(),
+    creado: AHORA.toISOString(),
+  };
 }
 
 describe('procesarPendientes (Siri)', () => {
@@ -41,11 +57,18 @@ describe('procesarPendientes (Siri)', () => {
       perfil: null,
       eventos: [],
     });
-    expect(r.eventos[0]).toMatchObject({ fecha: '2026-10-27', horaInicio: '10:00' });
+    expect(r.eventos[0]).toMatchObject({
+      fecha: '2026-10-27',
+      horaInicio: '10:00',
+    });
   });
 
   it('lo que no entiende va como tarea de ese día, sin perderse', () => {
-    const r = procesarPendientes([apuntar('a3', 'llamar a la gestoría')], { ahora: AHORA, perfil: null, eventos: [] });
+    const r = procesarPendientes([apuntar('a3', 'llamar a la gestoría')], {
+      ahora: AHORA,
+      perfil: null,
+      eventos: [],
+    });
     expect(r.eventos[0]).toMatchObject({ fecha: '2026-10-27', flexible: true });
     expect(r.eventos[0].titulo).toContain('gestoría');
   });
@@ -61,34 +84,85 @@ describe('procesarPendientes (Siri)', () => {
     expect(r.ids).toEqual(['a4']);
   });
 
-  it('usa lo que entendió la IA: un recordatorio con su aviso y una alarma', () => {
+  it('usa lo que entendió la IA: un recordatorio con su aviso, una alarma y una clase que se repite', () => {
     const r = procesarPendientes([apuntar('c1', 'recuérdame mañana llamar a mamá'), apuntar('c2', 'alarma a las 7')], {
       ahora: AHORA,
       perfil: null,
       eventos: [],
       leidos: {
-        c1: {
-          accion: 'apuntar',
-          propuesta: {
-            titulo: 'Llamar a mamá',
-            fecha: '2026-10-28',
-            horaInicio: null,
-            horaFin: null,
-            tipo: 'yo',
-            lugar: null,
-            flexible: true,
-            duracionMin: 15,
-            avisarA: '09:00',
-            avisoMin: null,
-            confianza: 'alta',
+        c1: [
+          {
+            accion: 'apuntar',
+            propuesta: {
+              titulo: 'Llamar a mamá',
+              fecha: '2026-10-28',
+              horaInicio: null,
+              horaFin: null,
+              tipo: 'yo',
+              lugar: null,
+              flexible: true,
+              duracionMin: 15,
+              avisarA: '09:00',
+              avisoMin: null,
+              confianza: 'alta',
+            },
           },
-        },
-        c2: { accion: 'alarma', alarma: { fecha: '2026-10-28', hora: '07:00', etiqueta: '', confianza: 'alta' } },
+        ],
+        // Una frase con dos cosas: la alarma y la clase de los lunes y jueves de noviembre.
+        c2: [
+          {
+            accion: 'alarma',
+            alarma: {
+              fecha: '2026-10-28',
+              hora: '07:00',
+              etiqueta: '',
+              confianza: 'alta',
+            },
+          },
+          {
+            accion: 'apuntar',
+            propuesta: {
+              titulo: 'Clase de Inglés',
+              fecha: '2026-10-29',
+              horaInicio: '18:00',
+              horaFin: '20:00',
+              tipo: 'estudios',
+              lugar: null,
+              flexible: false,
+              duracionMin: null,
+              avisarA: null,
+              avisoMin: null,
+              confianza: 'alta',
+              repeticion: 'semanal',
+              dias: [0, 3],
+              hasta: '2026-11-30',
+            },
+          },
+        ],
       },
     });
-    expect(r.eventos[0]).toMatchObject({ id: 'siri-c1', titulo: 'Llamar a mamá', flexible: true, avisarA: '09:00' });
-    expect(r.alarmas[0]).toMatchObject({ id: 'c2', hora: '07:00', unaVezEl: '2026-10-28' });
-    expect(r.hechos).toEqual(['Llamar a mamá, te aviso mañana a las 09:00', 'Alarma mañana a las 07:00']);
+    expect(r.eventos[1]).toMatchObject({
+      id: 'siri-c2-1',
+      repeticion: 'semanal',
+      dias: [0, 3],
+      hasta: '2026-11-30',
+    });
+    expect(r.eventos[0]).toMatchObject({
+      id: 'siri-c1',
+      titulo: 'Llamar a mamá',
+      flexible: true,
+      avisarA: '09:00',
+    });
+    expect(r.alarmas[0]).toMatchObject({
+      id: 'c2',
+      hora: '07:00',
+      unaVezEl: '2026-10-28',
+    });
+    expect(r.hechos).toEqual([
+      'Llamar a mamá, te aviso mañana a las 09:00',
+      'Alarma mañana a las 07:00',
+      'Clase de Inglés, jueves 29 oct a las 18:00',
+    ]);
   });
 
   it('sin IA, las reglas también entienden «recuérdame…»', () => {
@@ -97,7 +171,11 @@ describe('procesarPendientes (Siri)', () => {
       perfil: null,
       eventos: [],
     });
-    expect(r.eventos[0]).toMatchObject({ titulo: 'Llamar a mamá', fecha: '2026-10-28', avisarA: '18:00' });
+    expect(r.eventos[0]).toMatchObject({
+      titulo: 'Llamar a mamá',
+      fecha: '2026-10-28',
+      avisarA: '18:00',
+    });
   });
 
   it('una alarma futura se añade de una sola vez; una pasada, no', () => {

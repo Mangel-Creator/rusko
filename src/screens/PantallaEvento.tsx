@@ -9,6 +9,7 @@ import {
   Interruptor,
   Pantalla,
   Selector,
+  SelectorDias,
   SelectorFecha,
   SelectorHora,
   SelectorVisual,
@@ -130,6 +131,8 @@ type Borrador = {
   hecha: boolean;
   foco: boolean;
   repeticion: Repeticion;
+  dias: number[]; // semanal: qué días (vacío = el de la fecha)
+  hasta: ClaveDia | null; // último día en que se repite
   aviso: Aviso;
   // "ninguno", "casa", "sitio:<id>", "nuevo-trabajo" (si el perfil aún no tiene
   // Trabajo) u "otro" (dirección exacta).
@@ -177,7 +180,9 @@ function borradorInicial(
       avisarA: rellenar?.avisarA ?? null,
       hecha: false,
       foco: false,
-      repeticion: 'nunca',
+      repeticion: rellenar?.repeticion ?? 'nunca',
+      dias: rellenar?.dias ?? [],
+      hasta: rellenar?.hasta ?? null,
       aviso: avisoInicial(rellenar?.avisoMin ?? null, perfil),
       lugar: lugarInicial(rellenar?.lugar ?? null, perfil),
       direccion: '',
@@ -199,6 +204,8 @@ function borradorInicial(
     hecha: evento.hecha,
     foco: evento.foco,
     repeticion: evento.repeticion,
+    dias: evento.dias ?? [],
+    hasta: evento.hasta ?? null,
     aviso: avisoInicial(evento.avisoMin, perfil),
     lugar: lugarInicial(evento.lugar, perfil),
     direccion: evento.lugar?.tipo === 'otro' ? evento.lugar.direccion : '',
@@ -333,6 +340,8 @@ function Formulario({ evento, rellenar, fechaInicial, perfil, eventos }: Props) 
       lugar,
       notas: b.notas.trim(),
       repeticion: b.flexible ? 'nunca' : b.repeticion,
+      dias: !b.flexible && b.repeticion === 'semanal' && b.dias.length ? b.dias : null,
+      hasta: !b.flexible && b.repeticion !== 'nunca' && b.hasta && b.hasta >= b.fecha ? b.hasta : null,
       flexible: b.flexible,
       duracionMin: b.flexible ? Number(b.duracion) : null,
       hecha: b.flexible && b.hecha,
@@ -455,6 +464,22 @@ function Formulario({ evento, rellenar, fechaInicial, perfil, eventos }: Props) 
             valor={b.repeticion}
             alCambiar={(repeticion) => cambiar({ repeticion })}
           />
+          {b.repeticion === 'semanal' ? (
+            <SelectorDias etiqueta="Qué días" valor={b.dias} alCambiar={(dias) => cambiar({ dias })} />
+          ) : null}
+          {b.repeticion !== 'nunca' ? (
+            <>
+              <Interruptor
+                etiqueta="Hasta un día"
+                ayuda="Si no, se repite siempre."
+                valor={b.hasta !== null}
+                alCambiar={(si) => cambiar({ hasta: si ? b.fecha : null })}
+              />
+              {b.hasta !== null ? (
+                <SelectorFecha etiqueta="Último día" valor={b.hasta} alCambiar={(hasta) => cambiar({ hasta })} />
+              ) : null}
+            </>
+          ) : null}
 
           {/* En la web no hay avisos: solo en la app del móvil. */}
           {avisosDisponibles ? (

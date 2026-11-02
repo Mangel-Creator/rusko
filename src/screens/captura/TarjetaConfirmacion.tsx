@@ -16,10 +16,10 @@ import {
 import { guardarEvento, nuevoId, useEventos, type Evento, type LugarEvento } from '@/data/eventos';
 import type { Perfil } from '@/data/perfil';
 import { apuntarTipoAprendido } from '@/data/tiposAprendidos';
-import { NOMBRE_CASA, bloqueDeFocoQuePisa } from '@/services/agenda';
+import { NOMBRE_CASA, bloqueDeFocoQuePisa, unirConY } from '@/services/agenda';
 import type { BorradorFicha } from '@/services/captura/borrador';
 import type { Propuesta } from '@/services/captura';
-import { horaDesdeMinutos, minutosDesdeHora } from '@/services/fechas';
+import { fechaDesdeClave, formatearDiaCorto, horaDesdeMinutos, minutosDesdeHora } from '@/services/fechas';
 import { colores, espacio, radio } from '@/theme';
 
 import { AvisarA } from '../calendario/AvisarA';
@@ -43,6 +43,47 @@ type Props = {
   alCancelar: () => void;
   alMasOpciones: (borrador: BorradorFicha) => void;
 };
+
+const DIAS = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+
+// El evento tal cual lo propone la captura (también lo usa "Guardar todo").
+export function eventoDePropuesta(p: Propuesta): Evento {
+  const repite = !p.flexible && p.repeticion && p.repeticion !== 'nunca';
+  return {
+    id: nuevoId(),
+    titulo: p.titulo.trim(),
+    fecha: p.fecha,
+    horaInicio: p.flexible ? null : (p.horaInicio ?? '10:00'),
+    horaFin: p.flexible ? null : (p.horaFin ?? '11:00'),
+    tipo: p.tipo,
+    lugar: p.lugar,
+    notas: '',
+    repeticion: repite ? p.repeticion! : 'nunca',
+    dias: repite && p.dias?.length ? p.dias : null,
+    hasta: repite ? (p.hasta ?? null) : null,
+    flexible: p.flexible,
+    duracionMin: p.flexible ? (p.duracionMin ?? 30) : null,
+    hecha: false,
+    foco: false,
+    // La antelación pedida en la frase o, si no se dijo nada, la del perfil (null).
+    avisoMin: p.flexible ? null : p.avisoMin,
+    ejemplo: false,
+    avisarA: p.flexible ? p.avisarA : null,
+  };
+}
+
+// «Cada semana: lunes y jueves, hasta el Lunes 30 nov».
+function textoRepeticion(p: Propuesta): string | null {
+  if (p.flexible || !p.repeticion || p.repeticion === 'nunca') return null;
+  const cada =
+    p.repeticion === 'diaria'
+      ? 'Todos los días'
+      : p.repeticion === 'mensual'
+        ? 'Cada mes'
+        : `Cada semana${p.dias?.length ? `: ${unirConY(p.dias.map((d) => DIAS[d]))}` : ''}`;
+  const hasta = p.hasta ? `, hasta el ${formatearDiaCorto(fechaDesdeClave(p.hasta)).toLocaleLowerCase('es-ES')}` : '';
+  return `${cada}${hasta}.`;
+}
 
 function claveLugar(lugar: LugarEvento | null): string {
   if (!lugar) return 'ninguno';
@@ -79,6 +120,7 @@ export function TarjetaConfirmacion({ propuesta, perfil, alGuardar, alCancelar, 
   const [focoPisado, setFocoPisado] = useState<{ bloque: Evento; nuevo: Evento } | null>(null);
   const [guardando, setGuardando] = useState(false);
 
+  const repeticion = textoRepeticion({ ...propuesta, flexible });
   const opcionesLugar: Opcion<string>[] = [
     { valor: 'ninguno', etiqueta: 'Sin lugar' },
     { valor: 'casa', etiqueta: NOMBRE_CASA },
@@ -105,6 +147,9 @@ export function TarjetaConfirmacion({ propuesta, perfil, alGuardar, alCancelar, 
     lugar: lugarDesdeClave(lugar),
     avisarA: flexible ? avisarA : null,
     avisoMin: !flexible && aviso !== null ? Number(aviso) : null,
+    repeticion: propuesta.repeticion,
+    dias: propuesta.dias,
+    hasta: propuesta.hasta,
   });
 
   const guardar = async () => {
@@ -116,25 +161,18 @@ export function TarjetaConfirmacion({ propuesta, perfil, alGuardar, alCancelar, 
       setError('La hora de fin tiene que ser después de la de inicio.');
       return;
     }
-    const nuevo: Evento = {
-      id: nuevoId(),
-      titulo: titulo.trim(),
-      fecha,
-      horaInicio: flexible ? null : horaInicio,
-      horaFin: flexible ? null : horaFin,
-      tipo,
-      lugar: lugarDesdeClave(lugar),
-      notas: '',
-      repeticion: 'nunca',
-      flexible,
-      duracionMin: flexible ? Number(duracion) : null,
-      hecha: false,
-      foco: false,
-      // La antelación pedida en la frase o, si no se dijo nada, la del perfil (null).
-      avisoMin: !flexible && aviso !== null ? Number(aviso) : null,
-      ejemplo: false,
-      avisarA: flexible ? avisarA : null,
-    };
+    const b = borrador();
+    const nuevo = eventoDePropuesta({
+      ...propuesta,
+      ...b,
+      horaInicio: b.horaInicio ?? null,
+      horaFin: b.horaFin ?? null,
+      lugar: b.lugar ?? null,
+      avisoMin: b.avisoMin ?? null,
+      avisarA: b.avisarA ?? null,
+      dias: propuesta.dias,
+      hasta: propuesta.hasta,
+    });
     const bloque = bloqueDeFocoQuePisa(nuevo, eventos);
     if (bloque) {
       setFocoPisado({ bloque, nuevo });
@@ -154,7 +192,7 @@ export function TarjetaConfirmacion({ propuesta, perfil, alGuardar, alCancelar, 
   return (
     <Tarjeta style={estilos.tarjeta} accessibilityLiveRegion="polite">
       <Titulo nivel={3}>{flexible && avisarA ? '¿Te lo recuerdo así?' : '¿Lo guardo así?'}</Titulo>
-      {propuesta.confianza === 'media' ? (
+      {propuesta.confianza !== 'alta' ? (
         <Texto pequeno secundario>
           No lo tengo del todo claro: échale un ojo antes de guardar.
         </Texto>
@@ -215,6 +253,11 @@ export function TarjetaConfirmacion({ propuesta, perfil, alGuardar, alCancelar, 
         </>
       )}
       <Selector etiqueta="Lugar" opciones={opcionesLugar} valor={lugar} alCambiar={setLugar} />
+      {repeticion ? (
+        <Texto pequeno secundario>
+          {repeticion} Para cambiarlo, «Más opciones».
+        </Texto>
+      ) : null}
 
       {error ? (
         <Texto pequeno style={estilos.error} accessibilityLiveRegion="assertive">

@@ -1,4 +1,4 @@
-import type { LugarEvento, TipoEvento } from '@/data/eventos/tipos';
+import type { LugarEvento, Repeticion, TipoEvento } from '@/data/eventos/tipos';
 import type { ClaveDia } from '@/services/fechas';
 
 // Datos para abrir la ficha de evento ya rellena (/evento?propuesta=<id>), por
@@ -18,6 +18,9 @@ export type BorradorFicha = {
   duracionMin?: number | null;
   avisarA?: string | null; // tarea con aviso a esa hora (recordatorio)
   avisoMin?: number | null; // cita: antelación del aviso pedida; null = la del perfil
+  repeticion?: Repeticion;
+  dias?: number[] | null; // semanal: qué días (lunes = 0)
+  hasta?: ClaveDia | null; // último día en que se repite
   mensaje?: string; // se enseña arriba de la ficha
 };
 

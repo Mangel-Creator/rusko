@@ -470,9 +470,10 @@ export function entenderLocal(frase: string, { ahora, perfil, eventos }: Context
 }
 
 // Frases que se dejan a la IA aunque la app las lea: preguntas, cosas que se repiten,
-// avisos con antelación («avísame 1 hora antes») y varias cosas a la vez.
+// avisos con antelación («avísame 1 hora antes») y varias cosas a la vez (" y " con
+// otro día u hora detrás).
 const RE_PARA_LA_IA =
-  /\?|^(?:que|cuando|cuanto|donde|a que hora|tengo algo|hay algo|estoy libre)\b|\b(?:todos los|todas las|cada|semanal|diario|antes|despues de|ademas)\b/;
+  /\?|^(?:que|cuando|cuanto|donde|a que hora|tengo algo|hay algo|estoy libre)\b|\b(?:todos los|todas las|cada|semanal|diario|antes|despues de|ademas|este mes|hasta)\b|,| y .*\b(?:hoy|manana|pasado|luego|tambien|lunes|martes|miercoles|jueves|viernes|sabado|domingo|a las?)\b/;
 const MAX_PALABRAS_SIN_IA = 5;
 
 // Desde el 02/11/2026 (lo pidió el usuario, para gastar menos IA) la captura prueba
