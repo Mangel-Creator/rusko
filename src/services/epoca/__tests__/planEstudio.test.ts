@@ -260,3 +260,40 @@ describe('lo que se quedó sin marcar', () => {
     expect(sinMarcar(epoca({ inicio: '2026-09-01' }), planes, [], HOY)).toEqual([]);
   });
 });
+
+describe('fines de semana y exámenes lejanos (cuestionario, 03/11/2026)', () => {
+  const minutosPorDia = (e: Epoca) => {
+    const plan = planificarEpoca({ epoca: e, eventos: [], registro: [], hoy: HOY });
+    const total: Record<string, number> = {};
+    for (const b of plan.bloques) total[b.dia] = (total[b.dia] ?? 0) + b.fin - b.inicio;
+    return total;
+  };
+  const conRitmo = (ritmo: Partial<Epoca['ritmo']>, fecha = '2026-10-02', horasPreparacion = 40) =>
+    epoca({ fin: '2026-11-30', ritmo: { ...epoca().ritmo, ...ritmo }, hitos: [hito({ fecha, horasPreparacion })] });
+
+  it('sin decir nada, el fin de semana es un día más', () => {
+    const m = minutosPorDia(conRitmo({}));
+    expect(m['2026-09-26']).toBe(120);
+    expect(m['2026-09-27']).toBe(120);
+  });
+
+  it('"solo un día" estudia el sábado y deja libre el domingo', () => {
+    const m = minutosPorDia(conRitmo({ finde: 'uno' }));
+    expect(m['2026-09-26']).toBe(120);
+    expect(m['2026-09-27']).toBeUndefined();
+  });
+
+  it('"poco" es medio día cada uno y entre semana no cambia', () => {
+    const m = minutosPorDia(conRitmo({ finde: 'poco' }));
+    expect(m['2026-09-25']).toBe(120);
+    // 60 min: un bloque de 50 (lo que sobra no llega a un bloque).
+    expect(m['2026-09-26']).toBe(50);
+    expect(m['2026-09-27']).toBe(50);
+  });
+
+  it('con el examen a más de 4 semanas estudia la parte que dijo, y luego todo', () => {
+    const m = minutosPorDia(conRitmo({ cargaLejos: 0.5 }, '2026-11-20', 150));
+    expect(m[HOY]).toBe(50);
+    expect(m['2026-11-10']).toBe(120);
+  });
+});

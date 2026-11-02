@@ -8,3 +8,4 @@ export * from './inicio';
 export * from './sinMarcar';
 export * from './temas';
 export * from './validarIA';
+export * from './perfilEstudio';

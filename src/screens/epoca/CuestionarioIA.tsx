@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { StyleSheet } from 'react-native';
 
 import {
@@ -16,11 +16,21 @@ import {
   Titulo,
   type Opcion,
 } from '@/components';
-import { nuevoIdEpoca } from '@/data/epocas';
+import { leerEpocas, nuevoIdEpoca } from '@/data/epocas';
 import type { DiaSemana, Perfil } from '@/data/perfil';
+import { guardarPerfilEstudio, leerPerfilEstudio } from '@/data/perfilEstudio';
 import type { PropuestaEpoca } from '@/services/epoca';
 import { cuestionarioConIA } from '@/services/epoca/ia';
 import {
+  conRecuentos,
+  estimarHoras,
+  examenGuardado,
+  lineasAprendidas,
+  PERFIL_ESTUDIO_VACIO,
+  type PerfilEstudio,
+} from '@/services/epoca/perfilEstudio';
+import {
+  HABITOS_VACIOS,
   MAX_ASIGNATURAS,
   MAX_INDICE,
   MAX_OTROS,
@@ -33,6 +43,7 @@ import {
 import { sumarDias, type ClaveDia } from '@/services/fechas';
 import { colores, espacio } from '@/theme';
 
+import { ExtrasExamen } from './ExtrasExamen';
 import { formatoHoras, NOMBRES_DIAS, OPCIONES_DIFICULTAD, OPCIONES_MOMENTO_VISUAL } from './textos';
 
 type Props = {
@@ -59,8 +70,10 @@ const AVANCES: Opcion<Avance>[] = [
   { valor: 'casi', etiqueta: 'Casi todo' },
 ];
 
+type Pregunta = { clave: keyof HabitosCuestionario; texto: string; opciones: Opcion<string>[] };
+
 // Las preguntas de hábitos salen de las guías de técnicas de estudio del COIE de la UNED.
-const PREGUNTAS: { clave: keyof HabitosCuestionario; texto: string; opciones: Opcion<string>[] }[] = [
+const PREGUNTAS: Pregunta[] = [
   {
     clave: 'constancia',
     texto: '¿Estudias en el mismo sitio y a la misma hora?',
@@ -125,6 +138,42 @@ const PREGUNTAS: { clave: keyof HabitosCuestionario; texto: string; opciones: Op
     ],
   },
   {
+    clave: 'autoexamen',
+    texto: '¿Te haces preguntas para ver lo que sabes (fichas, tests)?',
+    opciones: [
+      { valor: 'si', etiqueta: 'Sí' },
+      { valor: 'no-probado', etiqueta: 'No lo he probado' },
+      { valor: 'no-gusta', etiqueta: 'No me gusta' },
+    ],
+  },
+  {
+    clave: 'mezclar',
+    texto: '¿Cuántas asignaturas estudias en un mismo día?',
+    opciones: [
+      { valor: 'una', etiqueta: 'Una sola' },
+      { valor: 'dos', etiqueta: 'Dos como mucho' },
+      { valor: 'mezclo', etiqueta: 'Mezclo varias' },
+    ],
+  },
+  {
+    clave: 'entender',
+    texto: '¿Te cuesta entender lo nuevo?',
+    opciones: [
+      { valor: 'rapido', etiqueta: 'No, lo pillo rápido' },
+      { valor: 'normal', etiqueta: 'Lo normal' },
+      { valor: 'cuesta', etiqueta: 'Sí, necesito más tiempo' },
+    ],
+  },
+  {
+    clave: 'memorizar',
+    texto: '¿Te cuesta memorizar?',
+    opciones: [
+      { valor: 'facil', etiqueta: 'No' },
+      { valor: 'normal', etiqueta: 'Lo normal' },
+      { valor: 'cuesta', etiqueta: 'Sí, se me olvida pronto' },
+    ],
+  },
+  {
     clave: 'distraccion',
     texto: '¿Qué te distrae más?',
     opciones: [
@@ -145,17 +194,48 @@ const PREGUNTAS: { clave: keyof HabitosCuestionario; texto: string; opciones: Op
   },
 ];
 
-const HABITOS_VACIOS: HabitosCuestionario = {
-  constancia: null,
-  concentracion: null,
-  arrancar: null,
-  sintesis: null,
-  repasos: null,
-  lectura: null,
-  nervios: null,
-  distraccion: null,
-  memoria: null,
-};
+// Cómo le va según el momento: lejos o cerca del examen, el fin de semana y los imprevistos.
+const PREGUNTAS_MOMENTO: Pregunta[] = [
+  {
+    clave: 'lejos',
+    texto: '¿Estudias cuando el examen aún queda lejos?',
+    opciones: [
+      { valor: 'si', etiqueta: 'Sí, con constancia' },
+      { valor: 'a-medias', etiqueta: 'Algo, pero me cuesta' },
+      { valor: 'no', etiqueta: 'No, arranco cuando se acerca' },
+    ],
+  },
+  {
+    clave: 'cerca',
+    texto: '¿Cómo llevas las últimas semanas antes del examen?',
+    opciones: [
+      { valor: 'mejor', etiqueta: 'Rindo más con la presión' },
+      { valor: 'igual', etiqueta: 'Igual que siempre' },
+      { valor: 'agobio', etiqueta: 'Me agobio y rindo menos' },
+    ],
+  },
+  {
+    clave: 'finde',
+    texto: '¿Estudias los fines de semana?',
+    opciones: [
+      { valor: 'ambos', etiqueta: 'Los dos días' },
+      { valor: 'uno', etiqueta: 'Solo un día' },
+      { valor: 'poco', etiqueta: 'Un rato cada día' },
+      { valor: 'nada', etiqueta: 'No' },
+    ],
+  },
+  {
+    clave: 'imprevistos',
+    texto: '¿Te surgen imprevistos que te tuercen el plan?',
+    opciones: [
+      { valor: 'casi-nunca', etiqueta: 'Casi nunca' },
+      { valor: 'a-veces', etiqueta: 'A veces' },
+      { valor: 'a-menudo', etiqueta: 'A menudo' },
+    ],
+  },
+];
+
+const tieneRespuestas = (p: PerfilEstudio) => Object.values(p.habitos).some((v) => v !== null);
 
 function asignaturaNueva(hoy: ClaveDia): AsignaturaCuestionario {
   return {
@@ -175,6 +255,8 @@ function asignaturaNueva(hoy: ClaveDia): AsignaturaCuestionario {
 // Cuestionario a fondo antes del formulario: exámenes, tiempo y cómo estudia.
 // La IA prepara con él el plan (temas, repasos, simulacros y consejos) siguiendo
 // las guías del COIE de la UNED, y rellena los tres pasos para revisarlos.
+// Lo que contesta se guarda en su perfil de estudio (data/perfilEstudio.ts): la
+// próxima vez sale ya puesto, junto con lo aprendido de sus planes anteriores.
 export function CuestionarioIA({ perfil, hoy, alPreparar, alSaltar }: Props) {
   const [asignaturas, setAsignaturas] = useState(() => [asignaturaNueva(hoy)]);
   const [horasDia, setHorasDia] = useState(4);
@@ -184,6 +266,40 @@ export function CuestionarioIA({ perfil, hoy, alPreparar, alSaltar }: Props) {
   const [otros, setOtros] = useState('');
   const [ocupado, setOcupado] = useState(false);
   const [mensaje, setMensaje] = useState<{ texto: string; error: boolean } | null>(null);
+  const [estudio, setEstudio] = useState<PerfilEstudio | null>(null);
+  // Si ya contestó otra vez, las preguntas salen plegadas (no se vuelven a pedir).
+  const [yaSabido, setYaSabido] = useState(false);
+
+  // Su perfil de estudio, con lo hecho en sus épocas hasta hoy.
+  useEffect(() => {
+    let vigente = true;
+    Promise.all([leerPerfilEstudio(), leerEpocas()])
+      .then(([guardado, { epocas, registro }]) => {
+        if (!vigente) return;
+        const p = conRecuentos(guardado, epocas, registro);
+        setEstudio(p);
+        if (tieneRespuestas(p)) {
+          setHabitos(p.habitos);
+          setYaSabido(true);
+        }
+        if (p.tiempo) {
+          setHorasDia(p.tiempo.horasDia);
+          setRindeMas(p.tiempo.rindeMas);
+          setDiaLibre(p.tiempo.diaLibre);
+        }
+      })
+      .catch(() => vigente && setEstudio(PERFIL_ESTUDIO_VACIO));
+    return () => {
+      vigente = false;
+    };
+  }, []);
+
+  useEffect(() => {
+    if (estudio) guardarPerfilEstudio(estudio).catch(() => {});
+  }, [estudio]);
+
+  const actualizarEstudio = (cambio: (p: PerfilEstudio) => PerfilEstudio) =>
+    setEstudio((actual) => cambio(actual ?? PERFIL_ESTUDIO_VACIO));
 
   const cambiarAsignatura = (id: string, cambios: Partial<AsignaturaCuestionario>) =>
     setAsignaturas((actuales) => actuales.map((a) => (a.id === id ? { ...a, ...cambios } : a)));
@@ -199,9 +315,13 @@ export function CuestionarioIA({ perfil, hoy, alPreparar, alSaltar }: Props) {
     }
     setOcupado(true);
     setMensaje(null);
+    // Sus respuestas se quedan para el próximo plan.
+    const nuevo: PerfilEstudio = { ...(estudio ?? PERFIL_ESTUDIO_VACIO), habitos, tiempo: { horasDia, rindeMas, diaLibre } };
+    setEstudio(nuevo);
     const r = await cuestionarioConIA(
       { asignaturas: asignaturas.map((a) => ({ ...a, nombre: a.nombre.trim() })), horasDia, rindeMas, diaLibre, habitos, otros },
       perfil,
+      nuevo,
     );
     setOcupado(false);
     if (r.estado === 'fallo') {
@@ -216,13 +336,46 @@ export function CuestionarioIA({ perfil, hoy, alPreparar, alSaltar }: Props) {
     ...NOMBRES_DIAS.map((nombre, i) => ({ valor: String(i), etiqueta: nombre })),
   ];
 
+  const ritmo = { habitos, ritmo: estudio?.ritmo ?? 1 };
+  const aprendido = estudio ? lineasAprendidas(estudio, true) : [];
+  const selectores = (preguntas: Pregunta[]) =>
+    preguntas.map((p) => (
+      <Selector
+        key={p.clave}
+        etiqueta={p.texto}
+        opciones={p.opciones}
+        valor={habitos[p.clave]}
+        alCambiar={(valor) => setHabitos((actuales) => ({ ...actuales, [p.clave]: valor }))}
+      />
+    ));
+  const preguntasHabitos = (
+    <>
+      <Texto secundario>Contesta lo que quieras. Con esto ajusto el tiempo, los descansos, los repasos y los consejos.</Texto>
+      {selectores(PREGUNTAS)}
+      <Titulo nivel={3}>Según el momento</Titulo>
+      {selectores(PREGUNTAS_MOMENTO)}
+    </>
+  );
+
   return (
     <>
       <Titulo>Tu plan de estudio</Titulo>
       <Texto secundario>
-        Unas preguntas (unos 3 minutos). Con ellas preparo tu plan: temas, repasos y simulacros según las guías de
-        técnicas de estudio del COIE de la UNED. Luego lo revisas todo antes de guardar.
+        {yaSabido
+          ? 'Ya sé cómo estudias de la otra vez. Dime los exámenes y preparo tu plan: temas, repasos y simulacros según las guías del COIE de la UNED.'
+          : 'Unas preguntas (unos 4 minutos, solo esta vez: me las guardo). Con ellas preparo tu plan: temas, repasos y simulacros según las guías de técnicas de estudio del COIE de la UNED. Luego lo revisas todo antes de guardar.'}
       </Texto>
+      {aprendido.length > 0 ? (
+        <Tarjeta style={estilos.tarjeta}>
+          <Titulo nivel={3}>Lo que he aprendido de ti</Titulo>
+          {aprendido.map((linea) => (
+            <Texto key={linea}>{linea}</Texto>
+          ))}
+          <Texto pequeno secundario>
+            Lo tengo en cuenta para este plan.
+          </Texto>
+        </Tarjeta>
+      ) : null}
 
       <Titulo nivel={2}>Tus exámenes</Titulo>
       {asignaturas.map((a, i) => (
@@ -281,6 +434,16 @@ export function CuestionarioIA({ perfil, hoy, alPreparar, alSaltar }: Props) {
               style={estilos.campoLargo}
             />
           </Plegable>
+          {estudio ? (
+            <>
+              <ExtrasExamen asignatura={a} estudio={estudio} hoy={hoy} actualizar={actualizarEstudio} />
+              <Texto secundario>
+                Calculo{' '}
+                {formatoHoras(estimarHoras(a, ritmo, examenGuardado(estudio, a.nombre).apuntes?.temas))} para este
+                examen, repasos incluidos.
+              </Texto>
+            </>
+          ) : null}
           {asignaturas.length > 1 ? (
             <Boton
               variante="secundario"
@@ -322,16 +485,13 @@ export function CuestionarioIA({ perfil, hoy, alPreparar, alSaltar }: Props) {
       />
 
       <Titulo nivel={2}>Cómo estudias</Titulo>
-      <Texto secundario>Contesta lo que quieras. Con esto ajusto los descansos, los repasos y los consejos.</Texto>
-      {PREGUNTAS.map((p) => (
-        <Selector
-          key={p.clave}
-          etiqueta={p.texto}
-          opciones={p.opciones}
-          valor={habitos[p.clave]}
-          alCambiar={(valor) => setHabitos((actuales) => ({ ...actuales, [p.clave]: valor }))}
-        />
-      ))}
+      {yaSabido ? (
+        <Plegable titulo="Tus respuestas" resumen="Las tengo de la otra vez. Ábrelo si algo ha cambiado">
+          {preguntasHabitos}
+        </Plegable>
+      ) : (
+        preguntasHabitos
+      )}
       <CampoTexto
         etiqueta="¿Algo más? (opcional)"
         placeholder="Trabajo por las tardes, la Estadística la suspendí en junio…"
@@ -348,11 +508,11 @@ export function CuestionarioIA({ perfil, hoy, alPreparar, alSaltar }: Props) {
           {mensaje.texto}
         </Texto>
       ) : null}
-      <Boton titulo={ocupado ? 'Preparando tu plan… (hasta 1 minuto)' : 'Preparar mi plan'} disabled={ocupado} onPress={preparar} />
+      <Boton titulo={ocupado ? 'Preparando tu plan… (hasta 2 minutos)' : 'Preparar mi plan'} disabled={ocupado} onPress={preparar} />
       <Boton variante="secundario" titulo="Rellenarlo a mano" disabled={ocupado} onPress={alSaltar} />
       <Texto pequeno secundario>
-        Lo que escribas se envía a la IA (Claude, de Anthropic) solo para preparar el plan. No se guarda en ningún
-        servidor.
+        Lo que escribas, tus apuntes y las búsquedas se envían a la IA (Claude, de Anthropic) solo para preparar el
+        plan. No se guardan en ningún servidor. Tus respuestas y lo que aprendo de tus planes se quedan en tu dispositivo.
       </Texto>
     </>
   );

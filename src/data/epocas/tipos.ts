@@ -36,7 +36,15 @@ export type RitmoEpoca = {
   diaLibre: DiaSemana | null; // ese día no hay plan
   trayectoMin: number; // lo que tarda en llegar al sitio (para el aviso de salir)
   imprescindibles: Imprescindible[];
+  // Fines de semana (cuestionario, 03/11/2026): sin él, como un día más.
+  finde?: FindeEstudio;
+  // Cuánto de la cuota se estudia cuando el próximo examen queda a más de 4 semanas
+  // (0.5-1). Sin él, todo.
+  cargaLejos?: number;
 };
+
+// ambos: los dos días; uno: solo el sábado; poco: medio día cada uno; nada: ninguno.
+export type FindeEstudio = 'ambos' | 'uno' | 'poco' | 'nada';
 
 // Una parte del temario de un hito ("Tema 3: Regresión"), con las horas que
 // se le dedican. Los bloques del plan van pasando por los temas en orden

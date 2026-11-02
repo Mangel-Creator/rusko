@@ -7,6 +7,14 @@ import { claveDia, type ClaveDia } from '@/services/fechas';
 import { limiteDelError, mensajeLimite } from '@/services/ia';
 
 import { diasEntre } from './estado';
+import {
+  estimarHoras,
+  examenGuardado,
+  lineasAprendidas,
+  temasMedidos,
+  type PerfilEstudio,
+  type TemaMedido,
+} from './perfilEstudio';
 import type { PlanEpoca } from './plan';
 import {
   datosRepaso,
@@ -23,6 +31,7 @@ import {
   type PropuestaTemas,
   type Repaso,
   type RespuestasCuestionario,
+  type TipoExamen,
 } from './validarIA';
 
 // La IA ayuda a planificar la Época dorada: manda lo necesario a la función
@@ -32,8 +41,11 @@ import {
 // pruebas) no carguen la conexión con el servidor.
 
 const ESPERA_MAX_MS = 30000;
-// El plan del cuestionario es largo (temas de todos los exámenes): se le da más tiempo.
-const ESPERA_CUESTIONARIO_MS = 90000;
+// El plan del cuestionario es largo (temas de todos los exámenes) y lo hace un modelo
+// que piensa más; buscar cómo es un examen o leer un PDF también tarda.
+const ESPERA_CUESTIONARIO_MS = 150000;
+const ESPERA_FICHA_MS = 90000;
+const ESPERA_MEDIR_MS = 120000;
 
 export type MotivoFalloIA =
   | 'sin-configurar'
@@ -42,6 +54,7 @@ export type MotivoFalloIA =
   | 'limite'
   | 'limite-ia'
   | 'no-entendido'
+  | 'pdf'
   | 'error';
 
 export type ResultadoIA<T> = { estado: 'ok'; datos: T } | { estado: 'fallo'; motivo: MotivoFalloIA; mensaje: string };
@@ -53,6 +66,7 @@ const MENSAJES: Record<MotivoFalloIA, string> = {
   limite: 'Has usado la IA muchas veces hoy. Mañana vuelve a funcionar.',
   'limite-ia': 'Has gastado la IA por ahora. Mientras, puedes rellenarlo a mano.',
   'no-entendido': 'No lo he pillado del todo. Cuéntamelo con otras palabras o rellénalo a mano.',
+  pdf: 'No he podido leer ese PDF. Si es muy largo, pártelo y añade las partes de una en una.',
   error: 'No he podido hacerlo ahora. Prueba otra vez en un rato.',
 };
 
@@ -86,6 +100,7 @@ async function motivoDelError(error: unknown): Promise<MotivoFalloIA> {
   if (error instanceof FunctionsHttpError) {
     const respuesta = error.context as Response | undefined;
     if (respuesta?.status === 429) return 'limite';
+    if (respuesta?.status === 422) return 'pdf';
     if (respuesta?.status === 503) {
       const cuerpo = await respuesta.clone().json().catch(() => null);
       if ((cuerpo as { error?: string } | null)?.error === 'sin-clave') return 'sin-clave';
@@ -98,24 +113,70 @@ async function motivoDelError(error: unknown): Promise<MotivoFalloIA> {
   return 'error';
 }
 
-// 0. "Cuestionario": las respuestas (sin el id de cada examen) y el horario normal.
+// Las horas que necesita cada examen (por su id), con sus apuntes si los ha medido.
+export function horasEstimadas(respuestas: RespuestasCuestionario, estudio: PerfilEstudio): Record<string, number> {
+  return Object.fromEntries(
+    respuestas.asignaturas.map((a) => [a.id, estimarHoras(a, estudio, examenGuardado(estudio, a.nombre).apuntes?.temas)]),
+  );
+}
+
+// 0. "Cuestionario": las respuestas (sin el id de cada examen), el horario normal y,
+//    de su perfil de estudio, las horas que calcula la app, lo que ocupan sus apuntes
+//    (sin su contenido), cómo es cada examen y lo aprendido de otros planes.
 export async function cuestionarioConIA(
   respuestas: RespuestasCuestionario,
   perfil: Perfil | null,
+  estudio: PerfilEstudio,
 ): Promise<ResultadoIA<PropuestaEpoca>> {
   const hoy = claveDia(new Date());
+  const estimadas = horasEstimadas(respuestas, estudio);
   const asignaturas = [...respuestas.asignaturas]
     .sort((a, b) => a.fecha.localeCompare(b.fecha) || a.hora.localeCompare(b.hora))
-    .map(({ id: _id, ...a }) => ({ ...a, indice: a.indice.trim().slice(0, MAX_INDICE) }));
+    .map(({ id, ...a }) => {
+      const guardado = examenGuardado(estudio, a.nombre);
+      return {
+        ...a,
+        indice: a.indice.trim().slice(0, MAX_INDICE),
+        horasEstimadas: estimadas[id],
+        apuntes: guardado.apuntes?.temas ?? [],
+        ficha: guardado.ficha?.texto ?? '',
+      };
+    });
   const r = await llamar({
     accion: 'cuestionario',
     hoy,
     respuestas: { ...respuestas, asignaturas, otros: respuestas.otros.trim().slice(0, MAX_OTROS) },
     horario: perfil ? { levantarse: perfil.horario.levantarse, acostarse: perfil.horario.acostarse } : null,
+    aprendido: lineasAprendidas(estudio),
   }, ESPERA_CUESTIONARIO_MS);
   if (r.estado === 'fallo') return r;
   const propuesta = validarPreparacion(r.datos, { hoy, sitiosIds: [] });
-  return propuesta ? { estado: 'ok', datos: propuestaDeCuestionario(respuestas, propuesta) } : fallo('no-entendido');
+  return propuesta
+    ? { estado: 'ok', datos: propuestaDeCuestionario(respuestas, propuesta, estimadas) }
+    : fallo('no-entendido');
+}
+
+// 0b. "Buscar cómo es este examen": solo el nombre, lo que añada para encontrarlo
+//     (centro, nivel, convocatoria) y el tipo. Claude lo busca en internet.
+export async function fichaConIA(examen: string, detalle: string, tipoExamen: TipoExamen): Promise<ResultadoIA<string>> {
+  const r = await llamar(
+    { accion: 'ficha', hoy: claveDia(new Date()), examen: examen.trim(), detalle: detalle.trim(), tipoExamen },
+    ESPERA_FICHA_MS,
+  );
+  if (r.estado === 'fallo') return r;
+  const texto = (r.datos as { texto?: unknown }).texto;
+  return typeof texto === 'string' && texto.trim() ? { estado: 'ok', datos: texto.trim() } : fallo('error');
+}
+
+// 0c. "Medir mis apuntes": el PDF va a Claude solo para saber cuánto ocupa cada tema.
+export async function medirApuntesConIA(examen: string, pdfBase64: string): Promise<ResultadoIA<TemaMedido[]>> {
+  const r = await llamar(
+    { accion: 'medir', hoy: claveDia(new Date()), examen: examen.trim(), pdf: pdfBase64 },
+    ESPERA_MEDIR_MS,
+  );
+  if (r.estado === 'fallo') return r;
+  const temas = temasMedidos(r.datos);
+  return temas ? { estado: 'ok', datos: temas } : fallo('pdf');
 }
 
 // 1. "Cuéntamelo y lo preparo": manda el texto, el día, el horario normal y los

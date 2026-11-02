@@ -1,6 +1,7 @@
 import { useEffect, useSyncExternalStore } from 'react';
 
 import { guardarAjuste, leerAjuste } from '@/data/ajustes';
+import { apuntarRecuentos } from '@/data/perfilEstudio';
 import { claveDia, sumarDias, type ClaveDia } from '@/services/fechas';
 
 import { crearEpocaEjemplo } from './ejemplo';
@@ -15,6 +16,7 @@ export type {
   Dificultad,
   Epoca,
   EstadoBloque,
+  FindeEstudio,
   Hito,
   Imprescindible,
   PlanesDelDia,
@@ -87,6 +89,11 @@ export async function guardarEpoca(epoca: Epoca): Promise<void> {
 
 export async function borrarEpoca(id: string): Promise<void> {
   await cargarEpocas();
+  // Lo aprendido de esta época se queda en el perfil de estudio.
+  await apuntarRecuentos(
+    estado.epocas.filter((e) => e.id === id),
+    estado.registro,
+  ).catch(() => {});
   await repositorio.borrarEpoca(id);
   cambiar({
     epocas: estado.epocas.filter((e) => e.id !== id),

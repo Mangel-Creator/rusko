@@ -3,6 +3,7 @@ import { describe, expect, it } from '@jest/globals';
 import type { Epoca, Hito, RegistroBloque, TemaHito } from '@/data/epocas/tipos';
 import {
   aplicarPropuesta,
+  HABITOS_VACIOS,
   datosRepaso,
   planificarEpoca,
   propuestaDeCuestionario,
@@ -216,7 +217,7 @@ describe('IA: cuestionario (COIE de la UNED)', () => {
     horasDia: 4,
     rindeMas: 'manana' as const,
     diaLibre: 6 as const,
-    habitos: { constancia: null, concentracion: 'corta' as const, arrancar: null, sintesis: null, repasos: null, lectura: null, nervios: null, distraccion: null, memoria: null },
+    habitos: { ...HABITOS_VACIOS, concentracion: 'corta' as const },
     otros: '',
   };
 
@@ -240,6 +241,27 @@ describe('IA: cuestionario (COIE de la UNED)', () => {
     expect(p.hitos[0].horasPreparacion).toBe(12);
     expect(p).toMatchObject({ tipo: 'examenes', fin: '2026-10-20', horasDia: 4, rindeMas: 'manana', diaLibre: 6, descanso: '25-5' });
     expect(p.consejos).toHaveLength(2);
+  });
+
+  it('las horas de la IA no se alejan más de un 15 % de lo calculado', () => {
+    const ia = validarPreparacion(respuestaIA, ctx);
+    if (!ia) throw new Error('sin propuesta');
+    // La IA suma 6,5 h en álgebra; la app calcula 10: se sube hasta unas 8,5.
+    const p = propuestaDeCuestionario(respuestas, ia, { a: 10, b: 20 });
+    expect(Math.abs(p.hitos[1].horasPreparacion - 8.5)).toBeLessThanOrEqual(0.5);
+    // Sin temas, las calculadas.
+    expect(p.hitos[0].horasPreparacion).toBe(20);
+    // Y las notas dicen que se ha cambiado lo que proponía.
+    expect(p.notas).toContain(`«Álgebra»: dejo ${String(p.hitos[1].horasPreparacion).replace('.', ',')} h`);
+    expect(p.notas).toContain('la IA proponía 6,5 h');
+  });
+
+  it('descanso, fines de semana y examen lejano salen de sus respuestas', () => {
+    const ia = validarPreparacion(respuestaIA, ctx);
+    if (!ia) throw new Error('sin propuesta');
+    const habitos = { ...HABITOS_VACIOS, concentracion: 'larga' as const, finde: 'uno' as const, lejos: 'a-medias' as const };
+    const p = propuestaDeCuestionario({ ...respuestas, habitos }, ia);
+    expect(p).toMatchObject({ descanso: '90-15', finde: 'uno', cargaLejos: 0.75 });
   });
 });
 

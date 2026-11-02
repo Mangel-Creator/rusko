@@ -2,6 +2,7 @@ import type {
   AvisosEpoca,
   Descanso,
   Epoca,
+  FindeEstudio,
   Hito,
   Imprescindible,
   TipoEpoca,
@@ -50,6 +51,8 @@ export type BorradorEpoca = {
   rindeMas: MomentoDelDia | null;
   descanso: Descanso | null;
   diaLibre: DiaSemana | null;
+  finde: FindeEstudio | null;
+  cargaLejos: number | null;
   trayecto: Trayecto;
   imprescindibles: Imprescindible[];
   hitos: Hito[];
@@ -99,6 +102,8 @@ export function borradorDesdeEpoca(
       rindeMas: perfil?.rindeMas ?? null,
       descanso: '50-10',
       diaLibre: null,
+      finde: null,
+      cargaLejos: null,
       trayecto: '20',
       imprescindibles: [],
       hitos: [],
@@ -134,6 +139,8 @@ export function borradorDesdeEpoca(
     rindeMas: ritmo.rindeMas,
     descanso: ritmo.descanso,
     diaLibre: ritmo.diaLibre,
+    finde: ritmo.finde ?? null,
+    cargaLejos: ritmo.cargaLejos ?? null,
     trayecto: String(ritmo.trayectoMin) as Trayecto,
     imprescindibles: ritmo.imprescindibles,
     hitos: epoca.hitos,
@@ -169,6 +176,8 @@ export function borradorConPropuesta(b: BorradorEpoca, p: PropuestaEpoca): Borra
   if (p.descanso) nuevo.descanso = p.descanso;
   if (p.diasVas) nuevo.diasVas = p.diasVas;
   if (p.diaLibre !== null) nuevo.diaLibre = p.diaLibre === 'ninguno' ? null : p.diaLibre;
+  if (p.finde) nuevo.finde = p.finde;
+  if (p.cargaLejos !== null) nuevo.cargaLejos = p.cargaLejos;
   if (p.lugar) {
     nuevo.lugar = p.lugar.tipo === 'casa' ? 'casa' : p.lugar.tipo === 'sitio' ? `sitio:${p.lugar.sitioId}` : 'otro';
     nuevo.direccion = p.lugar.tipo === 'otro' ? p.lugar.direccion : '';
@@ -293,6 +302,8 @@ function montarEpoca(
       diaLibre: b.diaLibre,
       trayectoMin: Number(b.trayecto),
       imprescindibles: b.imprescindibles,
+      ...(b.finde ? { finde: b.finde } : {}),
+      ...(b.cargaLejos !== null ? { cargaLejos: b.cargaLejos } : {}),
     },
     hitos: [...b.hitos].sort((x, y) => x.fecha.localeCompare(y.fecha) || x.hora.localeCompare(y.hora)),
     avisos: b.avisos,

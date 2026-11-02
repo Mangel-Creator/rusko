@@ -2,6 +2,7 @@ import type {
   Descanso,
   Dificultad,
   Epoca,
+  FindeEstudio,
   RegistroBloque,
   TemaHito,
   TipoEpoca,
@@ -138,6 +139,8 @@ export type PropuestaEpoca = {
   hitos: HitoPropuesto[];
   notas: string | null; // lo que ha tenido que suponer, para que lo revise
   consejos: string[]; // solo con el cuestionario: cómo estudiar cada cosa
+  finde: FindeEstudio | null; // solo con el cuestionario
+  cargaLejos: number | null; // solo con el cuestionario
 };
 
 export type ContextoPreparacion = { hoy: ClaveDia; sitiosIds: string[] };
@@ -225,6 +228,8 @@ export function validarPreparacion(datos: unknown, { hoy, sitiosIds }: ContextoP
       .map((c) => texto(c, 300))
       .filter((c): c is string => c !== null)
       .slice(0, MAX_CONSEJOS),
+    finde: null,
+    cargaLejos: null,
   };
 }
 
@@ -413,6 +418,35 @@ export type HabitosCuestionario = {
   nervios: 'no' | 'algo' | 'mucho' | null;
   distraccion: 'movil' | 'ruido' | 'cansancio' | 'nada' | null;
   memoria: 'viendo' | 'escuchando' | 'haciendo' | null;
+  // Cómo le va según el momento (03/11/2026): se guardan en su perfil de estudio.
+  mezclar: 'una' | 'dos' | 'mezclo' | null; // asignaturas en un mismo día
+  lejos: 'si' | 'a-medias' | 'no' | null; // estudia cuando el examen aún queda lejos
+  cerca: 'mejor' | 'igual' | 'agobio' | null; // con el examen encima
+  finde: FindeEstudio | null;
+  entender: 'rapido' | 'normal' | 'cuesta' | null; // lo nuevo le entra...
+  memorizar: 'facil' | 'normal' | 'cuesta' | null;
+  imprevistos: 'casi-nunca' | 'a-veces' | 'a-menudo' | null; // planes que se le tuercen
+  autoexamen: 'si' | 'no-probado' | 'no-gusta' | null; // preguntarse a sí mismo
+};
+
+export const HABITOS_VACIOS: HabitosCuestionario = {
+  constancia: null,
+  concentracion: null,
+  arrancar: null,
+  sintesis: null,
+  repasos: null,
+  lectura: null,
+  nervios: null,
+  distraccion: null,
+  memoria: null,
+  mezclar: null,
+  lejos: null,
+  cerca: null,
+  finde: null,
+  entender: null,
+  memorizar: null,
+  imprevistos: null,
+  autoexamen: null,
 };
 
 export type RespuestasCuestionario = {
@@ -427,16 +461,57 @@ export type RespuestasCuestionario = {
 export const MAX_INDICE = 1500;
 export const MAX_OTROS = 500;
 
+// Descanso según cuánto aguanta concentrado (COIE: bloques de 25 a 90 min).
+const DESCANSO_CONCENTRACION: Record<NonNullable<HabitosCuestionario['concentracion']>, Descanso> = {
+  corta: '25-5',
+  media: '50-10',
+  larga: '90-15',
+};
+const CARGA_LEJOS: Record<NonNullable<HabitosCuestionario['lejos']>, number | null> = {
+  si: null,
+  'a-medias': 0.75,
+  no: 0.6,
+};
+// La IA puede mover las horas estimadas (services/epoca/perfilEstudio.ts) como mucho esto.
+export const MARGEN_ESTIMACION = 0.15;
+
+// Si se pasa del margen, se escalan sus temas para que sumen lo permitido.
+function ajustarTemas(temas: TemaPropuesto[], estimadas: number | undefined): TemaPropuesto[] {
+  const total = temas.reduce((t, x) => t + x.horas, 0);
+  if (!estimadas || total === 0) return temas;
+  const objetivo = Math.min(Math.max(total, estimadas * (1 - MARGEN_ESTIMACION)), estimadas * (1 + MARGEN_ESTIMACION));
+  if (objetivo === total) return temas;
+  return temas.map((t) => ({ ...t, horas: Math.max(0.5, Math.round((t.horas * objetivo) / total * 2) / 2) }));
+}
+
 // Una por examen, en el mismo orden: la IA solo pone las horas, los temas y los repasos.
-export function propuestaDeCuestionario(r: RespuestasCuestionario, ia: PropuestaEpoca): PropuestaEpoca {
+// estimadas: horas calculadas por la app para cada asignatura (por id).
+export function propuestaDeCuestionario(
+  r: RespuestasCuestionario,
+  ia: PropuestaEpoca,
+  estimadas: Record<string, number> = {},
+): PropuestaEpoca {
+  // Si se recortan las horas de la IA, sus notas pueden hablar de otras: se avisa.
+  const recortes: string[] = [];
   const hitos = [...r.asignaturas]
     .sort((a, b) => a.fecha.localeCompare(b.fecha) || a.hora.localeCompare(b.hora))
     .map((a, i) => {
       const deIA = ia.hitos.find((h) => h.nombre.toLocaleLowerCase('es-ES') === a.nombre.toLocaleLowerCase('es-ES')) ?? ia.hitos[i];
-      const temas = deIA?.temas ?? [];
-      const horas = temas.length > 0 ? Math.max(1, temas.reduce((t, x) => t + x.horas, 0)) : (deIA?.horasPreparacion ?? 10);
+      const propuestas = (deIA?.temas ?? []).reduce((t, x) => t + x.horas, 0);
+      const temas = ajustarTemas(deIA?.temas ?? [], estimadas[a.id]);
+      const horas =
+        temas.length > 0
+          ? Math.max(1, temas.reduce((t, x) => t + x.horas, 0))
+          : (estimadas[a.id] ?? deIA?.horasPreparacion ?? 10);
+      if (temas.length > 0 && Math.abs(horas - propuestas) >= 1) {
+        recortes.push(
+          `«${a.nombre}»: dejo ${cifra(horas)} h, lo que sale de tus datos (la IA proponía ${cifra(propuestas)} h). Si te hace falta otra cosa, cámbialo antes de guardar.`,
+        );
+      }
       return { nombre: a.nombre, fecha: a.fecha, hora: a.hora, dificultad: a.dificultad, horasPreparacion: horas, temas };
     });
+  const notas = [ia.notas, ...recortes].filter(Boolean).join('\n\n') || null;
+  const { concentracion, finde, lejos } = r.habitos;
   const soloTrabajos = r.asignaturas.every((a) => a.tipoExamen === 'trabajo');
   return {
     ...ia,
@@ -447,6 +522,12 @@ export function propuestaDeCuestionario(r: RespuestasCuestionario, ia: Propuesta
     horasDia: r.horasDia,
     rindeMas: r.rindeMas,
     diaLibre: r.diaLibre ?? 'ninguno',
+    descanso: concentracion ? DESCANSO_CONCENTRACION[concentracion] : ia.descanso,
+    finde,
+    cargaLejos: lejos ? CARGA_LEJOS[lejos] : null,
     hitos,
+    notas,
   };
 }
+
+const cifra = (n: number) => n.toLocaleString('es-ES', { maximumFractionDigits: 1 });

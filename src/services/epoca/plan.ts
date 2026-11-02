@@ -1,4 +1,13 @@
-import type { BloqueGuardado, Descanso, Dificultad, Epoca, Hito, PlanesDelDia, RegistroBloque } from '@/data/epocas/tipos';
+import type {
+  BloqueGuardado,
+  Descanso,
+  Dificultad,
+  Epoca,
+  FindeEstudio,
+  Hito,
+  PlanesDelDia,
+  RegistroBloque,
+} from '@/data/epocas/tipos';
 import type { Evento } from '@/data/eventos/tipos';
 import {
   calcularHuecos,
@@ -8,7 +17,7 @@ import {
   type Energia,
   type Intervalo,
 } from '@/services/agenda';
-import { horaDesdeMinutos, sumarDias, type ClaveDia } from '@/services/fechas';
+import { diaSemanaDesdeLunes, fechaDesdeClave, horaDesdeMinutos, sumarDias, type ClaveDia } from '@/services/fechas';
 
 import { diasEntre, esDiaLibre, imprescindiblesDelDia, PREFIJO_EPOCA, ventanaEpoca } from './estado';
 
@@ -18,6 +27,8 @@ import { diasEntre, esDiaLibre, imprescindiblesDelDia, PREFIJO_EPOCA, ventanaEpo
 //
 // Reglas:
 // - Cada día se estudian las horas de la época (la mitad si ese día va "Tranqui").
+//   Los fines de semana, lo que dijo en el cuestionario (FINDE). Con el examen a más
+//   de DIAS_LEJOS días, la parte que dijo que estudia cuando aún queda (cargaLejos).
 // - Solo en los huecos del horario de la época: nunca se mueve un evento con hora
 //   fija ni lo que no quiere dejar de hacer. El día libre no hay plan.
 // - Primero los huecos del momento en que rinde más.
@@ -147,6 +158,20 @@ export function planDeHoy({
 
 const solapa = (a: Intervalo, b: Intervalo) => a.inicio < b.fin && b.inicio < a.fin;
 
+// Sábado y domingo, según cuánto estudia el fin de semana.
+const FINDE: Record<FindeEstudio, [number, number]> = { ambos: [1, 1], uno: [1, 0], poco: [0.5, 0.5], nada: [0, 0] };
+export const DIAS_LEJOS = 28;
+
+function minutosDelDia(epoca: Epoca, dia: ClaveDia, hitos: Hito[]): number {
+  const { horasDia, finde, cargaLejos } = epoca.ritmo;
+  let factor = 1;
+  const semana = diaSemanaDesdeLunes(fechaDesdeClave(dia));
+  if (finde && semana >= 5) factor *= FINDE[finde][semana - 5];
+  const proximo = hitos.filter((h) => h.fecha > dia).reduce((p, h) => (p && p < h.fecha ? p : h.fecha), '');
+  if (cargaLejos && proximo && diasEntre(dia, proximo) > DIAS_LEJOS) factor *= cargaLejos;
+  return Math.round(horasDia * 60 * factor);
+}
+
 export function planificarEpoca({
   epoca,
   eventos,
@@ -183,7 +208,7 @@ export function planificarEpoca({
     if (esDiaLibre(epoca, dia)) continue;
 
     const marcados = bloques.filter((b) => b.dia === dia);
-    let cuota = Math.round(epoca.ritmo.horasDia * 60) / (energias[dia] === 'tranqui' ? 2 : 1);
+    let cuota = minutosDelDia(epoca, dia, hitos) / (energias[dia] === 'tranqui' ? 2 : 1);
     cuota -= marcados.reduce((total, b) => total + (b.fin - b.inicio), 0);
 
     const fijos = [
