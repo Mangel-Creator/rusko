@@ -3,7 +3,6 @@
     "expo@claude-plugins-official": true
   },
   "autoCompactEnabled": true,
-  "autoCompactWindow": 400000,
   "hooks": {
     "PreToolUse": [
       {
