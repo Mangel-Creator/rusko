@@ -5,7 +5,7 @@ import type { CodigoComunidad } from './comunidades';
 // - 2026: Resolución de 17/10/2025 (BOE-A-2025-21667, BOE de 28/10/2025).
 // - 2027: Resolución de 8/10/2026 (BOE-A-2026-21254, BOE de 13/10/2026).
 // Para añadir un año: copia su tabla aquí y sus fiestas de isla (Canarias) y de Arán
-// en FIESTAS_SUBZONA. Los años que no estén se calculan con calcularNacionales (index.ts).
+// en FIESTAS_SUBZONA. Los años que no estén se prevén con las PREVISION_* de más abajo.
 //
 // "en": 'todas' si es fiesta en toda España; si no, las comunidades donde lo es.
 
@@ -91,6 +91,55 @@ export const FIESTAS_BOE: Record<number, FiestaBoe[]> = {
     { dia: '12-08', nombre: 'Inmaculada Concepción', en: 'todas' },
     { dia: '12-25', nombre: 'Natividad del Señor', en: 'todas' },
   ],
+};
+
+// Previsión para los años sin tabla (2028 en adelante): las fiestas que cada comunidad
+// repite en todas las tablas (2026 y 2027, contrastadas con CaixaBank). Las que caen en
+// domingo se quitan, porque cada año se mueven o se cambian por otra de forma distinta.
+// Las de Semana Santa van aparte, por días desde el Domingo de Pascua.
+export const PREVISION_FIJAS: FiestaBoe[] = [
+  { dia: '02-28', nombre: 'Día de Andalucía', en: ['and'] },
+  { dia: '03-01', nombre: 'Día de les Illes Balears', en: ['bal'] },
+  { dia: '03-19', nombre: 'San José', en: ['gal', 'mur', 'nav', 'val'] },
+  { dia: '04-23', nombre: 'San Jorge/Día de Aragón', en: ['ara'] },
+  { dia: '04-23', nombre: 'Fiesta de Castilla y León', en: ['cyl'] },
+  { dia: '05-02', nombre: 'Fiesta de la Comunidad de Madrid', en: ['mad'] },
+  { dia: '05-17', nombre: 'Día de las Letras Gallegas', en: ['gal'] },
+  { dia: '05-30', nombre: 'Día de Canarias', en: ['can'] },
+  { dia: '05-31', nombre: 'Día de Castilla-La Mancha', en: ['clm'] },
+  { dia: '06-09', nombre: 'Día de la Región de Murcia', en: ['mur'] },
+  { dia: '06-09', nombre: 'Día de La Rioja', en: ['rio'] },
+  { dia: '06-24', nombre: 'San Juan', en: ['cat'] },
+  { dia: '07-25', nombre: 'Santiago Apóstol/Día Nacional de Galicia', en: ['gal', 'pvs'] },
+  { dia: '07-28', nombre: 'Día de las Instituciones de Cantabria', en: ['cnt'] },
+  { dia: '08-05', nombre: 'Nuestra Señora de África', en: ['ceu'] },
+  { dia: '09-08', nombre: 'Día de Asturias', en: ['ast'] },
+  { dia: '09-08', nombre: 'Día de Extremadura', en: ['ext'] },
+  { dia: '09-11', nombre: 'Fiesta Nacional de Cataluña', en: ['cat'] },
+  { dia: '09-15', nombre: 'La Bien Aparecida', en: ['cnt'] },
+  { dia: '10-09', nombre: 'Día de la Comunitat Valenciana', en: ['val'] },
+  { dia: '12-26', nombre: 'San Esteban', en: ['bal', 'cat'] },
+];
+
+// "desdePascua": días desde el Domingo de Pascua.
+export const PREVISION_PASCUA: { desdePascua: number; nombre: string; en: CodigoComunidad[] }[] = [
+  {
+    desdePascua: -3,
+    nombre: 'Jueves Santo',
+    en: ['and', 'ara', 'ast', 'bal', 'can', 'cnt', 'clm', 'cyl', 'ext', 'gal', 'mad', 'mur', 'nav', 'pvs', 'rio', 'ceu', 'mel'],
+  },
+  { desdePascua: 1, nombre: 'Lunes de Pascua', en: ['bal', 'cat', 'nav', 'pvs', 'rio', 'val'] },
+  { desdePascua: 60, nombre: 'Corpus Christi', en: ['clm'] },
+];
+
+// Las fiestas de isla y de Arán que no cambian de fecha (Fuerteventura y La Gomera sí).
+export const PREVISION_SUBZONA: Partial<Record<string, FiestaSubzona>> = {
+  'el-hierro': { dia: '09-24', nombre: 'Nuestra Señora de los Reyes' },
+  'gran-canaria': { dia: '09-08', nombre: 'Nuestra Señora del Pino' },
+  'la-palma': { dia: '08-05', nombre: 'Nuestra Señora de las Nieves' },
+  lanzarote: { dia: '09-15', nombre: 'Nuestra Señora de los Volcanes' },
+  tenerife: { dia: '02-02', nombre: 'Virgen de la Candelaria' },
+  aran: { dia: '06-17', nombre: 'Fiesta de Arán' },
 };
 
 // Fiestas que solo valen en una parte de la comunidad (notas de la misma tabla).

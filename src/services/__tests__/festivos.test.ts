@@ -1,6 +1,13 @@
 import { describe, expect, test } from '@jest/globals';
 
-import { domingoDePascua, festivoDelDia, festivosDelAno, type ZonaFestivos } from '@/services/festivos';
+import {
+  COMUNIDADES,
+  domingoDePascua,
+  festivoDelDia,
+  festivosDelAno,
+  preverComunidad,
+  type ZonaFestivos,
+} from '@/services/festivos';
 
 const zona = (cambios: Partial<ZonaFestivos> = {}): ZonaFestivos => ({
   ocupacion: 'trabajo',
@@ -51,10 +58,26 @@ describe('festivos', () => {
     expect(festivosDelAno(2027, conLocales).some((f) => f.ambito === 'local')).toBe(false);
   });
 
-  test('sin tabla del BOE: las nacionales y el Viernes Santo calculado', () => {
+  test('sin tabla del BOE: nacionales, Viernes Santo y la previsión de la comunidad', () => {
     const fechas = festivosDelAno(2028, zona()).map((f) => f.fecha);
     expect(fechas).toContain('2028-04-14'); // Pascua 2028: 16 de abril
-    expect(fechas).toHaveLength(10);
+    expect(fechas).toContain('2028-04-17'); // Lunes de Pascua
+    expect(fechas).toContain('2028-10-09'); // Día de la Comunitat Valenciana
+    expect(fechas).not.toContain('2028-03-19'); // San José cae en domingo
+    expect(fechas).not.toContain('2028-04-13'); // en Valencia no hay Jueves Santo
+    const andalucia = festivosDelAno(2028, zona({ comunidad: 'and' })).map((f) => f.fecha);
+    expect(andalucia).toEqual(expect.arrayContaining(['2028-02-28', '2028-04-13']));
+  });
+
+  test('la previsión acierta con las tablas de 2026 y 2027', () => {
+    for (const ano of [2026, 2027]) {
+      for (const { codigo } of COMUNIDADES) {
+        const oficiales = festivosDelAno(ano, zona({ comunidad: codigo })).map((f) => f.fecha);
+        for (const prevista of preverComunidad(ano, zona({ comunidad: codigo }))) {
+          expect(`${codigo} ${oficiales.includes(prevista.fecha) ? 'ok' : prevista.fecha}`).toBe(`${codigo} ok`);
+        }
+      }
+    }
   });
 
   test('Pascua', () => {

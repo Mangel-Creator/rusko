@@ -1,6 +1,6 @@
 import { claveDia, type ClaveDia } from '@/services/fechas';
 
-import { FIESTAS_BOE, FIESTAS_SUBZONA } from './boe';
+import { FIESTAS_BOE, FIESTAS_SUBZONA, PREVISION_FIJAS, PREVISION_PASCUA, PREVISION_SUBZONA } from './boe';
 import type { CodigoComunidad } from './comunidades';
 
 export * from './comunidades';
@@ -34,14 +34,16 @@ export type Festivo = {
   ambito: AmbitoFestivo;
 };
 
-// Años con la tabla oficial del BOE. Los demás se calculan sin las fiestas de comunidad.
+// Años con la tabla oficial del BOE. Los demás son una previsión (preverComunidad).
 export function hayTablaOficial(ano: number): boolean {
   return ano in FIESTAS_BOE;
 }
 
 // Todos los festivos de un año para esa zona, por fecha.
 export function festivosDelAno(ano: number, zona: ZonaFestivos): Festivo[] {
-  const lista = hayTablaOficial(ano) ? fiestasOficiales(ano, zona) : calcularNacionales(ano);
+  const lista = hayTablaOficial(ano)
+    ? fiestasOficiales(ano, zona)
+    : [...calcularNacionales(ano), ...preverComunidad(ano, zona)];
   for (const local of zona.locales) {
     if (local.fecha.startsWith(`${ano}-`) && !lista.some((f) => f.fecha === local.fecha)) {
       lista.push({ fecha: local.fecha, nombre: local.nombre.trim() || 'Fiesta local', ambito: 'local' });
@@ -78,12 +80,42 @@ export function calcularNacionales(ano: number): Festivo[] {
     ['12-08', 'Inmaculada Concepción'],
     ['12-25', 'Natividad del Señor'],
   ];
-  const pascua = domingoDePascua(ano);
-  const viernesSanto = claveDia(new Date(ano, pascua.getMonth(), pascua.getDate() - 2));
   return [
     ...fijas.map(([dia, nombre]) => ({ fecha: `${ano}-${dia}`, nombre, ambito: 'nacional' as const })),
-    { fecha: viernesSanto, nombre: 'Viernes Santo', ambito: 'nacional' as const },
+    { fecha: diaDePascua(ano, -2), nombre: 'Viernes Santo', ambito: 'nacional' as const },
   ];
+}
+
+// Sin tabla del BOE: las fiestas que la comunidad repite cada año (boe.ts), salvo las
+// que caen en domingo, que cada año se mueven a otro día distinto.
+export function preverComunidad(ano: number, zona: ZonaFestivos): Festivo[] {
+  const lista: Festivo[] = [];
+  for (const fiesta of PREVISION_FIJAS) {
+    const fecha = `${ano}-${fiesta.dia}`;
+    if (fiesta.en.includes(zona.comunidad) && !esDomingo(fecha)) {
+      lista.push({ fecha, nombre: fiesta.nombre, ambito: 'autonomico' });
+    }
+  }
+  for (const fiesta of PREVISION_PASCUA) {
+    if (fiesta.en.includes(zona.comunidad)) {
+      lista.push({ fecha: diaDePascua(ano, fiesta.desdePascua), nombre: fiesta.nombre, ambito: 'autonomico' });
+    }
+  }
+  const subzona = zona.subzona ? PREVISION_SUBZONA[zona.subzona] : undefined;
+  if (subzona && !esDomingo(`${ano}-${subzona.dia}`)) {
+    lista.push({ fecha: `${ano}-${subzona.dia}`, nombre: subzona.nombre, ambito: 'autonomico' });
+  }
+  return lista;
+}
+
+function esDomingo(fecha: ClaveDia): boolean {
+  const [a, m, d] = fecha.split('-').map(Number);
+  return new Date(a, m - 1, d).getDay() === 0;
+}
+
+function diaDePascua(ano: number, dias: number): ClaveDia {
+  const pascua = domingoDePascua(ano);
+  return claveDia(new Date(ano, pascua.getMonth(), pascua.getDate() + dias));
 }
 
 // Domingo de Pascua (calendario gregoriano, algoritmo de Meeus/Jones/Butcher).

@@ -222,7 +222,8 @@ export function CamposFestivos({ borrador, cambiar, errores }: Props) {
           </View>
           {!hayTablaOficial(ano) ? (
             <Texto pequeno secundario>
-              Aún no ha salido la lista oficial de {ano}: de momento, solo las fiestas nacionales.
+              Aún no ha salido la lista oficial de {ano}: es una previsión con las fiestas que tu
+              comunidad repite cada año. Puede cambiar.
             </Texto>
           ) : null}
           <Tarjeta style={estilos.lista}>
