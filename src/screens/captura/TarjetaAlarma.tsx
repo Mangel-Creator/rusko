@@ -17,6 +17,26 @@ type Props = {
   alCancelar: () => void;
 };
 
+// La alarma de una vez tal cual (también la usa "Guardar todo").
+export function alarmaDePropuesta(a: PropuestaAlarma): Alarma {
+  return {
+    id: nuevoIdAlarma(),
+    tipo: 'despertador',
+    hora: a.hora,
+    dias: [],
+    unaVezEl: a.fecha,
+    etiqueta: a.etiqueta.trim(),
+    sonido: 'alarma',
+    activada: true,
+    adelantoMaxMin: 20,
+  };
+}
+
+// ¿Ya ha pasado esa hora de hoy?
+export function yaHaPasado(fecha: string, hora: string, ahora = new Date()): boolean {
+  return fecha === claveDia(ahora) && minutosDesdeHora(hora) <= minutosDelDia(ahora);
+}
+
 export function TarjetaAlarma({ alarma, alGuardar, alCancelar }: Props) {
   const [fecha, setFecha] = useState(alarma.fecha);
   const [hora, setHora] = useState(alarma.hora);
@@ -25,22 +45,11 @@ export function TarjetaAlarma({ alarma, alGuardar, alCancelar }: Props) {
   const [guardando, setGuardando] = useState(false);
 
   const guardar = async () => {
-    const ahora = new Date();
-    if (fecha === claveDia(ahora) && minutosDesdeHora(hora) <= minutosDelDia(ahora)) {
+    if (yaHaPasado(fecha, hora)) {
       setError('Esa hora ya ha pasado hoy. Elige otra o mañana.');
       return;
     }
-    const nueva: Alarma = {
-      id: nuevoIdAlarma(),
-      tipo: 'despertador',
-      hora,
-      dias: [],
-      unaVezEl: fecha,
-      etiqueta: etiqueta.trim(),
-      sonido: 'alarma',
-      activada: true,
-      adelantoMaxMin: 20,
-    };
+    const nueva = alarmaDePropuesta({ ...alarma, fecha, hora, etiqueta });
     setGuardando(true);
     await guardarAlarma(nueva);
     alGuardar(nueva);

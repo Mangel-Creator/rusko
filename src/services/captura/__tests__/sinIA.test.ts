@@ -1,6 +1,9 @@
 import { describe, expect, it } from '@jest/globals';
 
+import type { Evento } from '@/data/eventos/tipos';
+
 import { aplicarAprendido, aprenderTipo, claveTitulo, MAX_APRENDIDOS } from '@/services/captura/aprendido';
+import { aplicarCostumbres, costumbresDe } from '@/services/captura/costumbres';
 import { bastaSinIA, entenderLocal } from '@/services/captura/local';
 
 // Lunes 26 de octubre de 2026, a las 10:00.
@@ -29,7 +32,11 @@ describe('bastaSinIA', () => {
 describe('tipos aprendidos', () => {
   it('lo corregido se aplica al mismo título, con o sin tildes', () => {
     const mapa = aprenderTipo({}, 'Pádel con Juan', 'entreno');
-    const leido = entenderLocal('mañana padel con juan por la tarde', { ahora, perfil: null, eventos: [] })!;
+    const leido = entenderLocal('mañana padel con juan por la tarde', {
+      ahora,
+      perfil: null,
+      eventos: [],
+    })!;
     const aplicado = aplicarAprendido(leido, mapa);
     expect(aplicado.accion === 'apuntar' && aplicado.propuesta.tipo).toBe('entreno');
   });
@@ -39,5 +46,56 @@ describe('tipos aprendidos', () => {
     for (let i = 0; i <= MAX_APRENDIDOS; i++) mapa = aprenderTipo(mapa, `cosa ${i}`, 'yo');
     expect(Object.keys(mapa)).toHaveLength(MAX_APRENDIDOS);
     expect(mapa).not.toHaveProperty(claveTitulo('cosa 0'));
+  });
+});
+
+describe('costumbres', () => {
+  const ev = (titulo: string, fecha: string, extra: Partial<Evento> = {}): Evento => ({
+    id: titulo + fecha,
+    titulo,
+    fecha,
+    horaInicio: '18:00',
+    horaFin: '20:00',
+    tipo: 'yo',
+    lugar: null,
+    notas: '',
+    repeticion: 'nunca',
+    flexible: false,
+    duracionMin: null,
+    hecha: false,
+    foco: false,
+    avisoMin: null,
+    ejemplo: false,
+    ...extra,
+  });
+
+  it('un título por costumbre, el más reciente, con el tipo corregido encima', () => {
+    const eventos = [
+      ev('Clase de inglés', '2026-10-01'),
+      ev('Clase de Inglés', '2026-10-20', { lugar: { tipo: 'casa' } }),
+      ev('Ejemplo', '2026-10-21', { ejemplo: true }),
+    ];
+    const lista = costumbresDe(eventos, aprenderTipo({}, 'clase de ingles', 'estudios'));
+    expect(lista).toEqual([
+      {
+        titulo: 'Clase de Inglés',
+        tipo: 'estudios',
+        lugar: { tipo: 'casa' },
+        horas: '18:00-20:00',
+      },
+    ]);
+  });
+
+  it('rellena el sitio de siempre si no se dijo otro', () => {
+    const leido = entenderLocal('mañana clase de ingles a las 6', {
+      ahora,
+      perfil: null,
+      eventos: [],
+    })!;
+    if (leido.accion !== 'apuntar') throw new Error('debía apuntar');
+    const costumbres = costumbresDe([ev('Clase de inglés', '2026-10-20', { lugar: { tipo: 'casa' } })]);
+    expect(aplicarCostumbres(leido.propuesta, costumbres).lugar).toEqual({
+      tipo: 'casa',
+    });
   });
 });

@@ -1360,6 +1360,20 @@ borran solos a los 7 días.
   da por claro, no llama a Haiku (anula el "siempre pasa por Haiku" del 01/11). También aprende de las
   correcciones: si en la tarjeta cambias el tipo, se guarda título -> tipo (`organizy:tiposAprendidos`,
   máx. 200) y se aplica a lo que lea la app o la IA.
+- **02/11/2026: varias cosas, repeticiones y costumbres (lo pidió el usuario).** "Comida hoy por la
+  tarde y pádel mañana por la mañana" da dos tarjetas: la función `captura` devuelve
+  `{elementos: [...]}` (máx. 10; sigue mandando `propuesta` = el primero), la app las valida con
+  `validarInterpretaciones` y `CapturaRapida` las enseña en cola ("1 de 2", "Guardar las 2"; las
+  alarmas que ya han pasado se saltan). Siri también apunta todas (`siri-<id>`, `siri-<id>-1`...).
+  Repeticiones: `repeticion`, `diasSemana` (por nombre) y `hasta` en el esquema; en la app
+  `Evento.dias` (lunes = 0, solo semanal) y `Evento.hasta` (último día incluido), que respeta
+  `ocurreEnDia` y se editan en la ficha ("Qué días", "Hasta un día"). La fecha pasa al primero de esos
+  días. Costumbres (`services/captura/costumbres.ts`): de sus eventos, hasta 30 títulos distintos (los
+  más nuevos, sin ejemplos) con tipo (el corregido manda), horas y sitio; van a la IA y la app rellena
+  sola el sitio de siempre. Para que no diga "no te he entendido": la IA apunta casi todo (lo vago,
+  tarea de hoy; "otra" solo para lo que no tiene sentido) y con confianza media o baja se enseña la
+  tarjeta avisando. `bastaSinIA` deja a la IA las frases con comas, "este mes", "hasta" o " y " con
+  otro día u hora detrás.
 
 - En Hoy, bajo la cabecera, campo "¿Qué apunto?" (`screens/captura/CapturaRapida.tsx`),
   siempre abierto desde el 26/10/2026 (antes, **plegado** hasta tocar el "+", `plegada`). Sigue montado aunque no se vea, así que

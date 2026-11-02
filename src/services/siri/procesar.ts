@@ -15,7 +15,8 @@ import { claveDia, fechaDesdeClave, formatearDiaCorto, type ClaveDia } from '@/s
 //     pregunta («¿qué tengo mañana?») no se apunta.
 //   - "alarma": una alarma de una sola vez (el Atajo ya la puso en el Reloj). Si ya ha
 //     pasado, no se añade.
-// Los ids salen del buzón, así que recoger dos veces lo mismo no lo duplica.
+// Los ids salen del buzón, así que recoger dos veces lo mismo no lo duplica. Una frase
+// con varias cosas (02/11/2026) da una por cosa: siri-<id>, siri-<id>-1, siri-<id>-2...
 
 // La misma etiqueta que usa la función alarmas-reloj para las que aún no se han recogido.
 export const ETIQUETA_SIRI = 'Alarma de Siri';
@@ -56,8 +57,8 @@ export function procesarPendientes(
     ahora: Date;
     perfil: Perfil | null;
     eventos: readonly Evento[];
-    // Lo que ha entendido la IA de cada frase, por id del buzón (null si no pudo).
-    leidos?: Record<string, Interpretacion | null>;
+    // Lo que ha entendido la IA de cada frase (una o varias cosas), por id del buzón (null si no pudo).
+    leidos?: Record<string, Interpretacion[] | null>;
   },
 ): ResultadoSiri {
   const resultado: ResultadoSiri = { eventos: [], alarmas: [], hechos: [], ids: [] };
@@ -87,74 +88,79 @@ export function procesarPendientes(
     const texto = (p.texto ?? '').trim();
     if (!texto) continue;
     const dicho = Number.isFinite(Date.parse(p.creado)) ? new Date(p.creado) : ahora;
-    // Ya existe (se recogió antes pero no se pudo borrar del buzón): no se toca.
-    if (todos.some((e) => e.id === `siri-${p.id}`)) continue;
-    const leido = leidos[p.id] ?? entenderLocal(texto, { ahora: dicho, perfil, eventos: todos });
-    if (leido?.accion === 'pregunta') continue;
-    if (leido?.accion === 'alarma') {
-      const { fecha, hora, etiqueta } = leido.alarma;
-      // Se recoge tarde y ya ha sonado su hora: no se añade (como las del Atajo).
-      const suena = fechaDesdeClave(fecha);
-      suena.setHours(Number(hora.slice(0, 2)), Number(hora.slice(3, 5)));
-      if (suena.getTime() <= ahora.getTime()) continue;
-      resultado.alarmas.push({
-        id: p.id,
-        tipo: 'despertador',
-        hora,
-        dias: [],
-        unaVezEl: fecha,
-        etiqueta,
-        sonido: 'alarma',
-        activada: true,
-        adelantoMaxMin: 20,
-      });
-      resultado.hechos.push(`Alarma ${cuandoTexto(fecha, hora, ahora)}`);
-      continue;
-    }
-    const propuesta = leido?.accion === 'apuntar' ? leido.propuesta : null;
-    const evento: Evento = propuesta
-      ? {
-          id: `siri-${p.id}`,
-          titulo: propuesta.titulo || texto.slice(0, MAX_TITULO),
-          fecha: propuesta.fecha,
-          horaInicio: propuesta.flexible ? null : propuesta.horaInicio,
-          horaFin: propuesta.flexible ? null : propuesta.horaFin,
-          tipo: propuesta.tipo,
-          lugar: propuesta.lugar,
-          notas: '',
-          repeticion: 'nunca',
-          flexible: propuesta.flexible,
-          duracionMin: propuesta.flexible ? (propuesta.duracionMin ?? 30) : null,
-          hecha: false,
-          foco: false,
-          avisoMin: propuesta.flexible ? null : propuesta.avisoMin,
-          ejemplo: false,
-          avisarA: propuesta.flexible ? propuesta.avisarA : null,
-        }
-      : {
-          id: `siri-${p.id}`,
-          titulo: texto.slice(0, MAX_TITULO),
-          fecha: claveDia(dicho),
-          horaInicio: null,
-          horaFin: null,
-          tipo: 'yo',
-          lugar: null,
-          notas: '',
-          repeticion: 'nunca',
-          flexible: true,
-          duracionMin: 30,
-          hecha: false,
-          foco: false,
-          avisoMin: null,
-          ejemplo: false,
-        };
-    todos.push(evento);
-    resultado.eventos.push(evento);
-    resultado.hechos.push(
-      evento.avisarA
-        ? `${evento.titulo}, te aviso ${cuandoTexto(evento.fecha, evento.avisarA, ahora)}`
-        : `${evento.titulo}, ${cuandoTexto(evento.fecha, evento.horaInicio, ahora)}`,
-    );
+    const lista = leidos[p.id] ?? [entenderLocal(texto, { ahora: dicho, perfil, eventos: todos })];
+    lista.forEach((leido, n) => {
+      const id = n ? `${p.id}-${n}` : p.id;
+      // Ya existe (se recogió antes pero no se pudo borrar del buzón): no se toca.
+      if (todos.some((e) => e.id === `siri-${id}`)) return;
+      if (leido?.accion === 'pregunta') return;
+      if (leido?.accion === 'alarma') {
+        const { fecha, hora, etiqueta } = leido.alarma;
+        // Se recoge tarde y ya ha sonado su hora: no se añade (como las del Atajo).
+        const suena = fechaDesdeClave(fecha);
+        suena.setHours(Number(hora.slice(0, 2)), Number(hora.slice(3, 5)));
+        if (suena.getTime() <= ahora.getTime()) return;
+        resultado.alarmas.push({
+          id,
+          tipo: 'despertador',
+          hora,
+          dias: [],
+          unaVezEl: fecha,
+          etiqueta,
+          sonido: 'alarma',
+          activada: true,
+          adelantoMaxMin: 20,
+        });
+        resultado.hechos.push(`Alarma ${cuandoTexto(fecha, hora, ahora)}`);
+        return;
+      }
+      const propuesta = leido?.accion === 'apuntar' ? leido.propuesta : null;
+      const evento: Evento = propuesta
+        ? {
+            id: `siri-${id}`,
+            titulo: propuesta.titulo || texto.slice(0, MAX_TITULO),
+            fecha: propuesta.fecha,
+            horaInicio: propuesta.flexible ? null : propuesta.horaInicio,
+            horaFin: propuesta.flexible ? null : propuesta.horaFin,
+            tipo: propuesta.tipo,
+            lugar: propuesta.lugar,
+            notas: '',
+            repeticion: propuesta.flexible ? 'nunca' : (propuesta.repeticion ?? 'nunca'),
+            dias: propuesta.flexible ? null : (propuesta.dias ?? null),
+            hasta: propuesta.flexible ? null : (propuesta.hasta ?? null),
+            flexible: propuesta.flexible,
+            duracionMin: propuesta.flexible ? (propuesta.duracionMin ?? 30) : null,
+            hecha: false,
+            foco: false,
+            avisoMin: propuesta.flexible ? null : propuesta.avisoMin,
+            ejemplo: false,
+            avisarA: propuesta.flexible ? propuesta.avisarA : null,
+          }
+        : {
+            id: `siri-${p.id}`,
+            titulo: texto.slice(0, MAX_TITULO),
+            fecha: claveDia(dicho),
+            horaInicio: null,
+            horaFin: null,
+            tipo: 'yo',
+            lugar: null,
+            notas: '',
+            repeticion: 'nunca',
+            flexible: true,
+            duracionMin: 30,
+            hecha: false,
+            foco: false,
+            avisoMin: null,
+            ejemplo: false,
+          };
+      todos.push(evento);
+      resultado.eventos.push(evento);
+      resultado.hechos.push(
+        evento.avisarA
+          ? `${evento.titulo}, te aviso ${cuandoTexto(evento.fecha, evento.avisarA, ahora)}`
+          : `${evento.titulo}, ${cuandoTexto(evento.fecha, evento.horaInicio, ahora)}`,
+      );
+    });
   }
   return resultado;
 }

@@ -4,10 +4,10 @@ import { useEffect, useRef, useState, type ReactNode } from 'react';
 import { ActivityIndicator, Platform, Pressable, StyleSheet, TextInput, View, type TextInputInstance } from 'react-native';
 
 import { Boton, Tarjeta, Texto, Titulo } from '@/components';
-import { useEventos, type Evento } from '@/data/eventos';
+import { guardarEvento, useEventos, type Evento } from '@/data/eventos';
 import { usePerfil } from '@/data/perfil';
-import type { Alarma } from '@/data/alarmas';
-import { MAX_FRASE, interpretarFrase, type Propuesta, type PropuestaAlarma } from '@/services/captura';
+import { guardarAlarma, type Alarma } from '@/data/alarmas';
+import { MAX_FRASE, interpretarFrase, type Interpretacion } from '@/services/captura';
 import { dejarBorrador, type BorradorFicha } from '@/services/captura/borrador';
 import { entenderPregunta, respuestaDelDia } from '@/services/consulta';
 import { claveDia, fechaDesdeClave, formatearDiaCorto, type ClaveDia } from '@/services/fechas';
@@ -15,8 +15,8 @@ import { callar, hablar } from '@/services/voz';
 import { alturaTactil, colores, espacio, fuentes, radio, tamanos } from '@/theme';
 
 import { AvisoMicrofono, BotonMicrofono } from './BotonMicrofono';
-import { TarjetaAlarma } from './TarjetaAlarma';
-import { TarjetaConfirmacion } from './TarjetaConfirmacion';
+import { TarjetaAlarma, alarmaDePropuesta, yaHaPasado } from './TarjetaAlarma';
+import { TarjetaConfirmacion, eventoDePropuesta } from './TarjetaConfirmacion';
 import { useDictado } from './useDictado';
 
 // Captura rápida (fase 5): escribes (o dictas con el micrófono del teclado)
@@ -47,6 +47,10 @@ import { useDictado } from './useDictado';
 // "¿Lo guardo así?"), un recordatorio (la misma tarjeta, "¿Te lo recuerdo así?", con la
 // hora del aviso), una alarma ("¿Pongo la alarma así?") o una pregunta que las reglas no
 // pillaron (se contesta igual que arriba).
+//
+// Varias cosas en una frase (02/11/2026): «comida hoy por la tarde y pádel mañana por la
+// mañana» trae una tarjeta por cosa, una detrás de otra («1 de 2»), y "Guardar las 2"
+// guarda de golpe las que quedan tal cual.
 
 type Props = {
   hoy: ClaveDia;
@@ -92,8 +96,11 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
   const { eventos } = useEventos();
   const [frase, setFrase] = useState('');
   const [pensando, setPensando] = useState(false);
-  const [propuesta, setPropuesta] = useState<Propuesta | null>(null);
-  const [alarma, setAlarma] = useState<PropuestaAlarma | null>(null);
+  // Lo que queda por confirmar (citas, tareas y alarmas), la primera en pantalla.
+  const [cola, setCola] = useState<Interpretacion[]>([]);
+  const [total, setTotal] = useState(0);
+  const [hechos, setHechos] = useState<string[]>([]);
+  const [guardandoTodo, setGuardandoTodo] = useState(false);
   const [hecho, setHecho] = useState<string | null>(null);
   const [respuesta, setRespuesta] = useState<string | null>(null);
   const [hablando, setHablando] = useState(false);
@@ -104,7 +111,7 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
     if (!limpia || pensando) return;
     setFrase(limpia);
     setHecho(null);
-    setPropuesta(null);
+    setCola([]);
     // «¿Qué tengo el miércoles?»: se contesta aquí, sin IA, y se lee en voz alta.
     const dia = entenderPregunta(limpia, hoy);
     if (dia) {
@@ -114,20 +121,19 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
       return;
     }
     setRespuesta(null);
-    setAlarma(null);
     setPensando(true);
     campo.current?.blur();
     const resultado = await interpretarFrase(limpia, perfil, eventos);
     setPensando(false);
     if (resultado.estado === 'ok') {
-      const leido = resultado.interpretacion;
-      if (leido.accion === 'apuntar') setPropuesta(leido.propuesta);
-      else if (leido.accion === 'alarma') setAlarma(leido.alarma);
-      else {
-        // La IA ha visto una pregunta que las reglas no pillaron («¿tengo algo el finde?»).
-        setFrase('');
-        decir(respuestaDelDia({ eventos, dia: leido.dia, ahora: new Date(), perfil }));
-      }
+      // La IA ha visto una pregunta que las reglas no pillaron («¿tengo algo el finde?»).
+      const pregunta = resultado.interpretaciones.find((i) => i.accion === 'pregunta');
+      if (pregunta?.accion === 'pregunta') decir(respuestaDelDia({ eventos, dia: pregunta.dia, ahora: new Date(), perfil }));
+      const cosas = resultado.interpretaciones.filter((i) => i.accion !== 'pregunta');
+      if (!cosas.length) setFrase('');
+      setCola(cosas);
+      setTotal(cosas.length);
+      setHechos([]);
       return;
     }
     // Sin conexión, error o poca confianza: la ficha normal con la frase como título.
@@ -185,12 +191,41 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
     campo.current?.focus();
   });
 
+  // Pasa a la siguiente cosa; al acabar, dice todo lo que se ha guardado.
   const terminar = (mensaje: string | null) => {
-    setPropuesta(null);
-    setAlarma(null);
+    const resto = cola.slice(1);
+    const mensajes = mensaje ? [...hechos, mensaje] : hechos;
+    setCola(resto);
+    setHechos(mensajes);
+    if (resto.length) return;
     setFrase('');
-    setHecho(mensaje);
+    setHecho(mensajes.join(' ') || null);
   };
+
+  const guardarTodo = async () => {
+    setGuardandoTodo(true);
+    const mensajes = [...hechos];
+    for (const i of cola) {
+      if (i.accion === 'apuntar') {
+        const evento = eventoDePropuesta(i.propuesta);
+        await guardarEvento(evento);
+        mensajes.push(textoGuardado(evento));
+      } else if (i.accion === 'alarma' && !yaHaPasado(i.alarma.fecha, i.alarma.hora)) {
+        const nueva = alarmaDePropuesta(i.alarma);
+        await guardarAlarma(nueva);
+        mensajes.push(textoAlarma(nueva));
+      }
+    }
+    setGuardandoTodo(false);
+    setCola([]);
+    setHechos(mensajes);
+    setFrase('');
+    setHecho(mensajes.join(' ') || null);
+  };
+
+  const actual = cola[0];
+  const propuesta = actual?.accion === 'apuntar' ? actual.propuesta : null;
+  const alarma = actual?.accion === 'alarma' ? actual.alarma : null;
 
   const puedeEnviar = frase.trim().length > 0 && !pensando && !escuchando;
 
@@ -198,7 +233,7 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
   if (plegada && !pensando && !propuesta && !alarma && !hecho && !respuesta && dictado.fase === 'quieto') return null;
 
   const ejemplos =
-    'Una cita («cita del DNI el sábado a las 12»), un recordatorio («recuérdame mañana a las 6 llamar a mamá»), una alarma («pon una alarma a las 7») o «¿qué tengo el miércoles?».';
+    'Una cita («cita del DNI el sábado a las 12»), algo que se repite («lunes y jueves de 6 a 8 clase de inglés, todo este mes»), un recordatorio («recuérdame mañana a las 6 llamar a mamá»), una alarma («pon una alarma a las 7»), varias cosas a la vez o «¿qué tengo el miércoles?».';
   const ayuda = dictado.disponible
     ? `Escríbelo como te salga o toca el micro y dímelo. ${ejemplos}`
     : `Escríbelo como te salga o díctalo con el micrófono del teclado. ${ejemplos}`;
@@ -315,9 +350,26 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
         </Pressable>
       ) : null}
 
+      {cola.length && total > 1 ? (
+        <View style={estilos.filaCola}>
+          <Texto pequeno secundario accessibilityLiveRegion="polite" style={estilos.textoCola}>
+            {total - cola.length + 1} de {total}
+          </Texto>
+          {cola.length > 1 ? (
+            <Boton
+              titulo={guardandoTodo ? 'Guardando…' : `Guardar las ${cola.length}`}
+              variante="secundario"
+              disabled={guardandoTodo}
+              accessibilityLabel={`Guardar las ${cola.length} que quedan tal cual`}
+              onPress={guardarTodo}
+            />
+          ) : null}
+        </View>
+      ) : null}
+
       {propuesta ? (
         <TarjetaConfirmacion
-          key={`${propuesta.titulo}-${propuesta.fecha}-${propuesta.horaInicio}`}
+          key={`${cola.length}-${propuesta.titulo}-${propuesta.fecha}-${propuesta.horaInicio}`}
           propuesta={propuesta}
           perfil={perfil}
           alGuardar={(evento) => terminar(textoGuardado(evento))}
@@ -331,7 +383,7 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
 
       {alarma ? (
         <TarjetaAlarma
-          key={`alarma-${alarma.fecha}-${alarma.hora}`}
+          key={`alarma-${cola.length}-${alarma.fecha}-${alarma.hora}`}
           alarma={alarma}
           alGuardar={(nueva) => terminar(textoAlarma(nueva))}
           alCancelar={() => terminar(null)}
@@ -381,6 +433,8 @@ const estilos = StyleSheet.create({
   textoEnlace: { color: colores.principal },
   fallo: { color: colores.aviso },
   respuesta: { gap: espacio.m },
+  filaCola: { flexDirection: 'row', alignItems: 'center', gap: espacio.s },
+  textoCola: { flex: 1 },
   filaRespuesta: { flexDirection: 'row', alignItems: 'flex-start', gap: espacio.s },
   textoRespuesta: { flex: 1 },
   botonesRespuesta: { flexDirection: 'row', flexWrap: 'wrap', gap: espacio.s },

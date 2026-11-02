@@ -114,6 +114,15 @@ describe('repeticiones', () => {
     expect(ocurreEnDia(e, '2026-09-17')).toBe(false);
   });
 
+  it('semanal con días elegidos y fin: solo esos días y hasta el último', () => {
+    const e = evento({ fecha: '2026-09-24', repeticion: 'semanal', dias: [0, 3], hasta: '2026-10-05' });
+    expect(ocurreEnDia(e, '2026-09-28')).toBe(true); // lunes
+    expect(ocurreEnDia(e, '2026-09-29')).toBe(false); // martes
+    expect(ocurreEnDia(e, '2026-10-05')).toBe(true); // lunes, último día
+    expect(ocurreEnDia(e, '2026-10-08')).toBe(false); // jueves, ya pasado el fin
+    expect(ocurreEnDia(e, '2026-09-21')).toBe(false); // antes de empezar
+  });
+
   it('mensual: mismo número de día; se salta los meses sin ese día', () => {
     const e = evento({ fecha: '2026-08-31', repeticion: 'mensual' });
     expect(ocurreEnDia(e, '2026-10-31')).toBe(true);

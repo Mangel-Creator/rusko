@@ -89,7 +89,11 @@ Lo anulado y el detalle → historia: "Decisiones del usuario".
   demás va a Haiku, que distingue cita, tarea, recordatorio (tarea con `avisarA`), alarma (despertador
   de una vez) y pregunta. Títulos limpios ("Cita DNI", "Llamar a mamá"). "A las 6" de una cita o
   recordatorio es de tarde si toca; solo las alarmas son de mañana. Si la IA falla, `entenderLocal`.
-  Aprende el tipo que corriges, por título (`tiposAprendidos`, viaja en la copia). → "Fase 5".
+  Aprende el tipo que corriges, por título (`tiposAprendidos`, viaja en la copia). **Varias cosas en una
+  frase** (la IA devuelve `elementos`; tarjetas "1 de N" y "Guardar las N"). **Repeticiones con días y
+  fin** (`Evento.dias`, lunes = 0, y `hasta`: "todo este mes, lunes y jueves de 6 a 8"). A la IA le
+  llegan sus **costumbres** (`costumbresDe`: hasta 30 títulos con tipo, horas y sitio) para que repita
+  cómo lo apunta él. → "Fase 5".
 - **IA**: Claude **Haiku 5.5** (`claude-haiku-5-5`, `effort: 'low'`) en captura, correo y Época, siempre
   a través de Supabase; la clave nunca en la app. Clave puesta el 28/10 como secreto **`CLAVE_ANTRHOPIC`**
   (con esa errata; también vale `ANTHROPIC_API_KEY`, `_shared/claveAnthropic.ts`). Límites por persona
