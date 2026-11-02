@@ -412,6 +412,7 @@ export function PantallaSemana() {
           <Leyenda color={colorTipo.yo} texto="Yo" />
           <Leyenda color={colorTipo.entreno} texto="Entreno" />
           <Leyenda color={colorTipo.estudios} texto="Estudios" />
+          <Leyenda color={colorTipo.proyectos} texto="Proyectos" />
         </View>
         ) : null}
 

@@ -117,7 +117,7 @@ function eventoValido(v: unknown): v is Evento {
     conId(v) &&
     typeof v.titulo === 'string' &&
     esDia(v.fecha) &&
-    ['cliente', 'amigos', 'yo', 'entreno', 'estudios'].includes(v.tipo as string)
+    ['cliente', 'amigos', 'yo', 'entreno', 'estudios', 'proyectos'].includes(v.tipo as string)
   );
 }
 

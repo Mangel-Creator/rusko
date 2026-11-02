@@ -118,6 +118,7 @@ const ACTIVIDADES: Actividad[] = [
   { re: /\bexamen\b/, minutos: 120, tipo: 'estudios', franja: 'manana' },
   { re: /\bclase\b/, minutos: 60, tipo: 'estudios', franja: 'tarde' },
   { re: /\bestudiar\b/, minutos: 120, tipo: 'estudios', franja: 'tarde' },
+  { re: /\b(proyecto|proyectos)\b/, minutos: 120, tipo: 'proyectos', franja: 'tarde' },
   // Recados: sin franja, así que sin hora salen como tarea flexible.
   {
     re: /\b(llamar|llamada|comprar|compra|recoger|pagar|enviar|mandar)\b/,

@@ -95,6 +95,14 @@ describe('interpretarLocal', () => {
     expect(leer('médico a las 9')).toMatchObject({ fecha: '2026-10-27', horaInicio: '09:00' });
   });
 
+  it('«proyecto» es del tipo Proyectos', () => {
+    expect(leer('mañana proyecto de la web a las 5')).toMatchObject({
+      fecha: '2026-10-27',
+      horaInicio: '17:00',
+      tipo: 'proyectos',
+    });
+  });
+
   it('rangos, minutos y tipo cliente', () => {
     expect(leer('reunión con Acme de 5 a 7 y media')).toMatchObject({
       titulo: 'Reunión con Acme',

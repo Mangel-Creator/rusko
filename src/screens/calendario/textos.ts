@@ -17,6 +17,7 @@ export const ICONO_TIPO: Record<TipoEvento, ComponentProps<typeof Ionicons>['nam
   yo: 'person-outline',
   entreno: 'barbell-outline',
   estudios: 'school-outline',
+  proyectos: 'folder-open-outline',
 };
 
 export const OPCIONES_TIPO: Opcion<TipoEvento>[] = [
@@ -25,6 +26,7 @@ export const OPCIONES_TIPO: Opcion<TipoEvento>[] = [
   { valor: 'yo', etiqueta: 'Yo' },
   { valor: 'entreno', etiqueta: 'Entreno' },
   { valor: 'estudios', etiqueta: 'Estudios' },
+  { valor: 'proyectos', etiqueta: 'Proyectos' },
 ];
 
 export const OPCIONES_REPETICION: Opcion<Repeticion>[] = [

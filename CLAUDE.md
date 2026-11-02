@@ -757,13 +757,14 @@ destacadas; no lo uses para un tipo de evento, ni para errores ni para mensajes 
 | "Yo" (personal) | `yo` | `#D9D1C7` (blanco cálido) |
 | "Entreno" (28/10/2026) | `entreno` | `#FF6FB5` (rosa) |
 | "Estudios" (28/10/2026) | `estudios` | `#3FD0E0` (cian) |
+| "Proyectos" (02/11/2026) | `proyectos` | `#B5E655` (lima) |
 | Barrita de carga normal y borde de huecos | `cargaNormal` | `#7A6F64` (gris) |
 | Solo la Época dorada (franja, bloques de estudio, días con hito) | `dorado` | `#FFB020` (ámbar; texto oscuro encima) |
 | Solo la papelera que sale al deslizar un correo (28/10) | `eliminar` | `#D90000` (texto blanco encima, `textoSobreEliminar`) |
 | Solo los botones de WhatsApp (excepción del 26/09) | `whatsapp` | `#25D366` (texto oscuro encima) |
 | Solo los botones de entrar con Google o Microsoft y sus logos (excepción del 29/09) | `coloresMarca` | los de sus normas de marca |
 | Tarjeta destacada (una por pantalla como mucho) | `degradados.naranja` / `degradados.teja` | `#FF6B1A → #FFB020` / `#FF6B1A → #C2361B` |
-| Solo "Tus normas" de Correo (30/10/2026) | `degradados.azul` | `#8FBEFF → #4D8BF5` (texto oscuro) |
+| Solo "Tus filtros" de Correo (30/10/2026) | `degradados.azul` | `#8FBEFF → #4D8BF5` (texto oscuro) |
 
 Para el color de un tipo de evento usa `colorTipo[evento.tipo]` (en `theme`), y para su
 icono redondo, `colorBaldosa[tipo]` (fondo del color al 14 % e icono del color).
@@ -1087,6 +1088,9 @@ animaciones infinitas.
   rápida (gimnasio, correr… → Entreno; examen, clase, estudiar → Estudios; también la IA de la
   función `captura`, desplegada), la leyenda, Otros calendarios y la copia. No confundir con
   `colorBaldosa.estudio` (dorado), que es solo de la Época dorada.
+- **Tipo Proyectos** (02/11/2026, lo pidió el usuario): `proyectos` (lima, carpeta), igual que
+  Entreno y Estudios: ficha, captura ("proyecto" → Proyectos; también la IA de `captura`),
+  leyenda, Otros calendarios, copia y la frase del resumen.
 - Eventos de ejemplo: en modo desarrollo se crean solos la primera vez
   (`organizy:ejemplosCreados`). En Perfil > Pruebas hay botones para crearlos y
   borrarlos también en la web publicada (allí no hay modo desarrollo).
@@ -2173,10 +2177,11 @@ borran solos a los 7 días.
   Lo que no entra se da por visto. Gasto apuntado como `correo-filtro` (`apuntarGasto`); tope
   `CORREO_FILTRO_LIMITE_USUARIO` (400) y `_GLOBAL` (5000) al día; el dueño sin límite. El
   ayudante de Gmail no usa el filtro.
-  **"Tus normas"** (30/10/2026, lo pidió el usuario): las reglas activas y los vetados salen
-  juntos en un recuadro con degradado azul (`screens/correo/NormasActivas.tsx`,
-  `degradados.azul`, texto oscuro), cada uno con una X para quitarlo; sin ninguno no sale. Los
-  Plegables "Filtro con IA" y "Remitentes vetados" quedan solo para añadir.
+  **"Tus filtros"** (30/10/2026 como "Tus normas"; 02/11/2026, lo pidió el usuario): las reglas
+  activas y los vetados salen juntos en un recuadro con degradado azul (`screens/correo/TusFiltros.tsx`,
+  `degradados.azul`, texto oscuro), **cerrado** con "N activos"; al tocarlo salen todos. La X
+  pregunta "¿Quieres borrar este filtro?" (Sí, borrar / No) para no quitar uno sin querer. Sin
+  ninguno no sale. Los Plegables "Filtro con IA" y "Remitentes vetados" quedan solo para añadir.
 - **Correo por importancia** (27/10/2026, sesión "12 Correo" los datos y "08 Diseño" lo que se
   ve; ver "Decisiones del usuario" y "Diseño" > "Correo por recuadros"):
   - **Datos** (`data/correos.ts`): `CorreoResumido` lleva `fijado`, `oculto` (quitado de Rusko) y

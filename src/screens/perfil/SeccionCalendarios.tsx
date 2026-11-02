@@ -23,6 +23,7 @@ const TIPOS: OpcionVisual<TipoEvento>[] = [
   { valor: 'cliente', etiqueta: 'Clientes', icono: 'briefcase' },
   { valor: 'entreno', etiqueta: 'Entrenos', icono: 'barbell' },
   { valor: 'estudios', etiqueta: 'Estudios', icono: 'school' },
+  { valor: 'proyectos', etiqueta: 'Proyectos', icono: 'folder-open' },
 ];
 
 const PASOS_GOOGLE = [

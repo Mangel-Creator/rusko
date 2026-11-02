@@ -58,6 +58,7 @@ export const colores = {
   // Entrenos y Estudios en el calendario (28/10/2026, lo pidió el usuario).
   entreno: '#FF6FB5', // rosa
   estudios: '#3FD0E0', // cian
+  proyectos: '#B5E655', // lima (02/11/2026, lo pidió el usuario)
 
   // Rojo intenso: solo la papelera que sale al deslizar un correo (28/10/2026, el usuario
   // lo quería "mucho más intenso" que el rojo de avisos). Encima, texto blanco (5,3:1).
@@ -102,13 +103,14 @@ export const acentos = {
 
 export type Acento = keyof typeof acentos;
 
-// Color de cada tipo de evento (Cliente, Amigos, Yo, Entreno, Estudios)
+// Color de cada tipo de evento (Cliente, Amigos, Yo, Entreno, Estudios, Proyectos)
 export const colorTipo = {
   cliente: colores.clientes,
   amigos: colores.amigos,
   yo: colores.yo,
   entreno: colores.entreno,
   estudios: colores.estudios,
+  proyectos: colores.proyectos,
 } as const;
 
 // Colores del tráfico: la única excepción a 'cada color significa una sola cosa', y
@@ -159,6 +161,7 @@ export const colorBaldosa = {
   yo: { fondo: colores.elevado, icono: colores.texto },
   entreno: { fondo: '#3A1B2C', icono: colores.entreno },
   estudios: { fondo: '#123236', icono: colores.estudios },
+  proyectos: { fondo: '#2B3318', icono: colores.proyectos },
   estudio: { fondo: '#3A2C16', icono: colores.dorado }, // Época dorada
   neutro: { fondo: colores.elevado, icono: colores.texto }, // tareas, todo el día
 } as const;

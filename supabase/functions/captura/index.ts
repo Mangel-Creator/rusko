@@ -109,6 +109,7 @@ Cómo rellenar el resto:
   - "amigos": planes con otras personas fuera del trabajo (amigos, familia, pareja, deporte con alguien, cenas, cumpleaños).
   - "entreno": hacer deporte uno mismo (gimnasio, correr, nadar, yoga, entrenar).
   - "estudios": estudiar, clases, exámenes, deberes, trabajos de clase.
+  - "proyectos": avanzar en un proyecto propio o de trabajo (cuando dice "proyecto", o un trabajo largo que no es de clase ni con un cliente concreto).
   - "yo": el resto de cosas personales de uno mismo (médico, recados, trámites).
 - sitioId: el id de un sitio habitual de la lista solo si la frase lo menciona claramente, por su nombre o de forma equivalente ("en casa" = casa, "en la ofi" = Trabajo). Si no, null. Nunca inventes un id.
 - duracionMin: solo en "tarea" y "recordatorio": tu estimación de lo que lleva (15, 30, 60 o 120). En lo demás, null.
@@ -123,7 +124,7 @@ const ESQUEMA = {
     fecha: { type: 'string', format: 'date' },
     horaInicio: { anyOf: [{ type: 'string' }, { type: 'null' }] },
     horaFin: { anyOf: [{ type: 'string' }, { type: 'null' }] },
-    tipo: { type: 'string', enum: ['cliente', 'amigos', 'yo', 'entreno', 'estudios'] },
+    tipo: { type: 'string', enum: ['cliente', 'amigos', 'yo', 'entreno', 'estudios', 'proyectos'] },
     sitioId: { anyOf: [{ type: 'string' }, { type: 'null' }] },
     duracionMin: { anyOf: [{ type: 'integer', enum: [15, 30, 60, 120] }, { type: 'null' }] },
     avisoAntesMin: { anyOf: [{ type: 'integer', enum: [10, 30, 60, 120, 1440] }, { type: 'null' }] },
