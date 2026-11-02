@@ -1,18 +1,19 @@
 import { FunctionsFetchError, FunctionsHttpError } from '@supabase/supabase-js';
 
-import { leerCorrecciones } from '@/data/costumbres';
 import type { Evento } from '@/data/eventos/tipos';
 import type { Perfil } from '@/data/perfil';
 import { asegurarSesion, obtenerSupabase } from '@/data/supabase';
+import { leerTiposAprendidos } from '@/data/tiposAprendidos';
 import { claveDia, formatearHora } from '@/services/fechas';
 import { limiteDelError, mensajeLimite } from '@/services/ia';
 
+import { aplicarAprendido } from './aprendido';
 import { aplicarCostumbres, costumbresDe, type Costumbre } from './costumbres';
-import { entenderLocal } from './local';
+import { bastaSinIA, entenderLocal } from './local';
 import { ID_CASA, validarInterpretaciones, type Interpretacion } from './validar';
 
 export { entenderLocal, interpretarLocal } from './local';
-export { aplicarCostumbres, claveTitulo, costumbresDe, type Costumbre, type Correccion } from './costumbres';
+export { aplicarCostumbres, costumbresDe, type Costumbre } from './costumbres';
 
 export {
   validarInterpretacion,
@@ -24,8 +25,8 @@ export {
   type PropuestaAlarma,
 } from './validar';
 
-// Captura rápida (desde el 30/10/2026, lo pidió el usuario): la frase va siempre a la IA
-// (Edge Function "captura" de Supabase, con Claude Haiku), que dice qué se pide —apuntar
+// Captura rápida. Desde el 02/11/2026 lo fácil lo lee la app sola (local.ts, bastaSinIA);
+// el resto va a la IA (Edge Function "captura" de Supabase, con Claude Haiku), que dice qué se pide —apuntar
 // una cita o una tarea, un recordatorio, una alarma o una pregunta por la agenda— y lo
 // devuelve en JSON con un título limpio («Cita DNI», no «Tengo cita dni»). La app lo
 // comprueba (validar.ts) y lo enseña para que el usuario lo confirme: aquí nunca se
@@ -84,19 +85,30 @@ export async function interpretarFrase(
   eventos: readonly Evento[] = [],
   ahora: Date = new Date(),
 ): Promise<ResultadoCaptura> {
-  const costumbres = costumbresDe(eventos, await leerCorrecciones().catch(() => []));
-  const resultado = await interpretarConIA(frase, perfil, ahora, costumbres);
-  if (resultado.estado === 'ok') return { estado: 'ok', interpretaciones: conCostumbres(resultado.interpretaciones, costumbres) };
+  const aprendidos = await leerTiposAprendidos().catch(() => ({}));
+  const costumbres = costumbresDe(eventos, aprendidos);
+  // Lo corregido a mano (aprendido.ts) y el sitio de siempre (costumbres.ts), a cada cosa.
+  const ok = (lista: Interpretacion[]): ResultadoCaptura => ({
+    estado: 'ok',
+    interpretaciones: lista.map((leido) => {
+      const i = aplicarAprendido(leido, aprendidos);
+      return i.accion === 'apuntar' ? { ...i, propuesta: aplicarCostumbres(i.propuesta, costumbres) } : i;
+    }),
+  });
 
-  // La IA no está, falla o no ha sacado nada: vale lo que saque la app sola, para revisarlo.
+  // Lo fácil («pádel mañana a las 7») lo lee la app sola, sin gastar IA.
   const local = entenderLocal(frase, { ahora, perfil, eventos });
+  if (bastaSinIA(frase, local)) return ok([local!]);
+
+  const resultado = await interpretarConIA(frase, perfil, ahora, costumbres);
+  if (resultado.estado === 'ok') return ok(resultado.interpretaciones);
+  // Si la IA lo ha leído y no saca nada, mejor la ficha con la frase que adivinar.
+  if (resultado.motivo === 'no-entendido') return resultado;
+
+  // La IA no está o falla: vale lo que saque la app sola, para revisarlo.
   if (!local) return resultado;
   if (local.accion === 'apuntar' && local.propuesta.confianza === 'baja') return resultado;
-  return { estado: 'ok', interpretaciones: conCostumbres([local], costumbres) };
-}
-
-function conCostumbres(lista: Interpretacion[], costumbres: readonly Costumbre[]): Interpretacion[] {
-  return lista.map((i) => (i.accion === 'apuntar' ? { ...i, propuesta: aplicarCostumbres(i.propuesta, costumbres) } : i));
+  return ok([local]);
 }
 
 async function interpretarConIA(

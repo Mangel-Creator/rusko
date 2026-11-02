@@ -15,6 +15,7 @@ import {
 } from '@/components';
 import { guardarEvento, nuevoId, useEventos, type Evento, type LugarEvento } from '@/data/eventos';
 import type { Perfil } from '@/data/perfil';
+import { apuntarTipoAprendido } from '@/data/tiposAprendidos';
 import { NOMBRE_CASA, bloqueDeFocoQuePisa } from '@/services/agenda';
 import type { BorradorFicha } from '@/services/captura/borrador';
 import type { Propuesta } from '@/services/captura';
@@ -144,6 +145,8 @@ export function TarjetaConfirmacion({ propuesta, perfil, alGuardar, alCancelar, 
 
   const guardarDeVerdad = async (nuevo: Evento) => {
     setGuardando(true);
+    // Has cambiado el tipo: la próxima vez con este título sale ya así.
+    if (tipo !== propuesta.tipo) await apuntarTipoAprendido(nuevo.titulo, tipo).catch(() => {});
     await guardarEvento(nuevo);
     alGuardar(nuevo);
   };

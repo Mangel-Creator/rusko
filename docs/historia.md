@@ -1354,6 +1354,13 @@ borran solos a los 7 días.
 
 ## Fase 5: captura rápida con IA (decisiones)
 
+- **02/11/2026: menos IA (lo pidió el usuario).** Preguntó por una IA propia para no pagar a Anthropic;
+  se descartó (crear un modelo cuesta millones, alojar uno abierto 50-300 €/mes, uno en el navegador pesa
+  1-2 GB y se equivoca más). En su lugar, la captura prueba primero `entenderLocal` y, si `bastaSinIA` lo
+  da por claro, no llama a Haiku (anula el "siempre pasa por Haiku" del 01/11). También aprende de las
+  correcciones: si en la tarjeta cambias el tipo, se guarda título -> tipo (`organizy:tiposAprendidos`,
+  máx. 200) y se aplica a lo que lea la app o la IA.
+
 - En Hoy, bajo la cabecera, campo "¿Qué apunto?" (`screens/captura/CapturaRapida.tsx`),
   siempre abierto desde el 26/10/2026 (antes, **plegado** hasta tocar el "+", `plegada`). Sigue montado aunque no se vea, así que
   `enviarFraseACaptura` funciona igual y lo despliega mientras piensa.

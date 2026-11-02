@@ -469,6 +469,22 @@ export function entenderLocal(frase: string, { ahora, perfil, eventos }: Context
   };
 }
 
+// Frases que se dejan a la IA aunque la app las lea: preguntas, cosas que se repiten,
+// avisos con antelación («avísame 1 hora antes») y varias cosas a la vez.
+const RE_PARA_LA_IA =
+  /\?|^(?:que|cuando|cuanto|donde|a que hora|tengo algo|hay algo|estoy libre)\b|\b(?:todos los|todas las|cada|semanal|diario|antes|despues de|ademas|este mes|hasta)\b|,| y (?:hoy|manana|pasado|luego|tambien|el|la|lunes|martes|miercoles|jueves|viernes|sabado|domingo)\b/;
+const MAX_PALABRAS_SIN_IA = 5;
+
+// Desde el 02/11/2026 (lo pidió el usuario, para gastar menos IA) la captura prueba
+// primero sin IA: si la app lo ha leído sin dudas, no se pregunta a Haiku.
+export function bastaSinIA(frase: string, leido: Interpretacion | null): boolean {
+  if (!leido || RE_PARA_LA_IA.test(normalizar(frase.trim()))) return false;
+  if (leido.accion === 'alarma') return leido.alarma.confianza === 'alta';
+  if (leido.accion !== 'apuntar') return false;
+  const { titulo, confianza } = leido.propuesta;
+  return confianza === 'alta' && titulo !== 'Nuevo evento' && titulo.split(' ').length <= MAX_PALABRAS_SIN_IA;
+}
+
 const CONECTORES = /^(?:el|la|los|las|a|al|de|del|por|y|en|para|este|esta|que|sobre|hacia)$/;
 
 function limpiarTitulo(original: string, quitar: Tramo[]): string {
