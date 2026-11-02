@@ -88,6 +88,11 @@ export type Evento = {
   // Solo en tareas flexibles: a qué hora de su día avisar ("HH:MM"). Es un recordatorio
   // («recuérdame mañana a las 6 llamar a mamá», 30/10/2026). Opcional, como "cliente".
   avisarA?: Hora | null;
+  // Solo si se repite cada semana: qué días (lunes = 0 ... domingo = 6). Vacío o sin
+  // poner = el mismo día de la semana que "fecha" («lunes, miércoles y jueves», 02/11/2026).
+  dias?: number[] | null;
+  // Último día en que se repite («todo este mes»). null = sin fin.
+  hasta?: ClaveDia | null;
 };
 
 // De dónde viene un evento traído de otro calendario (services/calendarios).

@@ -18,11 +18,13 @@ import { sePisan, type Intervalo } from './huecos';
 export function ocurreEnDia(evento: Evento, dia: ClaveDia): boolean {
   if (dia < evento.fecha) return false;
   if (evento.flexible || evento.repeticion === 'nunca') return dia === evento.fecha;
+  if (evento.hasta && dia > evento.hasta) return false;
   if (evento.repeticion === 'diaria') return true;
   const primero = fechaDesdeClave(evento.fecha);
   const fecha = fechaDesdeClave(dia);
   if (evento.repeticion === 'semanal') {
-    return diaSemanaDesdeLunes(fecha) === diaSemanaDesdeLunes(primero);
+    const dias = evento.dias?.length ? evento.dias : [diaSemanaDesdeLunes(primero)];
+    return dias.includes(diaSemanaDesdeLunes(fecha));
   }
   // Mensual: mismo número de día. Los meses sin ese día (31 de abril) se saltan.
   return fecha.getDate() === primero.getDate();

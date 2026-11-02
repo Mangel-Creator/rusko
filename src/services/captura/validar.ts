@@ -1,6 +1,7 @@
-import type { LugarEvento, TipoEvento } from '@/data/eventos/tipos';
+import type { LugarEvento, Repeticion, TipoEvento } from '@/data/eventos/tipos';
 import {
   claveDia,
+  diaSemanaDesdeLunes,
   fechaDesdeClave,
   horaDesdeMinutos,
   minutosDesdeHora,
@@ -33,6 +34,11 @@ export type Propuesta = {
   avisoMin: number | null; // solo en citas: la antelación que ha pedido; null = la del perfil
   confianza: Confianza;
   opcionesHora?: string[]; // solo dijo la franja ("por la tarde"): las horas que se ofrecen
+  // Solo en citas que se repiten («lunes, miércoles y jueves de 6 a 8, todo este mes»,
+  // 02/11/2026). Sin "repeticion", no se repite.
+  repeticion?: Repeticion;
+  dias?: number[]; // cada semana: lunes = 0 ... domingo = 6
+  hasta?: ClaveDia; // último día
 };
 
 // "Ponme una alarma mañana a las 7".
@@ -191,6 +197,41 @@ export function validarPropuesta(datos: unknown, contexto: ContextoValidacion): 
     avisarA: null,
     avisoMin: antelacion(d.avisoAntesMin),
     confianza,
+    ...repeticionDe(d, fecha, contexto.hoy),
+  };
+}
+
+const REPETICIONES: readonly Repeticion[] = ['diaria', 'semanal', 'mensual'];
+const NOMBRES_DIAS = ['lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado', 'domingo'];
+
+// La repetición de una cita: "repeticion", "diasSemana" (por su nombre) y "hasta". Con
+// días de la semana, la fecha pasa al primero de ellos (y hasta debe quedar después).
+function repeticionDe(
+  d: Record<string, unknown>,
+  fecha: ClaveDia,
+  hoy: ClaveDia,
+): { fecha?: ClaveDia; repeticion?: Repeticion; dias?: number[]; hasta?: ClaveDia } {
+  const repeticion = REPETICIONES.find((r) => r === d.repeticion);
+  if (!repeticion) return {};
+  const dias =
+    repeticion === 'semanal' && Array.isArray(d.diasSemana)
+      ? [...new Set(d.diasSemana.map((n) => NOMBRES_DIAS.indexOf(String(n).toLocaleLowerCase('es-ES'))))]
+          .filter((n) => n >= 0)
+          .sort((a, b) => a - b)
+      : [];
+  let primero = fecha;
+  if (dias.length) {
+    for (let i = 0; i < 7 && !dias.includes(diaSemanaDesdeLunes(fechaDesdeClave(primero))); i++) {
+      primero = sumarDias(primero, 1);
+    }
+  }
+  const hasta = fechaCercana(d.hasta, hoy);
+  if (hasta && hasta < primero) return {}; // el fin es antes del primer día: no se repite
+  return {
+    fecha: primero,
+    repeticion,
+    ...(dias.length ? { dias } : {}),
+    ...(hasta ? { hasta } : {}),
   };
 }
 
@@ -222,4 +263,16 @@ export function validarInterpretacion(datos: unknown, contexto: ContextoValidaci
 
   const propuesta = validarPropuesta(d, contexto);
   return propuesta ? { accion: 'apuntar', propuesta } : null;
+}
+
+// Una frase puede traer varias cosas («comida hoy por la tarde y pádel mañana por la
+// mañana», 02/11/2026): la IA devuelve una lista y se queda lo que se puede usar.
+export const MAX_ELEMENTOS = 10;
+
+export function validarInterpretaciones(datos: unknown, contexto: ContextoValidacion): Interpretacion[] {
+  const lista = Array.isArray(datos) ? datos : [datos];
+  return lista
+    .slice(0, MAX_ELEMENTOS)
+    .map((d) => validarInterpretacion(d, contexto))
+    .filter((i): i is Interpretacion => i !== null);
 }

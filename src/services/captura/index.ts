@@ -1,18 +1,22 @@
 import { FunctionsFetchError, FunctionsHttpError } from '@supabase/supabase-js';
 
+import { leerCorrecciones } from '@/data/costumbres';
 import type { Evento } from '@/data/eventos/tipos';
 import type { Perfil } from '@/data/perfil';
 import { asegurarSesion, obtenerSupabase } from '@/data/supabase';
 import { claveDia, formatearHora } from '@/services/fechas';
 import { limiteDelError, mensajeLimite } from '@/services/ia';
 
+import { aplicarCostumbres, costumbresDe, type Costumbre } from './costumbres';
 import { entenderLocal } from './local';
-import { ID_CASA, validarInterpretacion, type Interpretacion } from './validar';
+import { ID_CASA, validarInterpretaciones, type Interpretacion } from './validar';
 
 export { entenderLocal, interpretarLocal } from './local';
+export { aplicarCostumbres, claveTitulo, costumbresDe, type Costumbre, type Correccion } from './costumbres';
 
 export {
   validarInterpretacion,
+  validarInterpretaciones,
   validarPropuesta,
   type Confianza,
   type Interpretacion,
@@ -32,8 +36,9 @@ const ESPERA_MAX_MS = 20000;
 
 export type MotivoFallo = 'sin-configurar' | 'sin-conexion' | 'limite' | 'limite-ia' | 'no-entendido' | 'error';
 
+// Una frase puede traer varias cosas (02/11/2026): "interpretaciones" nunca va vacía.
 export type ResultadoCaptura =
-  | { estado: 'ok'; interpretacion: Interpretacion }
+  | { estado: 'ok'; interpretaciones: Interpretacion[] }
   | { estado: 'fallo'; motivo: MotivoFallo; mensaje: string };
 
 // Mensajes cortos para el formulario que se abre cuando algo falla.
@@ -50,9 +55,10 @@ function fallo(motivo: MotivoFallo): ResultadoCaptura {
   return { estado: 'fallo', motivo, mensaje: MENSAJES[motivo] };
 }
 
-// Lo que se envía: la frase, el día y la hora de ahora, la zona horaria y los
-// nombres de los sitios habituales (sin sus direcciones).
-export function datosPeticion(frase: string, ahora: Date, perfil: Perfil | null) {
+// Lo que se envía: la frase, el día y la hora de ahora, la zona horaria, los nombres
+// de los sitios habituales (sin sus direcciones) y sus costumbres (título, tipo, horas
+// y sitio de lo que suele apuntar, 02/11/2026).
+export function datosPeticion(frase: string, ahora: Date, perfil: Perfil | null, costumbres: readonly Costumbre[] = []) {
   return {
     frase: frase.trim().slice(0, MAX_FRASE),
     hoy: claveDia(ahora),
@@ -62,6 +68,12 @@ export function datosPeticion(frase: string, ahora: Date, perfil: Perfil | null)
       { id: ID_CASA, nombre: 'Casa' },
       ...(perfil?.sitios ?? []).map((s) => ({ id: s.id, nombre: s.nombre })),
     ],
+    costumbres: costumbres.map((c) => ({
+      titulo: c.titulo,
+      tipo: c.tipo,
+      horas: c.horas,
+      sitioId: c.lugar?.tipo === 'sitio' ? c.lugar.sitioId : c.lugar?.tipo === 'casa' ? ID_CASA : null,
+    })),
   };
 }
 
@@ -72,22 +84,31 @@ export async function interpretarFrase(
   eventos: readonly Evento[] = [],
   ahora: Date = new Date(),
 ): Promise<ResultadoCaptura> {
-  const resultado = await interpretarConIA(frase, perfil, ahora);
-  // Si la IA lo ha leído y no lo ve claro, mejor la ficha con la frase que adivinar.
-  if (resultado.estado === 'ok' || resultado.motivo === 'no-entendido') return resultado;
+  const costumbres = costumbresDe(eventos, await leerCorrecciones().catch(() => []));
+  const resultado = await interpretarConIA(frase, perfil, ahora, costumbres);
+  if (resultado.estado === 'ok') return { estado: 'ok', interpretaciones: conCostumbres(resultado.interpretaciones, costumbres) };
 
-  // La IA no está o falla: vale lo que saque la app sola, para revisarlo.
+  // La IA no está, falla o no ha sacado nada: vale lo que saque la app sola, para revisarlo.
   const local = entenderLocal(frase, { ahora, perfil, eventos });
   if (!local) return resultado;
   if (local.accion === 'apuntar' && local.propuesta.confianza === 'baja') return resultado;
-  return { estado: 'ok', interpretacion: local };
+  return { estado: 'ok', interpretaciones: conCostumbres([local], costumbres) };
 }
 
-async function interpretarConIA(frase: string, perfil: Perfil | null, ahora: Date): Promise<ResultadoCaptura> {
+function conCostumbres(lista: Interpretacion[], costumbres: readonly Costumbre[]): Interpretacion[] {
+  return lista.map((i) => (i.accion === 'apuntar' ? { ...i, propuesta: aplicarCostumbres(i.propuesta, costumbres) } : i));
+}
+
+async function interpretarConIA(
+  frase: string,
+  perfil: Perfil | null,
+  ahora: Date,
+  costumbres: readonly Costumbre[],
+): Promise<ResultadoCaptura> {
   const supabase = obtenerSupabase();
   if (!supabase) return fallo('sin-configurar');
 
-  const peticion = datosPeticion(frase, ahora, perfil);
+  const peticion = datosPeticion(frase, ahora, perfil, costumbres);
 
   try {
     await asegurarSesion(supabase);
@@ -105,17 +126,17 @@ async function interpretarConIA(frase: string, perfil: Perfil | null, ahora: Dat
       return fallo(await motivoDelError(error));
     }
 
-    const interpretacion = validarInterpretacion((data as { propuesta?: unknown } | null)?.propuesta, {
+    // "elementos" desde el 02/11/2026; antes, una sola "propuesta".
+    const respuesta = data as { elementos?: unknown; propuesta?: unknown } | null;
+    const interpretaciones = validarInterpretaciones(respuesta?.elementos ?? respuesta?.propuesta, {
       hoy: peticion.hoy,
       sitiosIds: peticion.sitios.map((s) => s.id),
       ahora: peticion.ahora,
       horaAviso: perfil?.horario.levantarse,
     });
-    if (!interpretacion) return fallo('no-entendido');
-    if (interpretacion.accion === 'apuntar' && interpretacion.propuesta.confianza === 'baja') {
-      return fallo('no-entendido');
-    }
-    return { estado: 'ok', interpretacion };
+    // Con poca confianza también se enseña la tarjeta (avisando): mejor que la ficha vacía.
+    if (interpretaciones.length === 0) return fallo('no-entendido');
+    return { estado: 'ok', interpretaciones };
   } catch (error) {
     return fallo(await motivoDelError(error));
   }
