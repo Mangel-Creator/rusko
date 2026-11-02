@@ -84,10 +84,12 @@ Lo anulado y el detalle → historia: "Decisiones del usuario".
   "Estudio de hoy". Sin casillas, matriz ni selector de energía.
 - **Barra inferior**: Hoy · Semana · Correo (`/resumenes`) · Mapa · Época (`/epoca`). Planes y Alarmas
   son pantallas con "‹ Hoy" (`/planes`, `/alarmas`).
-- **Captura rápida** (01/11): siempre pasa por Haiku; distingue cita, tarea, recordatorio (tarea con
-  `avisarA`), alarma (despertador de una vez) y pregunta. Títulos limpios ("Cita DNI", "Llamar a mamá").
-  "A las 6" de una cita o recordatorio es de tarde si toca; solo las alarmas son de mañana. Si la IA
-  falla, `entenderLocal`. → "Fase 5".
+- **Captura rápida** (02/11): primero la lee la app sola; si está clara (`bastaSinIA`: día, hora o franja
+  dichos, título de 5 palabras o menos, sin preguntas, repeticiones ni "antes") no se llama a Haiku. Lo
+  demás va a Haiku, que distingue cita, tarea, recordatorio (tarea con `avisarA`), alarma (despertador
+  de una vez) y pregunta. Títulos limpios ("Cita DNI", "Llamar a mamá"). "A las 6" de una cita o
+  recordatorio es de tarde si toca; solo las alarmas son de mañana. Si la IA falla, `entenderLocal`.
+  Aprende el tipo que corriges, por título (`tiposAprendidos`, viaja en la copia). → "Fase 5".
 - **IA**: Claude **Haiku 5.5** (`claude-haiku-5-5`, `effort: 'low'`) en captura, correo y Época, siempre
   a través de Supabase; la clave nunca en la app. Clave puesta el 28/10 como secreto **`CLAVE_ANTRHOPIC`**
   (con esa errata; también vale `ANTHROPIC_API_KEY`, `_shared/claveAnthropic.ts`). Límites por persona

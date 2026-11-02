@@ -3,10 +3,12 @@ import { FunctionsFetchError, FunctionsHttpError } from '@supabase/supabase-js';
 import type { Evento } from '@/data/eventos/tipos';
 import type { Perfil } from '@/data/perfil';
 import { asegurarSesion, obtenerSupabase } from '@/data/supabase';
+import { leerTiposAprendidos } from '@/data/tiposAprendidos';
 import { claveDia, formatearHora } from '@/services/fechas';
 import { limiteDelError, mensajeLimite } from '@/services/ia';
 
-import { entenderLocal } from './local';
+import { aplicarAprendido } from './aprendido';
+import { bastaSinIA, entenderLocal } from './local';
 import { ID_CASA, validarInterpretacion, type Interpretacion } from './validar';
 
 export { entenderLocal, interpretarLocal } from './local';
@@ -20,8 +22,8 @@ export {
   type PropuestaAlarma,
 } from './validar';
 
-// Captura rápida (desde el 30/10/2026, lo pidió el usuario): la frase va siempre a la IA
-// (Edge Function "captura" de Supabase, con Claude Haiku), que dice qué se pide —apuntar
+// Captura rápida. Desde el 02/11/2026 lo fácil lo lee la app sola (local.ts, bastaSinIA);
+// el resto va a la IA (Edge Function "captura" de Supabase, con Claude Haiku), que dice qué se pide —apuntar
 // una cita o una tarea, un recordatorio, una alarma o una pregunta por la agenda— y lo
 // devuelve en JSON con un título limpio («Cita DNI», no «Tengo cita dni»). La app lo
 // comprueba (validar.ts) y lo enseña para que el usuario lo confirme: aquí nunca se
@@ -72,15 +74,25 @@ export async function interpretarFrase(
   eventos: readonly Evento[] = [],
   ahora: Date = new Date(),
 ): Promise<ResultadoCaptura> {
+  const aprendidos = await leerTiposAprendidos().catch(() => ({}));
+  const ok = (interpretacion: Interpretacion): ResultadoCaptura => ({
+    estado: 'ok',
+    interpretacion: aplicarAprendido(interpretacion, aprendidos),
+  });
+
+  // Lo fácil («pádel mañana a las 7») lo lee la app sola, sin gastar IA.
+  const local = entenderLocal(frase, { ahora, perfil, eventos });
+  if (bastaSinIA(frase, local)) return ok(local!);
+
   const resultado = await interpretarConIA(frase, perfil, ahora);
+  if (resultado.estado === 'ok') return ok(resultado.interpretacion);
   // Si la IA lo ha leído y no lo ve claro, mejor la ficha con la frase que adivinar.
-  if (resultado.estado === 'ok' || resultado.motivo === 'no-entendido') return resultado;
+  if (resultado.motivo === 'no-entendido') return resultado;
 
   // La IA no está o falla: vale lo que saque la app sola, para revisarlo.
-  const local = entenderLocal(frase, { ahora, perfil, eventos });
   if (!local) return resultado;
   if (local.accion === 'apuntar' && local.propuesta.confianza === 'baja') return resultado;
-  return { estado: 'ok', interpretacion: local };
+  return ok(local);
 }
 
 async function interpretarConIA(frase: string, perfil: Perfil | null, ahora: Date): Promise<ResultadoCaptura> {
