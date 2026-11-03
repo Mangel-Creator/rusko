@@ -1343,6 +1343,23 @@ animaciones infinitas.
   - Probado el 03/11: pdf.js con su huella en localhost y en la web publicada, el mapa en la
     función real (3,6 s) y las pruebas de `apuntes.test.ts` y `perfilEstudio.test.ts`. **Falta**
     probar en el móvil un PDF con índice y uno escaneado.
+- **Plan de estudio sin IA** (03/11/2026, lo pidió el usuario: "lo más eficiente para la IA gastando
+  muy poco, a medida para cada usuario"; **anula lo de Sonnet de arriba**):
+  - `services/epoca/planLocal.ts` hace en el dispositivo lo que hacía la IA, con las reglas del
+    prompt `cuestionario`: temas en orden (de sus apuntes medidos, de su índice o "Tema N"), agrupados
+    para no pasar de 20 piezas; repasos sin mirar cada 3 temas (cada 2 en problemas o si memorizar le
+    cuesta), "Organizar el material" si no ha empezado, segunda vuelta en temarios de más de 30, lo
+    propio de cada tipo (tests, esquemas-guion, desarrollo por escrito, voz alta), simulacro si hay
+    exámenes de otros años o ficha, y repaso final. Idiomas por destrezas (Use of English solo en
+    Cambridge) con 2 simulacros; trabajos por partes. Las horas de `estimarHoras` se reparten en medias
+    horas. Consejos (`consejosLocales`, 6 como mucho) según tipo de examen y hábitos.
+  - La IA solo entra si escribe algo en "¿Algo más?" (Haiku, effort low, 8000 tokens). Si falla, sale
+    el plan local con una nota.
+  - Función `epoca`: todo con Haiku (`EPOCA_MODELO`); fuera `EPOCA_MODELO_PLAN` y `conRespaldo`. La
+    ficha, con `web_search_20250305` y `max_uses: 2`.
+  - Coste por plan: de unos 0,08 $ a 0 (unos 0,004 $ con "¿Algo más?"); ficha de unos 0,1 $ a unos
+    0,02 $. Pruebas en `__tests__/planLocal.test.ts`; probado en localhost a tamaño móvil (sin llamada
+    a `epoca`).
 
 ## Servidor propio: Supabase (desde la fase 5)
 

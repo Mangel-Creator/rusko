@@ -10,3 +10,4 @@ export * from './temas';
 export * from './validarIA';
 export * from './perfilEstudio';
 export * from './apuntes';
+export * from './planLocal';

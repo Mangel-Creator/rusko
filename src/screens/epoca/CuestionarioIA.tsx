@@ -19,7 +19,7 @@ import {
 import { leerEpocas, nuevoIdEpoca } from '@/data/epocas';
 import type { DiaSemana, Perfil } from '@/data/perfil';
 import { guardarPerfilEstudio, leerPerfilEstudio } from '@/data/perfilEstudio';
-import type { PropuestaEpoca } from '@/services/epoca';
+import { planLocal, type PropuestaEpoca } from '@/services/epoca';
 import { cuestionarioConIA } from '@/services/epoca/ia';
 import {
   conRecuentos,
@@ -253,8 +253,9 @@ function asignaturaNueva(hoy: ClaveDia): AsignaturaCuestionario {
 }
 
 // Cuestionario a fondo antes del formulario: exámenes, tiempo y cómo estudia.
-// La IA prepara con él el plan (temas, repasos, simulacros y consejos) siguiendo
-// las guías del COIE de la UNED, y rellena los tres pasos para revisarlos.
+// La app prepara con él el plan sin IA (services/epoca/planLocal.ts: temas, repasos,
+// simulacros y consejos según las guías del COIE de la UNED) y rellena los tres pasos
+// para revisarlos. Solo si escribe algo en "¿Algo más?" lo hace la IA (Haiku).
 // Lo que contesta se guarda en su perfil de estudio (data/perfilEstudio.ts): la
 // próxima vez sale ya puesto, junto con lo aprendido de sus planes anteriores.
 export function CuestionarioIA({ perfil, hoy, alPreparar, alSaltar }: Props) {
@@ -313,22 +314,28 @@ export function CuestionarioIA({ perfil, hoy, alPreparar, alSaltar }: Props) {
       setMensaje({ texto: 'Las fechas de los exámenes tienen que ser a partir de mañana.', error: true });
       return;
     }
-    setOcupado(true);
     setMensaje(null);
     // Sus respuestas se quedan para el próximo plan.
     const nuevo: PerfilEstudio = { ...(estudio ?? PERFIL_ESTUDIO_VACIO), habitos, tiempo: { horasDia, rindeMas, diaLibre } };
     setEstudio(nuevo);
-    const r = await cuestionarioConIA(
-      { asignaturas: asignaturas.map((a) => ({ ...a, nombre: a.nombre.trim() })), horasDia, rindeMas, diaLibre, habitos, otros },
-      perfil,
-      nuevo,
-    );
-    setOcupado(false);
-    if (r.estado === 'fallo') {
-      setMensaje({ texto: r.mensaje, error: r.motivo !== 'sin-clave' && r.motivo !== 'sin-configurar' });
+    const respuestas = { asignaturas: asignaturas.map((a) => ({ ...a, nombre: a.nombre.trim() })), horasDia, rindeMas, diaLibre, habitos, otros };
+    // El plan lo hace la app, sin IA. Solo lo que escribe en "¿Algo más?" necesita a la IA.
+    const local = planLocal(respuestas, nuevo);
+    if (!otros.trim()) {
+      alPreparar(local);
       return;
     }
-    alPreparar(r.datos);
+    setOcupado(true);
+    const r = await cuestionarioConIA(respuestas, perfil, nuevo);
+    setOcupado(false);
+    alPreparar(
+      r.estado === 'ok'
+        ? r.datos
+        : {
+            ...local,
+            notas: 'No he podido tener en cuenta lo que añadiste en «¿Algo más?» (la IA no está disponible ahora). El plan sale de tus demás respuestas: revísalo antes de guardar.',
+          },
+    );
   };
 
   const opcionesLibre: Opcion<string>[] = [
@@ -493,7 +500,7 @@ export function CuestionarioIA({ perfil, hoy, alPreparar, alSaltar }: Props) {
         preguntasHabitos
       )}
       <CampoTexto
-        etiqueta="¿Algo más? (opcional)"
+        etiqueta="¿Algo más? (opcional, lo lee la IA)"
         placeholder="Trabajo por las tardes, la Estadística la suspendí en junio…"
         value={otros}
         onChangeText={setOtros}
@@ -508,11 +515,12 @@ export function CuestionarioIA({ perfil, hoy, alPreparar, alSaltar }: Props) {
           {mensaje.texto}
         </Texto>
       ) : null}
-      <Boton titulo={ocupado ? 'Preparando tu plan… (hasta 2 minutos)' : 'Preparar mi plan'} disabled={ocupado} onPress={preparar} />
+      <Boton titulo={ocupado ? 'Preparando tu plan… (hasta 1 minuto)' : 'Preparar mi plan'} disabled={ocupado} onPress={preparar} />
       <Boton variante="secundario" titulo="Rellenarlo a mano" disabled={ocupado} onPress={alSaltar} />
       <Texto pequeno secundario>
-        Lo que escribas, tus apuntes y las búsquedas se envían a la IA (Claude, de Anthropic) solo para preparar el
-        plan. No se guardan en ningún servidor. Tus respuestas y lo que aprendo de tus planes se quedan en tu dispositivo.
+        El plan lo preparo aquí, en tu dispositivo, sin IA. Solo va a la IA (Claude, de Anthropic) lo que escribas en
+        «¿Algo más?», la búsqueda de cómo es un examen y, de tus apuntes sin índice, cómo empieza cada página. No se
+        guarda en ningún servidor. Tus respuestas y lo que aprendo de tus planes se quedan en tu dispositivo.
       </Texto>
     </>
   );

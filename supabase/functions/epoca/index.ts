@@ -15,10 +15,9 @@
 // No guarda nada: la app comprueba la respuesta (services/epoca/validarIA.ts), la
 // enseña y el usuario decide. En los registros solo queda el gasto.
 //
-// Modelo según lo que hace (03/11/2026): el plan y la búsqueda de cómo es un examen
-// con Sonnet 5.5, porque un buen plan ahorra horas y se usa una vez por temporada;
-// lo demás (medir apuntes, preparar, temario, repaso) con Haiku 5.5, que basta.
-// Si Sonnet falla, se repite con Haiku (conRespaldo).
+// Todo con Haiku 5.5, lo más barato (03/11/2026). El plan lo hace la app sola
+// (services/epoca/planLocal.ts); "cuestionario" solo llega si la persona escribe
+// algo en "¿Algo más?".
 //
 // - Solo responde a la app: comprueba la sesión (anónima) de Supabase.
 // - Límite de usos por usuario y día, y otro global, para controlar el gasto.
@@ -33,9 +32,8 @@ import { numeroDeEntorno, sumarUso } from '../_shared/limite.ts';
 import { apuntarIA, cuerpoLimiteIA, permitirIA, SIN_LIMITE } from '../_shared/limiteIA.ts';
 import { usuarioDeLaPeticion } from '../_shared/usuario.ts';
 
-// Se pueden cambiar sin tocar la app con los secretos EPOCA_MODELO y EPOCA_MODELO_PLAN.
+// Se puede cambiar sin tocar la app con el secreto EPOCA_MODELO.
 const MODELO = Deno.env.get('EPOCA_MODELO') || 'claude-haiku-5-5';
-const MODELO_PLAN = Deno.env.get('EPOCA_MODELO_PLAN') || 'claude-sonnet-5-5';
 
 const LIMITE_POR_USUARIO = numeroDeEntorno('EPOCA_LIMITE_USUARIO', 30);
 const LIMITE_GLOBAL = numeroDeEntorno('EPOCA_LIMITE_GLOBAL', 1000);
@@ -603,55 +601,32 @@ const ESQUEMAS: Record<Exclude<Accion, 'ficha'>, Record<string, unknown>> = {
   },
 };
 
-// Con sitio para que piense antes de contestar (los dos modelos piensan solos).
-// El plan piensa más (effort "medium"): es lo que más importa que salga bien.
+// Con sitio para que piense antes de contestar (Haiku piensa solo, con effort "low").
 const MAX_TOKENS: Record<Accion, number> = {
-  cuestionario: 16000,
+  cuestionario: 8000,
   ficha: 4000,
   medir: 6000,
   preparar: 4000,
   temario: 3000,
   repaso: 2500,
 };
-const modeloDe = (accion: Accion) => (accion === 'cuestionario' || accion === 'ficha' ? MODELO_PLAN : MODELO);
-
-// Si Sonnet no responde (saturado, caído o retirado), se hace con Haiku: peor plan,
-// pero plan. El SDK ya reintenta una vez antes. Si lo que pasó es que tardó demasiado,
-// no queda tiempo para otro intento (Supabase corta a los 150 s) y se avisa.
-async function conRespaldo<T>(modelo: string, llamada: (modelo: string) => Promise<T>): Promise<T> {
-  try {
-    return await llamada(modelo);
-  } catch (error) {
-    const caido =
-      error instanceof Anthropic.APIError &&
-      !(error instanceof Anthropic.APIConnectionTimeoutError) &&
-      (error.status === undefined || error.status === 404 || error.status >= 500);
-    if (modelo === MODELO || !caido) throw error;
-    console.error(`epoca: ${modelo} falla (${(error as Anthropic.APIError).status ?? 'red'}), sigo con ${MODELO}`);
-    return await llamada(MODELO);
-  }
-}
-
-// "ficha": Claude busca (hasta 3 veces) y contesta en texto. Si la búsqueda tarda,
-// la API para a medias (pause_turn) y se le deja seguir, como mucho 3 vueltas.
-async function buscarFicha(usuario: string, mensaje: string, modelo: string): Promise<string | null> {
+// "ficha": Claude busca (hasta 2 veces, cada búsqueda cuesta 1 céntimo) y contesta en
+// texto. Si la búsqueda tarda, la API para a medias (pause_turn) y se le deja seguir,
+// como mucho 3 vueltas.
+async function buscarFicha(usuario: string, mensaje: string): Promise<string | null> {
   const mensajes: Anthropic.MessageParam[] = [{ role: 'user', content: mensaje }];
   for (let vuelta = 0; vuelta < 3; vuelta++) {
     const r = await anthropic.messages.create({
-      model: modelo,
+      model: MODELO,
       max_tokens: MAX_TOKENS.ficha,
       system: INSTRUCCIONES.ficha,
       messages: mensajes,
-      // La búsqueda que filtra resultados solo está en Sonnet y Opus; Haiku, la básica.
-      tools: [
-        modelo.includes('haiku')
-          ? { type: 'web_search_20250305', name: 'web_search', max_uses: 3 }
-          : { type: 'web_search_20260209', name: 'web_search', max_uses: 3 },
-      ],
+      // Haiku solo tiene la búsqueda básica.
+      tools: [{ type: 'web_search_20250305', name: 'web_search', max_uses: 2 }],
       output_config: { effort: 'low' },
     });
-    await apuntarIA(usuario, 'epoca', modelo, r.usage);
-    console.log(`epoca ficha · ${modelo} · tokens ${r.usage.input_tokens}+${r.usage.output_tokens} · ${r.stop_reason}`);
+    await apuntarIA(usuario, 'epoca', MODELO, r.usage);
+    console.log(`epoca ficha · ${MODELO} · tokens ${r.usage.input_tokens}+${r.usage.output_tokens} · ${r.stop_reason}`);
     if (r.stop_reason === 'pause_turn') {
       mensajes.push({ role: 'assistant', content: r.content });
       continue;
@@ -671,8 +646,8 @@ async function buscarFicha(usuario: string, mensaje: string, modelo: string): Pr
 
 // ---------- Servidor ----------
 
-// 60 s por intento y un reintento: con el cambio a Haiku, todo cabe en los 150 s
-// que da Supabase (el cuestionario tarda unos 10 s; la ficha, unos 20).
+// 60 s por intento y un reintento: con Haiku todo cabe en los 150 s que da
+// Supabase (el cuestionario tarda unos 10 s; la ficha, unos 20).
 const anthropic = new Anthropic({ apiKey: CLAVE_ANTHROPIC, timeout: 60_000, maxRetries: 1 });
 
 Deno.serve(async (req) => {
@@ -703,24 +678,18 @@ Deno.serve(async (req) => {
   const { accion, mensaje } = peticion;
   try {
     if (accion === 'ficha') {
-      const texto = await conRespaldo(MODELO_PLAN, (m) => buscarFicha(usuario, mensaje as string, m));
+      const texto = await buscarFicha(usuario, mensaje as string);
       return texto ? respuestaJson(req, { resultado: { texto } }) : respuestaJson(req, { error: 'ia' }, 502);
     }
     const inicio = Date.now();
-    const { modelo, respuesta } = await conRespaldo(modeloDe(accion), async (m) => {
-      const r = await anthropic.messages.create({
-        model: m,
-        max_tokens: MAX_TOKENS[accion],
-        system: INSTRUCCIONES[accion],
-        messages: [{ role: 'user', content: mensaje }],
-        output_config: {
-          effort: accion === 'cuestionario' ? 'medium' : 'low',
-          format: { type: 'json_schema', schema: ESQUEMAS[accion] },
-        },
-      });
-      return { modelo: m, respuesta: r };
+    const respuesta = await anthropic.messages.create({
+      model: MODELO,
+      max_tokens: MAX_TOKENS[accion],
+      system: INSTRUCCIONES[accion],
+      messages: [{ role: 'user', content: mensaje }],
+      output_config: { effort: 'low', format: { type: 'json_schema', schema: ESQUEMAS[accion] } },
     });
-    await apuntarIA(usuario, 'epoca', modelo, respuesta.usage);
+    await apuntarIA(usuario, 'epoca', MODELO, respuesta.usage);
     if (respuesta.stop_reason !== 'end_turn') {
       console.error(`epoca ${accion}: respuesta cortada (${respuesta.stop_reason})`);
       return respuestaJson(req, { error: 'ia' }, 502);
@@ -730,7 +699,7 @@ Deno.serve(async (req) => {
     if (!resultado || typeof resultado !== 'object') return respuestaJson(req, { error: 'ia' }, 502);
     // En los registros solo queda el gasto, nunca lo que ha escrito.
     console.log(
-      `epoca ${accion} ok · ${modelo} · tokens ${respuesta.usage.input_tokens}+${respuesta.usage.output_tokens} · ${Math.round((Date.now() - inicio) / 1000)} s`,
+      `epoca ${accion} ok · ${MODELO} · tokens ${respuesta.usage.input_tokens}+${respuesta.usage.output_tokens} · ${Math.round((Date.now() - inicio) / 1000)} s`,
     );
     return respuestaJson(req, { resultado });
   } catch (error) {

@@ -99,15 +99,17 @@ Lo anulado y el detalle → historia: "Decisiones del usuario".
   (con esa errata; también vale `ANTHROPIC_API_KEY`, `_shared/claveAnthropic.ts`). Límites por persona
   de 5 h y semana (el correo va aparte: 100 correos al día); el dueño sin límites y ve el saldo de la
   clave (`IA_SALDO_CLAVE`, `IA_SALDO_DESDE`). Comprar más IA: preparado y apagado. → "Límites de IA".
-  **Excepción (03/11): el plan de estudio** usa **Sonnet 5.5** (`claude-sonnet-5-5`, `EPOCA_MODELO_PLAN`)
-  en el cuestionario (effort medium) y en la ficha del examen (búsqueda web, `max_uses: 3`); medir
-  apuntes en PDF, temario y repasos siguen con Haiku. Las horas las calcula la app (`estimarHoras`) y la
-  IA solo las mueve ±15 %. Lo que se sabe de cómo estudia cada uno se guarda en `organizy:perfilEstudio`
-  (viaja en la copia) y no se vuelve a preguntar. **Apuntes en PDF** (03/11): se leen en el navegador
-  con pdf.js de cdnjs (versión fija y huella comprobada, `leerPdf.ts`); si traen índice, los temas salen
-  sin IA; si no, a Haiku solo le llega el "mapa" (cómo empieza cada página); solo un escaneado de hasta
-  20 páginas va entero. Nada se guarda. Si Sonnet falla, la función usa Haiku (`conRespaldo`). El coste
-  apuntado incluye las búsquedas web y la tarifa de Haiku por encima de 100.000 tokens.
+  **Plan de estudio, gastando lo mínimo (03/11, anula la excepción de Sonnet)**: el plan lo hace la app
+  sola (`services/epoca/planLocal.ts`: temas, repasos, simulacros y consejos con las reglas del COIE),
+  a medida con sus respuestas, su perfil de estudio y sus apuntes. Solo va a Haiku si escribe algo en
+  "¿Algo más?"; si la IA falla, sale el plan local. La ficha del examen, con Haiku y 2 búsquedas web.
+  Nada de Sonnet en Época. Las horas las calcula la app (`estimarHoras`) y la IA solo las mueve ±15 %.
+  Lo que se sabe de cómo estudia cada uno se guarda en `organizy:perfilEstudio` (viaja en la copia) y
+  no se vuelve a preguntar. **Apuntes en PDF** (03/11): se leen en el navegador con pdf.js de cdnjs
+  (versión fija y huella comprobada, `leerPdf.ts`); si traen índice, los temas salen sin IA; si no, a
+  Haiku solo le llega el "mapa" (cómo empieza cada página); solo un escaneado de hasta 20 páginas va
+  entero. Nada se guarda. El coste apuntado incluye las búsquedas web y la tarifa de Haiku por encima de
+  100.000 tokens.
 - **Tareas hechas se borran solas a las 24 h** (`hechaEn`, `borrarTareasHechasAntiguas`), salvo las del
   plan de estudio (`epoca-`).
 - **Correo**: solo su Gmail vinculado (proyecto de Google Cloud `rusko-512918`, modo prueba: volver a

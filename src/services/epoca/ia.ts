@@ -42,8 +42,8 @@ import {
 // pruebas) no carguen la conexión con el servidor.
 
 const ESPERA_MAX_MS = 30000;
-// El plan del cuestionario es largo (temas de todos los exámenes) y lo hace un modelo
-// que piensa más; buscar cómo es un examen o leer un PDF también tarda.
+// El plan del cuestionario es largo (temas de todos los exámenes); buscar cómo es un
+// examen o leer un PDF también tarda. Cubren el reintento del servidor.
 const ESPERA_CUESTIONARIO_MS = 150000;
 const ESPERA_FICHA_MS = 90000;
 const ESPERA_MEDIR_MS = 120000;
