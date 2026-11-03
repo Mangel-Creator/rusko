@@ -54,7 +54,8 @@ import {
   sumarDias,
   type ClaveDia,
 } from '@/services/fechas';
-import { acentos, alturaTactil, cifras, colores, colorEvento, colorTipo, duracion, espacio, fuentes, radio, tamanos } from '@/theme';
+import { useColoresTipo } from '@/data/coloresTipo';
+import { acentos, alturaTactil, cifras, colores, duracion, espacio, fuentes, radio, tamanos } from '@/theme';
 
 import { dejarBorrador } from '@/services/captura/borrador';
 import { DURACION_POR_DEFECTO, horaParaHueco, huecosParaPlan } from '@/services/planes/sugerencias';
@@ -188,6 +189,7 @@ function useVista(): [Vista, (vista: Vista) => void] {
 }
 
 export function PantallaSemana() {
+  const { colorTipo } = useColoresTipo();
   const ahora = useAhora();
   const hoy = claveDia(ahora);
   const [elegido, setElegido] = useState<ClaveDia>(hoy);
@@ -493,7 +495,7 @@ export function PantallaSemana() {
                     onPress={() => tocar(tarea, elegido)}
                     style={({ pressed }) => [
                     estilos.tarea,
-                    { borderLeftColor: colorEvento(tarea) },
+                    { borderLeftColor: colorTipo[tarea.tipo] },
                     pressed && estilos.pulsado,
                   ]}>
                     <Ionicons
@@ -541,6 +543,7 @@ type PropsLinea = {
 
 // Día con su línea de horas: cada evento ocupa la altura de lo que dura.
 function LineaDeHoras({ eventos, ventana, minutoAhora, alTocar }: PropsLinea) {
+  const { colorTipo } = useColoresTipo();
   const tramos = eventos.map(intervaloDe);
   const desde = Math.floor(Math.min(ventana.inicio, ...tramos.map((t) => t.inicio)) / 60) * 60;
   const hasta = Math.ceil(Math.max(ventana.fin, ...tramos.map((t) => t.fin)) / 60) * 60;
@@ -571,7 +574,7 @@ function LineaDeHoras({ eventos, ventana, minutoAhora, alTocar }: PropsLinea) {
               onPress={() => alTocar(evento)}
               style={({ pressed }) => [
                 estilos.bloque,
-                evento.foco ? estilos.bloqueFoco : { borderLeftColor: colorEvento(evento) },
+                evento.foco ? estilos.bloqueFoco : { borderLeftColor: colorTipo[evento.tipo] },
                 evento.id.startsWith(`${PREFIJO_EPOCA}bloque:`) && estilos.bloqueEpoca,
                 {
                   top: y(inicio) + 1,

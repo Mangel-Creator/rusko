@@ -13,7 +13,8 @@ import {
   eventosDeCalendario,
 } from '@/services/calendarios';
 import { cuandoFue } from '@/services/fechas';
-import { colorTipo, colores, espacio } from '@/theme';
+import { useColoresTipo } from '@/data/coloresTipo';
+import { colores, espacio } from '@/theme';
 
 import { MensajeError } from '../formulario-perfil/MensajeError';
 
@@ -43,6 +44,7 @@ const PASOS_ICLOUD = [
 // Perfil > "Tus otros calendarios": traer Google Calendar, iCloud u Outlook a Organizy
 // con su enlace iCal (services/calendarios). Lo traído son eventos normales de Organizy.
 export function SeccionCalendarios() {
+  const { colorTipo } = useColoresTipo();
   const { cargado, calendarios } = useCalendarios();
   const { eventos } = useEventos();
   const [enlace, setEnlace] = useState('');

@@ -6,7 +6,8 @@ import { Linking, Platform, Pressable, StyleSheet, View } from 'react-native';
 import { BotonAtras, Texto } from '@/components';
 import type { TipoPlan } from '@/data/planes';
 import { capitalizar, fechaDesdeClave, formatearDiaCorto } from '@/services/fechas';
-import { alturaTactil, cifras, colorBaldosa, colores, espacio, fuentes, radio, tamanos } from '@/theme';
+import { useColoresTipo } from '@/data/coloresTipo';
+import { alturaTactil, cifras, colores, espacio, fuentes, radio, tamanos } from '@/theme';
 
 // Piezas compartidas por Planes, el formulario de nuevo plan, la ficha del plan y la
 // página de votación.
@@ -27,7 +28,7 @@ export function textoDiaCorto(dia: string): string {
 
 // Cuadrado con el icono del tipo de plan, en el color suave de su tipo (como en Hoy).
 export function BaldosaTipo({ tipo, grande }: { tipo: TipoPlan; grande?: boolean }) {
-  const tono = colorBaldosa[tipo];
+  const tono = useColoresTipo().colorBaldosa[tipo];
   const lado = grande ? 52 : 40;
   return (
     <View style={[estilos.baldosa, { width: lado, height: lado, backgroundColor: tono.fondo }]}>

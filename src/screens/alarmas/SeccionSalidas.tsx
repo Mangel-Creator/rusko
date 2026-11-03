@@ -9,7 +9,8 @@ import { citasParaAlarma } from '@/services/alarmas';
 import { formatearDiaCorto, formatearHora } from '@/services/fechas';
 import { claveCita } from '@/services/rutas/citas';
 import { modoDeViaje } from '@/services/rutas/tipos';
-import { colorEvento, colores, espacio } from '@/theme';
+import { useColoresTipo } from '@/data/coloresTipo';
+import { colores, espacio } from '@/theme';
 
 import { useAhora } from '../calendario/useAhora';
 import { InterruptorPequeno } from './FilaAlarma';
@@ -25,6 +26,7 @@ export function SeccionSalidas() {
   const { ajustes } = useAlarmas();
   const citas = citasParaAlarma(eventos, perfil, ahora);
   const sinTrafico = !modoDeViaje(perfil?.transporte);
+  const { colorTipo } = useColoresTipo();
 
   return (
     <View style={estilos.seccion}>
@@ -49,7 +51,7 @@ export function SeccionSalidas() {
               return (
                 <View
                   key={cita.clave}
-                  style={[estilos.fila, { borderLeftColor: colorEvento(cita.evento) }]}>
+                  style={[estilos.fila, { borderLeftColor: colorTipo[cita.evento.tipo] }]}>
                   <View style={estilos.textos}>
                     <Texto fuerte numberOfLines={1}>
                       {cita.evento.titulo}

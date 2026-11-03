@@ -34,7 +34,8 @@ import {
   saludoSegunHora,
   sumarDias,
 } from '@/services/fechas';
-import { colores, colorEvento, espacio, fuentes, radio } from '@/theme';
+import { useColoresTipo } from '@/data/coloresTipo';
+import { colores, espacio, fuentes, radio } from '@/theme';
 
 import { CapturaRapida } from './captura/CapturaRapida';
 import { ConfirmacionMovidas } from './calendario/ConfirmacionMovidas';
@@ -316,11 +317,12 @@ function LoSiguiente({ siguiente, hoy, perfil, ahora }: PropsDia & { siguiente: 
 
 function FilaTarea({ tarea, detalle, apagada }: FilaTareaLista) {
   const { medidas } = useDensidad();
+  const { colorTipo } = useColoresTipo();
   return (
     <View
       style={[
         estilos.tarea,
-        { borderLeftColor: apagada ? colores.borde : colorEvento(tarea) },
+        { borderLeftColor: apagada ? colores.borde : colorTipo[tarea.tipo] },
         {
           minHeight: medidas.altoFila,
           paddingVertical: Math.max(medidas.rellenoFila - 4, 0),

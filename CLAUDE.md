@@ -136,9 +136,14 @@ Lo anulado y el detalle → historia: "Decisiones del usuario".
 - **Horas que no cuadran, en un toque** (03/11, sin IA): en Época > Hitos, "¿No cuadran las horas?" con
   "Son pocas" (+30 %) y "Demasiadas" (−25 %) por examen y sus temas (`ajustarHorasHito`); el plan se
   recoloca solo y el ritmo del perfil aprende un 5 % (`conAjusteRitmo`, no en el plan de ejemplo).
+- **Parón para comer** (03/11, sin IA): en Tu ritmo, "¿A qué hora sueles comer?" y "¿Cuánto paras?"
+  (1 h 30 o 2 h), en `ritmo.comida`. El plan no pone estudio ahí ningún día (`intervaloComida`);
+  los planes de antes, de 14:00 a 15:30.
 - **Festivos** del BOE por comunidad (tabla 2026 y 2027: **cada otoño añade la del año siguiente** en
   `services/festivos/boe.ts`); las 2 locales las pone la persona. → "Festivos".
-- **Tipos de evento**: Cliente, Amigos, Yo, Entreno, Estudios y Proyectos.
+- **Tipos de evento**: Cliente, Amigos, Yo, Entreno, Estudios y Proyectos. **Su color lo elige la
+  persona** (03/11) en Perfil > Cómo se ve, entre los 12 de `PALETA_TIPOS` (`data/coloresTipo.ts`,
+  `organizy:coloresTipo`, viaja en la copia).
 - **Semana como Google Calendar**: Día · 3 días · Semana · Mes; tocar una cita abre `MenuEvento`.
 - **Marcas**: botones oficiales de Google y Microsoft (`BotonEntrarCon`, `LogoMarca`); nunca el logo de
   Apple. Código con todos los derechos reservados (`LICENSE`, `"license": "UNLICENSED"`): no pongas una
@@ -175,7 +180,8 @@ significa una sola cosa.**
 
 Otras excepciones: colores de importancia de Correo (`coloresNivel`), `acentos` (naranja, rojo, azul,
 blanco con su tinte) en acciones rápidas, barra inferior y apartados de Perfil, festivos en azul, y el
-mapa en **modo claro** (`coloresMapa`). Tipo de evento: `colorTipo[tipo]` y `colorBaldosa[tipo]`.
+mapa en **modo claro** (`coloresMapa`). Tipo de evento: `colorTipo[tipo]` y `colorBaldosa[tipo]`
+**de `useColoresTipo()`** (los del tema son solo los de partida).
 
 - **Letra Inter** (`fuentes`): títulos 700 (nivel 1, 800) apretados; texto 400 16/24. Horas y cifras con
   `...cifras` (tabulares); cifras grandes `tamanos.cifra` (44).

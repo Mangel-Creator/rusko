@@ -34,6 +34,7 @@ import { MensajeError } from './formulario-perfil/MensajeError';
 import { TarjetaPermiso } from './formulario-perfil/permisos';
 import { SeccionAvisos } from './perfil/SeccionAvisos';
 import { SeccionCalendarios } from './perfil/SeccionCalendarios';
+import { SeccionColoresTipo } from './perfil/SeccionColoresTipo';
 import { SeccionCopia } from './perfil/SeccionCopia';
 import { SeccionCuenta } from './perfil/SeccionCuenta';
 import { SeccionEpocas } from './perfil/SeccionEpocas';
@@ -188,6 +189,7 @@ export function PantallaPerfil() {
         <Texto pequeno secundario>
           {EXPLICACION_DENSIDAD[densidad]} Se aplica al momento.
         </Texto>
+        <SeccionColoresTipo />
       </Plegable>
 
       <Plegable titulo="Permisos" icono="key-outline" color="azul">

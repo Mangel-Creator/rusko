@@ -8,7 +8,8 @@ import { usePerfil } from '@/data/perfil';
 import { duracionTarea, resolverLugar } from '@/services/agenda';
 import { PREFIJO_EPOCA } from '@/services/epoca';
 import { fechaDesdeClave, formatearDiaCorto, formatearDuracion, type ClaveDia } from '@/services/fechas';
-import { acentos, alturaTactil, colorBaldosa, colores, espacio, radio } from '@/theme';
+import { useColoresTipo } from '@/data/coloresTipo';
+import { acentos, alturaTactil, colores, espacio, radio } from '@/theme';
 
 import { abrirEvento, ICONO_TIPO, rangoHoras } from './textos';
 
@@ -24,6 +25,7 @@ type Props = {
 // esencial y "Eliminar" a mano, sin tener que entrar en la ficha.
 export function MenuEvento({ tocado, alCerrar, alBorrar }: Props) {
   const { perfil } = usePerfil();
+  const { colorBaldosa } = useColoresTipo();
   if (!tocado) return null;
   const { evento, dia } = tocado;
   const deEpoca = evento.id.startsWith(PREFIJO_EPOCA);

@@ -8,7 +8,8 @@ import { supabaseConfigurado } from '@/data/supabase';
 import { usePlanes, type Plan } from '@/data/planes';
 import { claveDia } from '@/services/fechas';
 import { actualizarPlanes, situacionPlan, textoGanan, votosNuevos, type SituacionPlan } from '@/services/planes';
-import { alturaTactil, colorTipo, colores, espacio, radio } from '@/theme';
+import { useColoresTipo } from '@/data/coloresTipo';
+import { alturaTactil, colores, espacio, radio } from '@/theme';
 
 import { BaldosaTipo, textoDia } from './planes/piezas';
 
@@ -102,6 +103,7 @@ function subtitulo(plan: Plan, situacion: SituacionPlan): string {
 function FilaPlan({ plan, situacion }: { plan: Plan; situacion: SituacionPlan }) {
   const nuevos = situacion === 'votando' ? votosNuevos(plan) : 0;
   const pasado = situacion === 'pasado';
+  const { colorTipo } = useColoresTipo();
   return (
     <Pressable
       accessibilityRole="button"

@@ -6,7 +6,8 @@ import { usePerfil } from '@/data/perfil';
 import { PREFIJO_EPOCA } from '@/services/epoca';
 import { DIAS_SEMANA_LETRA, fechaDesdeClave, formatearDiaCorto, type ClaveDia } from '@/services/fechas';
 import { festivoDelDia } from '@/services/festivos';
-import { acentos, cifras, colorBaldosa, colores, colorEvento, fuentes, radio } from '@/theme';
+import { useColoresTipo } from '@/data/coloresTipo';
+import { acentos, cifras, colores, fuentes, radio } from '@/theme';
 
 export type DiaMes = {
   dia: ClaveDia;
@@ -26,6 +27,7 @@ const MAXIMO_A_LA_VISTA = 3;
 // El mes entero, semana a semana. Cada día enseña sus primeras cosas en pastillas
 // del color de su tipo (y "+2" si hay más); al tocarlo se abre ese día en "Día".
 export function RejillaMes({ dias, mes, hoy, alTocarDia }: Props) {
+  const { colorTipo, colorBaldosa } = useColoresTipo();
   const { perfil } = usePerfil();
   const semanas = Array.from({ length: dias.length / 7 }, (_, i) => dias.slice(i * 7, i * 7 + 7));
 
@@ -94,7 +96,7 @@ export function RejillaMes({ dias, mes, hoy, alTocarDia }: Props) {
                         numberOfLines={1}
                         style={[
                           estilos.textoPastilla,
-                          { color: deEpoca ? colores.dorado : colorEvento(cosa) },
+                          { color: deEpoca ? colores.dorado : colorTipo[cosa.tipo] },
                           cosa.hecha && estilos.tachada,
                         ]}>
                         {cosa.titulo}

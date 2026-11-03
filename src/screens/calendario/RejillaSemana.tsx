@@ -8,7 +8,8 @@ import { colocarEnCarriles, intervaloDe } from '@/services/agenda';
 import { PREFIJO_EPOCA } from '@/services/epoca';
 import { DIAS_SEMANA_LETRA, fechaDesdeClave, formatearDiaCorto, horaDesdeMinutos, type ClaveDia } from '@/services/fechas';
 import { festivoDelDia } from '@/services/festivos';
-import { acentos, cifras, colorBaldosa, colores, colorEvento, espacio, fuentes, radio } from '@/theme';
+import { useColoresTipo } from '@/data/coloresTipo';
+import { acentos, cifras, colores, espacio, fuentes, radio } from '@/theme';
 
 export type DiaRejilla = {
   dia: ClaveDia;
@@ -35,6 +36,7 @@ const ANCHO_HORAS = 40;
 // debajo cada cita ocupando lo que dura, en el color de su tipo. Hoy va en naranja
 // suave y la hora de ahora, en una píldora a la izquierda. Tocar un hueco crea una cita.
 export function RejillaSemana({ dias, ventana, hoy, minutoAhora, alTocarDia, alTocarEvento, alTocarHueco }: Props) {
+  const { colorTipo, colorBaldosa } = useColoresTipo();
   const { medidas } = useDensidad();
   const { perfil } = usePerfil();
   const tramos = dias.flatMap((d) => d.eventos.map(intervaloDe));
@@ -125,7 +127,7 @@ export function RejillaSemana({ dias, ventana, hoy, minutoAhora, alTocarDia, alT
                   ]}>
                   <Texto
                     numberOfLines={1}
-                    style={[estilos.textoBloque, { color: colorEvento(t) }, t.hecha && estilos.tachada]}>
+                    style={[estilos.textoBloque, { color: colorTipo[t.tipo] }, t.hecha && estilos.tachada]}>
                     {t.titulo}
                   </Texto>
                 </Pressable>
@@ -172,7 +174,7 @@ export function RejillaSemana({ dias, ventana, hoy, minutoAhora, alTocarDia, alT
                 const alto = Math.max(y(fin) - y(inicio) - 2, 20);
                 const deEpoca = evento.id.startsWith(`${PREFIJO_EPOCA}bloque:`);
                 const baldosa = deEpoca ? colorBaldosa.estudio : colorBaldosa[evento.tipo];
-                const colorTexto = deEpoca ? colores.dorado : evento.foco ? colores.principal : colorEvento(evento);
+                const colorTexto = deEpoca ? colores.dorado : evento.foco ? colores.principal : colorTipo[evento.tipo];
                 return (
                   <Pressable
                     key={evento.id}

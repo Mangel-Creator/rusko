@@ -7,7 +7,8 @@ import { useDensidad } from '@/data/densidad';
 import type { Evento } from '@/data/eventos';
 import { usePerfil } from '@/data/perfil';
 import { resolverLugar } from '@/services/agenda';
-import { cifras, colorBaldosa, colores, espacio, fuentes, radio, tamanos } from '@/theme';
+import { useColoresTipo } from '@/data/coloresTipo';
+import { cifras, colores, espacio, fuentes, radio, tamanos } from '@/theme';
 
 import { abrirEvento, ICONO_TIPO } from './textos';
 
@@ -32,7 +33,7 @@ export function FilaEvento({ evento, pasado, focoEnNegro }: Props) {
   const detalle = [lugar?.nombre ?? lugar?.direccion, evento.foco && !negro ? 'Bloque de foco' : null]
     .filter(Boolean)
     .join(' · ');
-  const baldosa = colorBaldosa[evento.tipo];
+  const baldosa = useColoresTipo().colorBaldosa[evento.tipo];
   const icono: NombreIcono = negro ? 'lock-closed-outline' : ICONO_TIPO[evento.tipo];
 
   return (
