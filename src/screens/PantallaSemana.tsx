@@ -1,14 +1,16 @@
 import Ionicons from '@expo/vector-icons/Ionicons';
 import { router } from 'expo-router';
 import { useEffect, useRef, useState } from 'react';
-import { PanResponder, Pressable, StyleSheet, View, type PanResponderGestureState } from 'react-native';
+import { PanResponder, Pressable, StyleSheet, View, type LayoutChangeEvent, type PanResponderGestureState } from 'react-native';
 import Animated, {
+  Easing,
   FadeIn,
   LayoutAnimationConfig,
   useAnimatedStyle,
   useSharedValue,
   withTiming,
 } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 
 import { BotonFlotante, Pantalla, Selector, Tarjeta, Texto, Titulo, type Opcion } from '@/components';
 import { leerAjuste, guardarAjuste } from '@/data/ajustes';
@@ -109,6 +111,63 @@ function otroMes(dia: ClaveDia, meses: number, hoy: ClaveDia): ClaveDia {
   const destino = claveDia(new Date(fecha.getFullYear(), fecha.getMonth() + meses, 1));
   return destino.slice(0, 7) === hoy.slice(0, 7) ? hoy : destino;
 }
+
+// Deslizar a los lados: lo de dentro sigue al dedo y, al soltar (o con un golpe
+// rápido), sale desde donde está y lo nuevo entra por el otro lado. El cambio se hace
+// al acabar la salida; la entrada espera un fotograma (lo nuevo sigue fuera, no se ve)
+// porque, si no, el final de la salida la pisa y se queda fuera.
+// El gesto se pide en la fase de captura para ganar a los botones de dentro y no se
+// suelta para que el scroll vertical no lo corte a medias. El gesto se crea una sola
+// vez, así que "alCambiar" solo puede usar cosas que no cambian entre pintadas.
+function useDeslizarLados(alCambiar: (sentido: 1 | -1) => void) {
+  const desplazamiento = useSharedValue(0);
+  const ancho = useSharedValue(360);
+  const entrando = useSharedValue(0);
+  useEffect(() => {
+    const sentido = entrando.get();
+    if (!sentido) return;
+    entrando.set(0);
+    requestAnimationFrame(() => {
+      desplazamiento.set(sentido * ancho.get());
+      desplazamiento.set(withTiming(0, { duration: duracion.larga, easing: Easing.out(Easing.cubic) }));
+    });
+  });
+  const [gesto] = useState(() => {
+    const cambiar = (sentido: 1 | -1) => {
+      entrando.set(sentido);
+      alCambiar(sentido);
+    };
+    const mover = (sentido: 1 | -1) => {
+      const destino = -sentido * ancho.get();
+      // Lo que le falta por recorrer, a la misma velocidad: si ya va casi fuera, tarda menos.
+      const falta = Math.abs(destino - desplazamiento.get()) / Math.max(ancho.get(), 1);
+      desplazamiento.set(
+        withTiming(destino, { duration: Math.max(60, duracion.corta * falta), easing: Easing.in(Easing.quad) }, (acabado) => {
+          if (acabado) scheduleOnRN(cambiar, sentido);
+        }),
+      );
+    };
+    const volver = () => desplazamiento.set(withTiming(0, { duration: duracion.corta, easing: Easing.out(Easing.cubic) }));
+    const esHorizontal = (g: PanResponderGestureState) => Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy) * 2;
+    const responder = PanResponder.create({
+      onMoveShouldSetPanResponder: (_, g) => esHorizontal(g),
+      onMoveShouldSetPanResponderCapture: (_, g) => esHorizontal(g),
+      onPanResponderTerminationRequest: () => false,
+      onPanResponderMove: (_, g) => desplazamiento.set(g.dx),
+      onPanResponderRelease: (_, g) => {
+        if (g.dx < -50 || (g.dx < -20 && g.vx < -0.5)) mover(1);
+        else if (g.dx > 50 || (g.dx > 20 && g.vx > 0.5)) mover(-1);
+        else volver();
+      },
+      onPanResponderTerminate: volver,
+    });
+    return { mover, panHandlers: responder.panHandlers };
+  });
+  const estilo = useAnimatedStyle(() => ({ transform: [{ translateX: desplazamiento.get() }] }));
+  const medir = (e: LayoutChangeEvent) => ancho.set(e.nativeEvent.layout.width);
+  return { ...gesto, estilo, medir };
+}
+
 let vistaEnMemoria: Vista | null = null;
 
 function useVista(): [Vista, (vista: Vista) => void] {
@@ -209,48 +268,20 @@ export function PantallaSemana() {
   };
   const fechaElegida = fechaDesdeClave(elegido);
 
-  // La tira de días sigue al dedo y, al cambiar de semana, sale por un lado y la
-  // nueva entra por el otro (también con las flechas).
-  const desplazamiento = useSharedValue(0);
-  const anchoTira = useSharedValue(360);
-  const estiloTira = useAnimatedStyle(() => ({ transform: [{ translateX: desplazamiento.get() }] }));
-  // Días que avanza cada flecha o deslizamiento (3 en "3 días", 7 en el resto; en "Mes",
-  // un mes). Va en valores compartidos porque el gesto se crea una sola vez.
+  // La cabecera (mes, "Semana N", leyenda y tira o rejilla) cambia de semana, de 3
+  // días o de mes; lo de debajo, en "Día", cambia de día.
+  // Lo que avanza va en valores compartidos porque el gesto se crea una sola vez.
   const paso = useSharedValue(7);
   const porMeses = useSharedValue(false);
   useEffect(() => paso.set(pasoDias), [paso, pasoDias]);
   useEffect(() => porMeses.set(vista === 'mes'), [porMeses, vista]);
-  const cambiarSemana = (semanas: number) => {
-    const ancho = anchoTira.get();
-    desplazamiento.set(withTiming(-semanas * ancho, { duration: duracion.corta }));
-    setTimeout(() => {
-      setElegido((actual) =>
-        porMeses.get() ? otroMes(actual, semanas, claveDia(new Date())) : sumarDias(actual, paso.get() * semanas),
-      );
-      desplazamiento.set(semanas * ancho);
-      desplazamiento.set(withTiming(0, { duration: duracion.normal }));
-    }, duracion.corta);
-  };
-  const volverASuSitio = () => desplazamiento.set(withTiming(0, { duration: duracion.corta }));
-  // Deslizar a los lados sobre la cabecera (mes, "Semana N", leyenda y tira de días)
-  // cambia de semana. Se pide en la fase de captura para ganar a los días, que son
-  // botones, y no se suelta para que el scroll vertical no lo corte a medias. Las dos
-  // funciones solo usan cosas que no cambian entre pintadas, así que vale la primera.
-  const [deslizar] = useState(() => {
-    const esHorizontal = (g: PanResponderGestureState) => Math.abs(g.dx) > 20 && Math.abs(g.dx) > Math.abs(g.dy) * 2;
-    return PanResponder.create({
-      onMoveShouldSetPanResponder: (_, g) => esHorizontal(g),
-      onMoveShouldSetPanResponderCapture: (_, g) => esHorizontal(g),
-      onPanResponderTerminationRequest: () => false,
-      onPanResponderMove: (_, g) => desplazamiento.set(g.dx),
-      onPanResponderRelease: (_, g) => {
-        if (g.dx < -50) cambiarSemana(1);
-        else if (g.dx > 50) cambiarSemana(-1);
-        else volverASuSitio();
-      },
-      onPanResponderTerminate: () => volverASuSitio(),
-    });
-  });
+  const semana = useDeslizarLados((sentido) =>
+    setElegido((actual) =>
+      porMeses.get() ? otroMes(actual, sentido, claveDia(new Date())) : sumarDias(actual, paso.get() * sentido),
+    ),
+  );
+  const unDia = useDeslizarLados((sentido) => setElegido((actual) => sumarDias(actual, sentido)));
+  const cambiarSemana = semana.mover;
 
   const diaElegido = delDiaConEpoca(elegido);
   const delDia = diaElegido.eventos;
@@ -262,7 +293,7 @@ export function PantallaSemana() {
   return (
     <View style={estilos.contenedor}>
       <Pantalla contentContainerStyle={estilos.contenido}>
-        <View style={estilos.zonaDeslizable} {...deslizar.panHandlers}>
+        <View style={estilos.zonaDeslizable} {...semana.panHandlers}>
           <View style={estilos.cabecera}>
             <View style={estilos.textos}>
               {/* Los meses largos ("Septiembre") un poco más pequeños, para que quepan con "Hoy". */}
@@ -294,10 +325,7 @@ export function PantallaSemana() {
           {vista === 'mes' ? (
             <View style={estilos.marcoRejilla}>
               <Animated.View
-                style={estiloTira}
-                onLayout={(e) => {
-                  anchoTira.set(e.nativeEvent.layout.width);
-                }}>
+                style={semana.estilo} onLayout={semana.medir}>
                 <RejillaMes
                   dias={diasMes.map((dia) => {
                     const conEpoca = delDiaConEpoca(dia);
@@ -319,10 +347,7 @@ export function PantallaSemana() {
           ) : vista !== 'dia' ? (
             <View style={estilos.marcoRejilla}>
               <Animated.View
-                style={estiloTira}
-                onLayout={(e) => {
-                  anchoTira.set(e.nativeEvent.layout.width);
-                }}>
+                style={semana.estilo} onLayout={semana.medir}>
                 <RejillaSemana
                   dias={diasRejilla.map((dia) => {
                     const conEpoca = delDiaConEpoca(dia);
@@ -350,10 +375,7 @@ export function PantallaSemana() {
           ) : (
           <Tarjeta style={estilos.marcoTira}>
             <Animated.View
-              style={[estilos.tira, estiloTira]}
-              onLayout={(e) => {
-                anchoTira.set(e.nativeEvent.layout.width);
-              }}>
+              style={[estilos.tira, semana.estilo]} onLayout={semana.medir}>
             {dias.map((dia, i) => {
               const conEpoca = delDiaConEpoca(dia);
               const ocupados = conEpoca.eventos.map(intervaloDe);
@@ -417,6 +439,7 @@ export function PantallaSemana() {
         ) : null}
 
         {vista === 'dia' ? (
+        <Animated.View style={unDia.estilo} onLayout={unDia.medir} {...unDia.panHandlers}>
         <LayoutAnimationConfig skipEntering>
           <Animated.View key={elegido} entering={CAMBIO_DE_DIA} style={estilos.contenidoDia}>
             <Titulo nivel={2} style={estilos.seccion}>
@@ -488,6 +511,7 @@ export function PantallaSemana() {
             ) : null}
           </Animated.View>
         </LayoutAnimationConfig>
+        </Animated.View>
         ) : null}
       </Pantalla>
       <BotonFlotante etiqueta="Añadir evento" onPress={() => nuevoEvento(elegido)} />
