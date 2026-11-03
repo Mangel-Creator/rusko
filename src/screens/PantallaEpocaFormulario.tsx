@@ -213,7 +213,6 @@ function Formulario({ epoca, epocas, registro, perfil, pasoInicial, dorada }: Pr
 
       {paso === 0 ? (
         <CuestionarioIA
-          perfil={perfil}
           hoy={hoy}
           alPreparar={(propuesta) => {
             setBorrador((actual) => borradorConPropuesta(actual, propuesta));

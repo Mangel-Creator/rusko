@@ -1360,6 +1360,18 @@ animaciones infinitas.
   - Coste por plan: de unos 0,08 $ a 0 (unos 0,004 $ con "¿Algo más?"); ficha de unos 0,1 $ a unos
     0,02 $. Pruebas en `__tests__/planLocal.test.ts`; probado en localhost a tamaño móvil (sin llamada
     a `epoca`).
+- **Plan supervisado por la IA** (03/11/2026, lo pidió el usuario: "que el plan esté supervisado por la
+  IA y consuma pocos tokens, que sea un plan excelente"; **anula lo de "solo con ¿Algo más?" de arriba**):
+  - La app siempre hace el plan con `planLocal` y luego Haiku lo revisa (`supervisarPlan` en
+    `services/epoca/ia.ts`, acción `supervisar` de la función `epoca`). Le llega un resumen: cada
+    examen con fecha, días que faltan, tipo, temas, avance, dificultad, ficha (600 caracteres) y el plan
+    de Rusko ("pieza (h) · …"), horas al día, descanso, hábitos, lo aprendido, los consejos y "¿Algo
+    más?". La función rechaza la petición si algún examen no vale, para que la numeración cuadre.
+  - Devuelve solo lo que cambia: `examenes` (número y temas nuevos), `consejos` (3-6 o vacío) y
+    `notas`. `aplicarSupervision` (`validarIA.ts`) lo junta con el plan local e impide mover las
+    horas más de un 15 %. Si falla, sale el plan local con una nota.
+  - Medido: 2036 tokens de entrada y 1677 de salida, unos 0,001 $ por plan y unos 10-20 s de espera.
+    Se quita la acción `cuestionario`.
 
 ## Servidor propio: Supabase (desde la fase 5)
 

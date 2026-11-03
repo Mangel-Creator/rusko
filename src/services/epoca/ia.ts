@@ -9,7 +9,6 @@ import { limiteDelError, mensajeLimite } from '@/services/ia';
 import type { PdfLeido } from './apuntes';
 import { diasEntre } from './estado';
 import {
-  estimarHoras,
   examenGuardado,
   lineasAprendidas,
   temasMedidos,
@@ -18,12 +17,11 @@ import {
 } from './perfilEstudio';
 import type { PlanEpoca } from './plan';
 import {
+  aplicarSupervision,
   datosRepaso,
-  MAX_INDICE,
   MAX_OTROS,
   MAX_TEXTO_EPOCA,
   MAX_TEXTO_TEMARIO,
-  propuestaDeCuestionario,
   propuestaUtil,
   validarPreparacion,
   validarRepaso,
@@ -42,11 +40,13 @@ import {
 // pruebas) no carguen la conexión con el servidor.
 
 const ESPERA_MAX_MS = 30000;
-// El plan del cuestionario es largo (temas de todos los exámenes); buscar cómo es un
-// examen o leer un PDF también tarda. Cubren el reintento del servidor.
-const ESPERA_CUESTIONARIO_MS = 150000;
+// Revisar el plan es corto; buscar cómo es un examen o leer un PDF tarda más.
+// Cubren el reintento del servidor.
+const ESPERA_SUPERVISAR_MS = 60000;
 const ESPERA_FICHA_MS = 90000;
 const ESPERA_MEDIR_MS = 120000;
+// De la ficha del examen basta el principio (partes, duración y nota): menos tokens.
+const MAX_FICHA_SUPERVISAR = 600;
 
 export type MotivoFalloIA =
   | 'sin-configurar'
@@ -114,47 +114,45 @@ async function motivoDelError(error: unknown): Promise<MotivoFalloIA> {
   return 'error';
 }
 
-// Las horas que necesita cada examen (por su id), con sus apuntes si los ha medido.
-export function horasEstimadas(respuestas: RespuestasCuestionario, estudio: PerfilEstudio): Record<string, number> {
-  return Object.fromEntries(
-    respuestas.asignaturas.map((a) => [a.id, estimarHoras(a, estudio, examenGuardado(estudio, a.nombre).apuntes?.temas)]),
-  );
-}
-
-// 0. "Cuestionario": las respuestas (sin el id de cada examen), el horario normal y,
-//    de su perfil de estudio, las horas que calcula la app, lo que ocupan sus apuntes
-//    (sin su contenido), cómo es cada examen y lo aprendido de otros planes.
-export async function cuestionarioConIA(
+// 0. "Preparar mi plan": la app lo hace (services/epoca/planLocal.ts) y la IA lo
+//    supervisa. Va un resumen: por examen, sus datos (sin el id), cómo es si lo ha
+//    buscado y las piezas del plan con sus horas; su tiempo, cómo estudia, los
+//    consejos, lo aprendido de otros planes y lo que escriba en "¿Algo más?".
+export async function supervisarPlan(
   respuestas: RespuestasCuestionario,
-  perfil: Perfil | null,
+  local: PropuestaEpoca,
   estudio: PerfilEstudio,
 ): Promise<ResultadoIA<PropuestaEpoca>> {
-  const hoy = claveDia(new Date());
-  const estimadas = horasEstimadas(respuestas, estudio);
-  const asignaturas = [...respuestas.asignaturas]
-    .sort((a, b) => a.fecha.localeCompare(b.fecha) || a.hora.localeCompare(b.hora))
-    .map(({ id, ...a }) => {
-      const guardado = examenGuardado(estudio, a.nombre);
-      return {
-        ...a,
-        indice: a.indice.trim().slice(0, MAX_INDICE),
-        horasEstimadas: estimadas[id],
-        apuntes: guardado.apuntes?.temas ?? [],
-        ficha: guardado.ficha?.texto ?? '',
-      };
-    });
-  const r = await llamar({
-    accion: 'cuestionario',
-    hoy,
-    respuestas: { ...respuestas, asignaturas, otros: respuestas.otros.trim().slice(0, MAX_OTROS) },
-    horario: perfil ? { levantarse: perfil.horario.levantarse, acostarse: perfil.horario.acostarse } : null,
-    aprendido: lineasAprendidas(estudio),
-  }, ESPERA_CUESTIONARIO_MS);
+  const asignaturas = local.hitos.map((h) => {
+    const a = respuestas.asignaturas.find((x) => x.nombre === h.nombre);
+    return {
+      nombre: h.nombre,
+      fecha: h.fecha,
+      hora: h.hora,
+      tipoExamen: a?.tipoExamen,
+      temas: a?.temas,
+      avance: a?.avance,
+      dificultad: h.dificultad,
+      anteriores: a?.anteriores,
+      ficha: (examenGuardado(estudio, h.nombre).ficha?.texto ?? '').slice(0, MAX_FICHA_SUPERVISAR),
+      plan: h.temas,
+    };
+  });
+  const { horasDia, rindeMas, diaLibre, habitos } = respuestas;
+  const r = await llamar(
+    {
+      accion: 'supervisar',
+      hoy: claveDia(new Date()),
+      respuestas: { asignaturas, horasDia, rindeMas, diaLibre, habitos, otros: respuestas.otros.trim().slice(0, MAX_OTROS) },
+      descanso: local.descanso,
+      consejos: local.consejos,
+      aprendido: lineasAprendidas(estudio),
+    },
+    ESPERA_SUPERVISAR_MS,
+  );
   if (r.estado === 'fallo') return r;
-  const propuesta = validarPreparacion(r.datos, { hoy, sitiosIds: [] });
-  return propuesta
-    ? { estado: 'ok', datos: propuestaDeCuestionario(respuestas, propuesta, estimadas) }
-    : fallo('no-entendido');
+  const plan = aplicarSupervision(respuestas, local, r.datos);
+  return plan ? { estado: 'ok', datos: plan } : fallo('no-entendido');
 }
 
 // 0b. "Buscar cómo es este examen": solo el nombre, lo que añada para encontrarlo

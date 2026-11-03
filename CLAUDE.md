@@ -101,8 +101,10 @@ Lo anulado y el detalle → historia: "Decisiones del usuario".
   clave (`IA_SALDO_CLAVE`, `IA_SALDO_DESDE`). Comprar más IA: preparado y apagado. → "Límites de IA".
   **Plan de estudio, gastando lo mínimo (03/11, anula la excepción de Sonnet)**: el plan lo hace la app
   sola (`services/epoca/planLocal.ts`: temas, repasos, simulacros y consejos con las reglas del COIE),
-  a medida con sus respuestas, su perfil de estudio y sus apuntes. Solo va a Haiku si escribe algo en
-  "¿Algo más?"; si la IA falla, sale el plan local. La ficha del examen, con Haiku y 2 búsquedas web.
+  a medida con sus respuestas, su perfil de estudio y sus apuntes. **Haiku lo supervisa siempre**
+  (03/11, acción `supervisar`: `supervisarPlan` manda un resumen corto con el plan y la IA devuelve solo
+  los cambios, que valida `aplicarSupervision`; unos 0,001 $ por plan); si la IA falla, sale el plan
+  local. La ficha del examen, con Haiku y 2 búsquedas web.
   Nada de Sonnet en Época. Las horas las calcula la app (`estimarHoras`) y la IA solo las mueve ±15 %.
   Lo que se sabe de cómo estudia cada uno se guarda en `organizy:perfilEstudio` (viaja en la copia) y
   no se vuelve a preguntar. **Apuntes en PDF** (03/11): se leen en el navegador con pdf.js de cdnjs

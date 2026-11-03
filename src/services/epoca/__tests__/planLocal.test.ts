@@ -1,6 +1,7 @@
 import { describe, expect, it } from '@jest/globals';
 
 import {
+  aplicarSupervision,
   conExamen,
   consejosLocales,
   estimarHoras,
@@ -141,6 +142,31 @@ describe('consejos sin IA', () => {
   it('sin hábitos raros, los generales', () => {
     const lista = consejosLocales(respuestas([examen()]), PERFIL_ESTUDIO_VACIO);
     expect(lista.at(-1)).toContain('Repasa espaciado');
+  });
+});
+
+describe('plan supervisado por la IA', () => {
+  const r = respuestas([examen(), examen({ id: 'b', nombre: 'Física', fecha: '2026-12-20' })]);
+  const local = planLocal(r, PERFIL_ESTUDIO_VACIO);
+
+  it('cambia solo el examen que toca, con su nota, y deja los consejos si no manda 3', () => {
+    const temas = [{ nombre: 'Problemas T1-T6', horas: 20 }, { nombre: 'Simulacro', horas: 4 }];
+    const plan = aplicarSupervision(r, local, { examenes: [{ numero: 2, temas }, { numero: 9, temas }], consejos: ['Uno'], notas: 'Más práctica.' });
+    expect(plan?.hitos[0].temas).toEqual(local.hitos[0].temas);
+    expect(plan?.hitos[1].temas.map((t) => t.nombre)).toEqual(['Problemas T1-T6', 'Simulacro']);
+    expect(plan?.consejos).toEqual(local.consejos);
+    expect(plan?.notas).toBe('Más práctica.');
+  });
+
+  it('no deja mover las horas más de un 15 %', () => {
+    const plan = aplicarSupervision(r, local, { examenes: [{ numero: 1, temas: [{ nombre: 'Todo', horas: 100 }] }], consejos: [], notas: '' });
+    const antes = local.hitos[0].horasPreparacion;
+    expect(plan?.hitos[0].horasPreparacion).toBeLessThanOrEqual(Math.ceil(antes * 1.15));
+    expect(plan?.notas).toContain('la IA proponía 100 h');
+  });
+
+  it('una respuesta rara no vale', () => {
+    expect(aplicarSupervision(r, local, 'hola')).toBeNull();
   });
 });
 

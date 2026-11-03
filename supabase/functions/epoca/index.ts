@@ -1,9 +1,9 @@
 // Rusko · La IA ayuda a planificar la Época dorada (fase 4b).
 //
 // Seis acciones, cada una con una sola llamada a Claude:
-//   - "cuestionario": de las respuestas al cuestionario (exámenes, tiempo,
-//     hábitos, horas que calcula la app y lo aprendido de otros planes), el plan
-//     con temas, repasos y consejos según el COIE de la UNED.
+//   - "supervisar": revisa el plan de estudio que hace la app con el cuestionario
+//     (exámenes, tiempo, hábitos, lo aprendido de otros planes y "¿Algo más?") y
+//     devuelve solo lo que mejora, según el COIE de la UNED.
 //   - "ficha": busca en internet cómo es un examen (partes, duración, nota).
 //   - "medir": de los apuntes, dónde empieza y acaba cada tema y lo densos que
 //     son. No los resume: la app solo quiere saber cuánto ocupan. Lo normal es que
@@ -16,8 +16,8 @@
 // enseña y el usuario decide. En los registros solo queda el gasto.
 //
 // Todo con Haiku 5.5, lo más barato (03/11/2026). El plan lo hace la app sola
-// (services/epoca/planLocal.ts); "cuestionario" solo llega si la persona escribe
-// algo en "¿Algo más?".
+// (services/epoca/planLocal.ts) y aquí solo se supervisa: entra un resumen corto y
+// sale solo lo que cambia, así gasta pocos tokens.
 //
 // - Solo responde a la app: comprueba la sesión (anónima) de Supabase.
 // - Límite de usos por usuario y día, y otro global, para controlar el gasto.
@@ -41,13 +41,15 @@ const LIMITE_GLOBAL = numeroDeEntorno('EPOCA_LIMITE_GLOBAL', 1000);
 const MAX_TEXTO_EPOCA = 1500;
 const MAX_TEXTO_TEMARIO = 4000;
 const MAX_FICHA = 1200;
+// Al supervisar basta el principio de la ficha (partes, duración y nota).
+const MAX_FICHA_SUPERVISAR = 600;
 // Un PDF de 10 MB en base64 (lo mismo que deja la app).
 const MAX_PDF_BASE64 = 14_000_000;
 // El mapa de páginas de unos apuntes (la app lo deja en 80.000).
 const MAX_MAPA = 82_000;
 const DIAS_SEMANA = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 
-type Accion = 'cuestionario' | 'ficha' | 'medir' | 'preparar' | 'temario' | 'repaso';
+type Accion = 'supervisar' | 'ficha' | 'medir' | 'preparar' | 'temario' | 'repaso';
 type Peticion = { accion: Accion; mensaje: string | Anthropic.ContentBlockParam[] };
 
 // Las respuestas del cuestionario llegan como códigos (services/epoca/validarIA.ts
@@ -144,7 +146,6 @@ const HABITOS: Record<string, { pregunta: string; respuestas: Record<string, str
     respuestas: { si: 'sí', 'no-probado': 'no lo ha probado', 'no-gusta': 'no le gusta' },
   },
 };
-const DENSIDAD: Record<string, string> = { baja: 'ligeros', media: 'normales', alta: 'densos' };
 
 // Lo que llega de la app se mete entre etiquetas: sin < ni > para que no las cierre.
 const limpio = (v: unknown, max: number) => textoCorto(v, max).replace(/[<>]/g, '');
@@ -194,13 +195,13 @@ Lo que cuenta:
     };
   }
 
-  if (datos.accion === 'cuestionario' && esObjeto(datos.respuestas)) {
+  if (datos.accion === 'supervisar' && esObjeto(datos.respuestas)) {
     const r = datos.respuestas;
-    const asignaturas = (Array.isArray(r.asignaturas) ? r.asignaturas : [])
-      .filter(esObjeto)
-      .filter((a) => textoCorto(a.nombre, 60) && esDia(a.fecha) && a.fecha > hoy)
-      .slice(0, 10);
-    if (asignaturas.length === 0) return null;
+    // Los exámenes van numerados en el orden del plan: si uno no vale, no se sigue.
+    const asignaturas = (Array.isArray(r.asignaturas) ? r.asignaturas : []).filter(esObjeto).slice(0, 10);
+    if (asignaturas.length === 0 || asignaturas.some((a) => !textoCorto(a.nombre, 60) || !esDia(a.fecha) || a.fecha <= hoy)) {
+      return null;
+    }
     const horasDia = Math.min(14, Math.max(0.5, Number(r.horasDia) || 4));
     const diaLibre = Number.isInteger(r.diaLibre) ? DIAS_LUNES[Number(r.diaLibre)] : undefined;
     const habitos = esObjeto(r.habitos) ? r.habitos : {};
@@ -210,33 +211,34 @@ Lo que cuenta:
         return typeof valor === 'string' && respuestas[valor] ? `- ${pregunta} ${respuestas[valor]}.` : null;
       })
       .filter(Boolean);
+    let total = 0;
     const examenes = asignaturas.map((a, i) => {
       const fecha = String(a.fecha);
       const temas = Math.min(60, Math.max(0, Math.round(Number(a.temas) || 0)));
-      const indice = limpio(a.indice, 1500);
-      const horas = Math.min(300, Math.max(0, Number(a.horasEstimadas) || 0));
-      // Lo que ocupan sus apuntes (lo mide la acción "medir"), sin su contenido.
-      const apuntes = (Array.isArray(a.apuntes) ? a.apuntes : [])
+      const ficha = limpio(a.ficha, MAX_FICHA_SUPERVISAR);
+      // Las piezas del plan de la app, en orden, con sus horas.
+      const piezas = (Array.isArray(a.plan) ? a.plan : [])
         .filter(esObjeto)
-        .slice(0, 40)
-        .map((t) => `${limpio(t.nombre, 50)} (${Math.round(Number(t.paginas)) || '?'} págs., ${DENSIDAD[String(t.densidad)] ?? 'normales'})`);
-      const ficha = limpio(a.ficha, MAX_FICHA);
+        .slice(0, 20)
+        .map((t) => ({ nombre: limpio(t.nombre, 80), horas: Math.min(100, Math.max(0, Number(t.horas) || 0)) }))
+        .filter((t) => t.nombre && t.horas);
+      const horas = piezas.reduce((s, t) => s + t.horas, 0);
+      total += horas;
       return [
         `${i + 1}. ${limpio(a.nombre, 60)}: el ${fecha} (${diaSemana(fecha)}) a las ${textoCorto(a.hora, 5) || '09:00'}, quedan ${diasEntre(hoy, fecha)} días.`,
-        `   Examen ${TIPO_EXAMEN[String(a.tipoExamen)] ?? 'de tipo sin decir'}. ${temas ? `${temas} temas` : 'Número de temas sin decir'}, ${AVANCE[String(a.avance)] ?? 'sin decir cuánto lleva'}. Dificultad: ${DIFICULTAD[String(a.dificultad)] ?? 'normal'}.`,
-        `   ${a.anteriores === true ? 'Tiene exámenes de otros años.' : 'No tiene exámenes de otros años.'}`,
-        horas ? `   Horas que calcula Rusko: ${horas}${apuntes.length ? ', con lo que ocupan sus apuntes' : ''}.` : '',
-        apuntes.length ? `   Sus apuntes por temas: ${apuntes.join('; ')}.` : '',
-        indice ? `   Índice del temario: <indice>${indice}</indice>` : '',
-        ficha ? `   Cómo es este examen (buscado en internet): <ficha>${ficha}</ficha>` : '',
+        `   Examen ${TIPO_EXAMEN[String(a.tipoExamen)] ?? 'de tipo sin decir'}. ${temas ? `${temas} temas` : 'Número de temas sin decir'}, ${AVANCE[String(a.avance)] ?? 'sin decir cuánto lleva'}. Dificultad: ${DIFICULTAD[String(a.dificultad)] ?? 'normal'}. ${a.anteriores === true ? 'Tiene exámenes de otros años.' : 'No tiene exámenes de otros años.'}`,
+        ficha ? `   Cómo es (buscado en internet): <ficha>${ficha}</ficha>` : '',
+        `   Plan de Rusko (${horas} h): ${piezas.map((t) => `${t.nombre} (${t.horas})`).join(' · ')}`,
       ]
         .filter(Boolean)
         .join('\n');
     });
     const otros = limpio(r.otros, 500);
-    const horario = esObjeto(datos.horario)
-      ? `Su horario normal: se levanta a las ${textoCorto(datos.horario.levantarse, 5)} y se acuesta a las ${textoCorto(datos.horario.acostarse, 5)}.`
-      : '';
+    const consejos = (Array.isArray(datos.consejos) ? datos.consejos : [])
+      .slice(0, 6)
+      .map((x) => limpio(x, 300))
+      .filter(Boolean)
+      .map((x) => `- ${x}`);
     // Frases que calcula la app de sus planes anteriores (services/epoca/perfilEstudio.ts).
     const aprendido = (Array.isArray(datos.aprendido) ? datos.aprendido : [])
       .slice(0, 6)
@@ -244,17 +246,21 @@ Lo que cuenta:
       .filter(Boolean)
       .map((x) => `- ${x}`);
     return {
-      accion: 'cuestionario',
+      accion: 'supervisar',
       mensaje: `Hoy: ${hoy} (${diaSemana(hoy)}).
 
-Exámenes y entregas (en orden de fecha):
+Exámenes y entregas (en orden de fecha), con el plan de Rusko (horas entre paréntesis):
 ${examenes.join('\n')}
+Total: ${total} h.
 
-Su tiempo: ${horasDia} horas de estudio al día, rinde más ${MOMENTO[String(r.rindeMas)] ?? 'por la mañana'}, ${diaLibre ? `libra los ${diaLibre}` : 'sin día libre'}. ${horario}
+Su tiempo: ${horasDia} horas de estudio al día, rinde más ${MOMENTO[String(r.rindeMas)] ?? 'por la mañana'}, ${diaLibre ? `libra los ${diaLibre}` : 'sin día libre'}. Descanso: ${['25-5', '90-15'].includes(String(datos.descanso)) ? datos.descanso : '50-10'}.
 
 Cómo estudia:
 ${lineasHabitos.length ? lineasHabitos.join('\n') : '(no lo ha contestado)'}
-${aprendido.length ? `\nLo que Rusko ha aprendido de sus planes anteriores:\n${aprendido.join('\n')}\n` : ''}${otros ? `\nAlgo más que quiere contar: <texto>${otros}</texto>` : ''}`,
+${aprendido.length ? `\nLo que Rusko ha aprendido de sus planes anteriores:\n${aprendido.join('\n')}\n` : ''}
+Consejos de Rusko:
+${consejos.join('\n') || '(ninguno)'}
+${otros ? `\nAlgo más que quiere contar: <texto>${otros}</texto>` : ''}`,
     };
   }
 
@@ -345,42 +351,20 @@ const HORA = { anyOf: [{ type: 'string' }, { type: 'null' }] };
 const DIA_SEMANA = { type: 'integer', enum: [0, 1, 2, 3, 4, 5, 6] };
 
 const INSTRUCCIONES: Record<Accion, string> = {
-  cuestionario: `${COMUN}
+  supervisar: `${COMUN}
 
-Te paso sus respuestas a un cuestionario: sus exámenes o entregas, su tiempo, cómo estudia y, si lo hay, lo que Rusko ha aprendido de sus planes anteriores. Prepara un plan de estudio que pueda seguir con confianza sin revisarlo: realista, completo y hecho para esta persona. Te basas en las guías del COIE de la UNED (técnicas de estudio y preparación de exámenes) y en lo que se sabe de cómo se aprende: recordar sin mirar (preguntarse, fichas, tests) funciona mucho mejor que releer; repasar espaciado (al día siguiente, a los 3 días, a la semana) mejor que todo junto; y alternar asignaturas en los repasos ayuda a no confundirlas.
+Rusko ha preparado un plan de estudio con reglas fijas a partir de un cuestionario. Tú lo supervisas como un buen orientador del COIE de la UNED: lo revisas para esta persona y lo mejoras solo donde de verdad haga falta. Lo que se sabe de cómo se aprende: recordar sin mirar (preguntarse, fichas, tests) funciona mucho mejor que releer; repasar espaciado mejor que todo junto; alternar asignaturas en los repasos ayuda a no confundirlas.
 
-hitos: uno por examen, en el mismo orden y con el mismo nombre que te paso; fecha, hora y dificultad, las suyas.
-- horasPreparacion: parte de "Horas que calcula Rusko", que ya cuentan sus temas o lo que ocupan sus apuntes, cómo lee, lo que le cuesta entender, lo que lleva hecho, sus imprevistos y su ritmo real en otros planes. Puedes moverlas como mucho un 15 %, solo con un motivo claro (cómo es el examen, el índice, sus apuntes, lo que cuenta), y lo dices en notas. Si no hay horas calculadas, estímalas tú: de 2 a 4 horas por tema sin empezar, más si le cuesta o es de desarrollo o de problemas.
-- Si no caben en los días que quedan (mira las horas al día, los fines de semana, el día libre y los demás exámenes), no recortes: dilo en notas con lo que puede hacer (más horas al día, estudiar el día libre o empezar ya).
-- temas: lo que va a estudiar, en el orden en que lo estudiará, con sus horas en múltiplos de 0,5; la suma es horasPreparacion. Como mucho 20 por examen: si hay muchos temas, júntalos en bloques seguidos ("Temas 4 y 5", "Bloque 2: T6-T10").
-  - Si están sus apuntes por temas, usa esos temas y reparte las horas según sus páginas y lo densos que son. Si pega el índice, usa sus nombres y su numeración, cortos ("T3: Regresión"); si no, "Tema 1", "Tema 2"...
-  - Si no lo ha empezado, primero "Organizar el material y ver exámenes de otros años" (o "Organizar el material y ver el temario" si no tiene), de 0,5 a 1 hora.
-  - Cada 2 o 3 temas, un repaso de los anteriores juntos, de unos 30 a 45 minutos por tema repasado (cada 2 temas y algo más largos si le cuesta memorizar). Son los repasos intermedios: saltárselos es el error más común. Se hacen sin mirar: llámalos "Preguntas T1-T3" si se pregunta a sí mismo o no lo ha probado, y "Repaso T1-T3" si no le gusta.
-  - Si lo pilla rápido: menos horas de primera lectura y más de práctica y simulacros. Si le cuesta entender: más horas en los primeros temas y en los difíciles, y ejemplos resueltos antes de hacer ejercicios solo.
-  - Según el tipo de examen. Test: "Simulacro tipo test" con exámenes de otros años; si los fallos restan, practicar cuándo dejar en blanco. Desarrollo: "Esquemas-guion" y "Práctica de desarrollo por escrito" (esquema, desarrollo y conclusiones). Preguntas cortas: practicar respuestas breves y precisas. Problemas o práctico: tras cada tema o dos, "Problemas T1-T2", con mucha práctica al nivel y a la velocidad del examen. Oral: "Exponer en voz alta". Trabajo o entrega: sus partes (buscar información, guion, redactar, revisar) en lugar de temas.
-  - Exámenes oficiales de idiomas (A2, B1, B2, C1, C2 de Cambridge, la EOI, Aptis, TOEFL, DELF...): en lugar de temas, sus partes o destrezas (las de la ficha si la hay: Reading, Use of English, Writing, Listening, Speaking), cada una con práctica con el formato del examen; Writing con plantillas y textos corregidos, Speaking grabándose o con alguien; y al menos 2 simulacros completos con el tiempo oficial. Si cuenta que aún no tiene el nivel, avisa en notas de que subir un nivel lleva unas 200 horas guiadas.
-  - Oposiciones o temarios largos: bloques de temas, una "Segunda vuelta" de repaso de todo antes del final y simulacros cada pocas semanas.
-  - Al final, "Repaso final" desde sus propios esquemas y fichas, no releyendo todo: del 15 al 25 % de las horas (del 25 al 30 % si se agobia con el examen cerca, para que lo nuevo quede antes). Si tiene exámenes de otros años o la ficha dice cómo es, antes del repaso final, "Simulacro con un examen de otros años" con el tiempo del examen.
-  - Si ya lo lleva casi listo, sobre todo repasos y simulacros.
+Revisa, examen por examen:
+- Lo propio de su tipo y de su ficha: test con simulacros (si los fallos restan, practicar cuándo dejar en blanco); desarrollo con esquemas-guion y práctica por escrito; problemas con práctica al nivel y a la velocidad del examen tras cada tema o dos; oral en voz alta; trabajos por partes; idiomas por destrezas con su formato y al menos 2 simulacros completos; temarios largos con segunda vuelta.
+- Repasos sin mirar cada 2 o 3 temas, un simulacro con el tiempo del examen si hay exámenes de otros años o ficha, y un repaso final del 15 al 25 % de las horas desde sus esquemas y fichas (del 25 al 30 % si se agobia con el examen cerca).
+- Que encaje con cómo estudia, lo aprendido de sus planes anteriores y lo que cuente en "Algo más" (si es razonable, manda).
+- Nombres claros y cortos, como los de Rusko ("T3: Regresión", "Preguntas T1-T3").
+Si todo junto no cabe en los días que quedan con sus horas al día, su día libre y los demás exámenes, no recortes: dilo en notas con qué hacer.
 
-descanso: según cuánto aguanta concentrado: unos 20-30 minutos, "25-5"; unos 50, "50-10"; más de una hora, "90-15". Si no lo dice y le cuesta arrancar o se distrae con el móvil, "25-5"; si no, "50-10".
-
-consejos: de 3 a 6 frases cortas y concretas para esta persona, según sus respuestas, lo aprendido de otros planes y el COIE. Por ejemplo:
-- Estudiar en el mismo sitio y a la misma hora crea el hábito; sitio ordenado, con buena luz y el móvil fuera de la vista.
-- Si le cuesta arrancar: un reto de 10 minutos con temporizador, o coger papel y lápiz y empezar a escribir; y empezar por lo que más cuesta.
-- Método para cada tema: ojearlo, hacerse preguntas, leerlo, subrayar solo palabras clave después de una primera lectura, hacer un esquema y repetirlo sin mirar.
-- Si solo relee: esquemas o fichas de pregunta y respuesta (sabidas, por repasar, sin estudiar), porque releer da sensación de saber pero no se queda.
-- Si no estudia cuando el examen queda lejos: el plan ya le pone menos al principio; lo importante es no saltarse ningún día, aunque sea poco.
-- Si prefiere una sola asignatura al día: temas nuevos de una en una, pero los repasos mezclados.
-- Si se le tuerce el plan a menudo o suele saltarse bloques por un motivo: algo concreto para eso.
-- Según cómo memoriza: si es visual, repetir los esquemas por escrito; si es auditivo, grabarse y escucharlo; si aprende haciendo, ejercicios y fichas.
-- Nervios: simulacros con el tiempo del examen, dormir bien, y la víspera solo 1 o 2 horas de repaso ligero, nada nuevo.
-- Lo propio de cada tipo de examen (test que resta, desarrollo, problemas, idiomas...).
-No repitas el plan ni los temas en los consejos. Sin saludo.
-
-notas: de una a tres frases con lo que has supuesto: si has movido las horas y por qué, temas juntados, si no cabe y qué hacer. Sin saludo.
-
-nombre: corto ("Exámenes de enero"). tipo: "examenes" (o "entregas" si todo son trabajos). fin: la fecha del último. horasDia, rindeMas y diaLibre (lunes = 0, o "ninguno"): los suyos. inicio, lugar, diasVas, levantarse y acostarse: null. imprescindibles: lista vacía.`,
+examenes: solo los que cambies, con su numero y la lista completa de sus piezas en orden (como mucho 20), horas en múltiplos de 0,5. La suma, como mucho un 15 % por encima o por debajo de la de Rusko, y solo con un motivo claro. Si un examen está bien, no lo pongas.
+consejos: si los de Rusko se pueden mejorar para esta persona, la lista final de 3 a 6 frases cortas y concretas, sin repetir el plan; si están bien, lista vacía.
+notas: una o dos frases para la persona: qué has cambiado y por qué o, si nada, por qué el plan le encaja; y si no cabe, qué hacer. Sin saludo.`,
 
   ficha: `${COMUN}
 
@@ -547,22 +531,24 @@ const ESQUEMAS: Record<Exclude<Accion, 'ficha'>, Record<string, unknown>> = {
     additionalProperties: false,
   },
 
-  // Lo mismo que "preparar", con los temas de cada hito y los consejos.
-  cuestionario: {
-    ...ESQUEMA_PREPARAR,
+  // Solo lo que cambia: las piezas de los exámenes que mejora, los consejos (o vacío) y una nota.
+  supervisar: {
+    type: 'object',
     properties: {
-      ...ESQUEMA_PREPARAR.properties,
-      hitos: {
+      examenes: {
         type: 'array',
         items: {
-          ...ESQUEMA_PREPARAR.properties.hitos.items,
-          properties: { ...ESQUEMA_PREPARAR.properties.hitos.items.properties, temas: TEMAS },
-          required: [...ESQUEMA_PREPARAR.properties.hitos.items.required, 'temas'],
+          type: 'object',
+          properties: { numero: { type: 'integer' }, temas: TEMAS },
+          required: ['numero', 'temas'],
+          additionalProperties: false,
         },
       },
       consejos: { type: 'array', items: { type: 'string' } },
+      notas: { type: 'string' },
     },
-    required: [...ESQUEMA_PREPARAR.required, 'consejos'],
+    required: ['examenes', 'consejos', 'notas'],
+    additionalProperties: false,
   },
 
   temario: {
@@ -603,7 +589,7 @@ const ESQUEMAS: Record<Exclude<Accion, 'ficha'>, Record<string, unknown>> = {
 
 // Con sitio para que piense antes de contestar (Haiku piensa solo, con effort "low").
 const MAX_TOKENS: Record<Accion, number> = {
-  cuestionario: 8000,
+  supervisar: 4000,
   ficha: 4000,
   medir: 6000,
   preparar: 4000,
@@ -647,7 +633,7 @@ async function buscarFicha(usuario: string, mensaje: string): Promise<string | n
 // ---------- Servidor ----------
 
 // 60 s por intento y un reintento: con Haiku todo cabe en los 150 s que da
-// Supabase (el cuestionario tarda unos 10 s; la ficha, unos 20).
+// Supabase (supervisar tarda unos 10 s; la ficha, unos 20).
 const anthropic = new Anthropic({ apiKey: CLAVE_ANTHROPIC, timeout: 60_000, maxRetries: 1 });
 
 Deno.serve(async (req) => {

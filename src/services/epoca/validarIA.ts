@@ -531,3 +531,30 @@ export function propuestaDeCuestionario(
 }
 
 const cifra = (n: number) => n.toLocaleString('es-ES', { maximumFractionDigits: 1 });
+
+// La IA supervisa el plan que hace la app (services/epoca/planLocal.ts) y devuelve
+// solo lo que mejora: las piezas de los exámenes que cambia (por su número, en el
+// orden del plan), los consejos si los cambia y una nota. Lo demás se queda igual, y
+// las horas no se mueven más de un 15 % de las que salían.
+export function aplicarSupervision(r: RespuestasCuestionario, local: PropuestaEpoca, datos: unknown): PropuestaEpoca | null {
+  if (!esObjeto(datos)) return null;
+  const hitos = [...local.hitos];
+  for (const e of Array.isArray(datos.examenes) ? datos.examenes : []) {
+    if (!esObjeto(e)) continue;
+    const i = Number(e.numero) - 1;
+    const temas = listaTemas(e.temas);
+    if (hitos[i] && temas.length > 0) hitos[i] = { ...hitos[i], temas };
+  }
+  const consejos = (Array.isArray(datos.consejos) ? datos.consejos : [])
+    .map((c) => texto(c, 300))
+    .filter((c): c is string => c !== null)
+    .slice(0, MAX_CONSEJOS);
+  const estimadas = Object.fromEntries(
+    r.asignaturas.map((a) => [a.id, local.hitos.find((h) => h.nombre === a.nombre)?.horasPreparacion ?? 0]),
+  );
+  return propuestaDeCuestionario(
+    r,
+    { ...local, hitos, consejos: consejos.length >= 3 ? consejos : local.consejos, notas: texto(datos.notas, 400) },
+    estimadas,
+  );
+}

@@ -12,8 +12,8 @@ import {
 // perfil de estudio, la app prepara sola el plan que antes hacía la IA, con las
 // mismas reglas (guías del COIE de la UNED): temas en orden, repasos sin mirar
 // cada 2 o 3 temas, lo propio de cada tipo de examen, simulacro y repaso final,
-// y consejos según sus hábitos. Gratis e igual para lo mismo. La IA solo entra
-// si escribe algo en "¿Algo más?" (services/epoca/ia.ts > cuestionarioConIA).
+// y consejos según sus hábitos. Gratis e igual para lo mismo. Luego la IA lo
+// supervisa con un resumen corto (services/epoca/ia.ts > supervisarPlan).
 // Funciones puras, con pruebas en __tests__.
 
 const MAX_TEMAS = 20;
