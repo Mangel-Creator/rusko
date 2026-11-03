@@ -1686,6 +1686,21 @@ borran solos a los 7 días.
   `LUGARES_LIMITE_USUARIO` 100 y `LUGARES_LIMITE_GLOBAL` 1000 al día): con uno va directo
   y con varios los enseña con la distancia. (3) Sin servidor o sin nada, como antes
   (`buscarCoordenadas`).
+- **Sitios concretos en las citas** (03/11/2026, lo pidió el usuario: "que se puedan poner
+  sitios concretos y te lleve hasta ahí"). `buscarCoordenadas` (services/lugares.ts) pregunta
+  primero a TomTom (acción `lugares`, empezando cerca de casa si se le pasa) y devuelve
+  también lo encontrado (`nombre`: "Basic-Fit, Calle de la Montera, 41, 28013 Madrid"); si no
+  hay servidor o no saca nada, Nominatim o el buscador del teléfono, como antes. Lo usan la
+  ficha del evento, el perfil, la Época y el Mapa. Las palabras para buscar (`normalizar`,
+  `palabrasClave`, `coincide`) pasan a `services/palabras.ts`.
+- **"La clase de inglés es en…" en la captura** (03/11/2026, lo pidió el usuario: "en
+  captura rápida puedas decir dónde es una cita que tienes apuntada ya"). Sin IA
+  (`services/captura/sitioDeCita.ts`): "X es/está/será/queda en Y" o "el sitio de X es Y",
+  si hay una cita de hoy en adelante que se llame X (por palabras; la más próxima, las que se
+  repiten cuentan como de hoy). Si Y trae día u hora ("a las 5", "mañana"), sigue la captura
+  normal. Busca Y con `buscarCoordenadas` y enseña `TarjetaSitio` ("¿Lo apunto así?", con lo
+  encontrado y si cambia otro sitio); sin conexión lo guarda como se dijo. El Mapa, si buscas
+  una cita sin sitio, te dice que se lo digas así.
 
 ## Fase 7: alarmas (decisiones)
 

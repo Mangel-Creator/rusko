@@ -3,6 +3,7 @@ import type { Lugar, Perfil } from '@/data/perfil';
 import { eventosDelDia, NOMBRE_CASA, resolverLugar } from '@/services/agenda';
 import { claveDia, fechaDesdeClave, formatearDiaCorto, sumarDias, type ClaveDia } from '@/services/fechas';
 import { citaDe } from '@/services/rutas/citas';
+import { coincide, palabrasClave } from '@/services/palabras';
 import type { Punto } from '@/services/rutas/tipos';
 
 // Destinos que propone el buscador "¿A dónde vas?": primero los sitios habituales
@@ -20,15 +21,6 @@ export type Destino = {
 
 function puntoDe(lugar: Lugar): Punto | null {
   return lugar.coordenadas ? [lugar.coordenadas.latitud, lugar.coordenadas.longitud] : null;
-}
-
-// Sin mayúsculas ni tildes, para buscar "cafe" y encontrar "Café".
-export function normalizar(texto: string): string {
-  return texto
-    .normalize('NFD')
-    .replace(/[̀-ͯ]/g, '')
-    .toLocaleLowerCase('es-ES')
-    .trim();
 }
 
 export function sitiosHabituales(perfil: Perfil | null): Destino[] {
@@ -99,24 +91,6 @@ export function destinosDeEventos(
     }
   }
   return destinos;
-}
-
-// Palabras que no ayudan a buscar: "donde tengo la clase de inglés" busca "clase" e "ingles".
-const RELLENO = new Set(
-  'donde adonde tengo tiene tenemos hay la el lo los las un una de del mi mis tu al en con voy vamos ir llevame lleva quiero me para que hoy manana es esta este'.split(
-    ' ',
-  ),
-);
-
-export function palabrasClave(texto: string): string[] {
-  return normalizar(texto)
-    .split(/[^a-z0-9]+/)
-    .filter((p) => p.length > 1 && !RELLENO.has(p));
-}
-
-function coincide(texto: string, palabras: string[]): boolean {
-  const t = normalizar(texto);
-  return palabras.every((p) => t.includes(p));
 }
 
 // Lo que se ve bajo el buscador, filtrado por lo que se ha escrito.

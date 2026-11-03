@@ -121,7 +121,10 @@ Lo anulado y el detalle → historia: "Decisiones del usuario".
 - **Mapa**: no guía; abre Waze (por defecto), Google Maps o Mapas. Tráfico con TomTom; parkings
   cercanos que aprende de ti. Sin radares ni guía por voz. El buscador encuentra tus citas
   por cómo las dices ("donde tengo la clase de inglés") y negocios por su nombre (TomTom,
-  acción `lugares`). → "Fase 6".
+  acción `lugares`). **El sitio de una cita también puede ser un negocio** ("Basic Fit de
+  Montera"): `buscarCoordenadas` pregunta primero a TomTom y luego al buscador de siempre. En
+  la captura, **"la clase de inglés es en…"** pone el sitio a esa cita ya apuntada, tras
+  confirmar (`sitioDeCita`, sin IA). → "Fase 6".
 - **Avisos en la web** con Web Push (web instalada, iOS 16.4+, Perfil > Avisos) y **alarmas al Reloj
   del iPhone** con un Atajo cada noche a las 22:00. → "Fase 4" > "Avisos en la web", "Fase 7".
 - **Siri** con dos Atajos ("Apunta en Rusko", "Alarma en Rusko") y un buzón en Supabase. → "Fase 9".

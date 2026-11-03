@@ -3,6 +3,7 @@ import { Platform } from 'react-native';
 
 import { guardarPerfil, leerPerfil, type Coordenadas, type Lugar } from '@/data/perfil';
 import { comunidadDesdeIso, type CodigoComunidad } from '@/services/festivos';
+import { buscarSitios } from '@/services/rutas';
 
 // Convierte texto ("Chamberí, Madrid") en coordenadas.
 // - En el móvil (Android e iOS): con expo-location, que usa el buscador del teléfono.
@@ -12,7 +13,8 @@ import { comunidadDesdeIso, type CodigoComunidad } from '@/services/festivos';
 // se calculan la próxima vez que se abra la app (ver completarCoordenadasPendientes).
 
 export type ResultadoBusqueda =
-  | { estado: 'encontrado'; coordenadas: Coordenadas }
+  // "nombre": lo encontrado tal cual («Basic-Fit, Calle de la Montera 10, Madrid»), si viene.
+  | { estado: 'encontrado'; coordenadas: Coordenadas; nombre?: string }
   | { estado: 'no-encontrado' }
   | { estado: 'no-disponible' };
 
@@ -22,7 +24,17 @@ export const usaOpenStreetMap = Platform.OS === 'web';
 export const ATRIBUCION_OPENSTREETMAP =
   'Las direcciones se buscan con OpenStreetMap (© colaboradores de OpenStreetMap).';
 
-export async function buscarCoordenadas(texto: string): Promise<ResultadoBusqueda> {
+// Desde el 03/11/2026 primero se pregunta a TomTom (por el servidor), que también
+// encuentra negocios y sitios por su nombre («Basic Fit de Montera»); "cerca" ordena
+// por cercanía. Si no hay servidor o no saca nada, el buscador de siempre.
+export async function buscarCoordenadas(texto: string, cerca: Coordenadas | null = null): Promise<ResultadoBusqueda> {
+  const sitios = await buscarSitios(texto, cerca ? [cerca.latitud, cerca.longitud] : null);
+  const primero = sitios.estado === 'ok' ? sitios.sitios[0] : undefined;
+  if (primero) {
+    const [latitud, longitud] = primero.punto;
+    const nombre = primero.nombre === primero.direccion ? primero.direccion : `${primero.nombre}, ${primero.direccion}`;
+    return { estado: 'encontrado', coordenadas: { latitud, longitud }, nombre };
+  }
   return usaOpenStreetMap ? buscarEnOpenStreetMap(texto) : buscarEnElTelefono(texto);
 }
 

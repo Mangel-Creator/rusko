@@ -1,8 +1,9 @@
 import { describe, expect, it } from '@jest/globals';
 
 import type { Evento } from '@/data/eventos/tipos';
+import { palabrasClave } from '@/services/palabras';
 
-import { eventoSinSitio, palabrasClave, sugerencias } from '../destinos';
+import { eventoSinSitio, sugerencias } from '../destinos';
 
 function evento(parcial: Partial<Evento>): Evento {
   return {

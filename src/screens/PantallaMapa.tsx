@@ -143,7 +143,7 @@ export function PantallaMapa() {
     if (tuyo.length > 0) return elegirDestino(tuyo[0]);
     const sinSitio = eventoSinSitio(eventos, escrito);
     if (sinSitio) {
-      setErrorBusqueda(`"${sinSitio.titulo}" no tiene sitio apuntado. Añádeselo en Semana y te llevo.`);
+      setErrorBusqueda(`"${sinSitio.titulo}" no tiene sitio apuntado. Dímelo en Hoy («${sinSitio.titulo} es en…») y te llevo.`);
       return;
     }
     setBuscandoSitios(true);

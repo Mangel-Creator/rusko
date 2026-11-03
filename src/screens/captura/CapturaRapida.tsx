@@ -9,9 +9,11 @@ import { usePerfil } from '@/data/perfil';
 import { guardarAlarma, type Alarma } from '@/data/alarmas';
 import { bloqueDeFocoQuePisa } from '@/services/agenda';
 import { MAX_FRASE, interpretarFrase, type Interpretacion } from '@/services/captura';
+import { sitioDeCita, type SitioDeCita } from '@/services/captura/sitioDeCita';
 import { dejarBorrador, type BorradorFicha } from '@/services/captura/borrador';
 import { entenderPregunta, respuestaDelDia } from '@/services/consulta';
 import { claveDia, fechaDesdeClave, formatearDiaCorto, type ClaveDia } from '@/services/fechas';
+import { buscarCoordenadas, type ResultadoBusqueda } from '@/services/lugares';
 import { callar, hablar } from '@/services/voz';
 import { alturaTactil, colores, espacio, fuentes, radio, tamanos } from '@/theme';
 
@@ -19,6 +21,7 @@ import { useEstudioQuePisa } from '../epoca/useEpoca';
 import { AvisoMicrofono, BotonMicrofono } from './BotonMicrofono';
 import { TarjetaAlarma, alarmaDePropuesta, yaHaPasado } from './TarjetaAlarma';
 import { TarjetaConfirmacion, eventoDePropuesta } from './TarjetaConfirmacion';
+import { TarjetaSitio } from './TarjetaSitio';
 import { useDictado } from './useDictado';
 
 // Captura rápida (fase 5): escribes (o dictas con el micrófono del teclado)
@@ -53,6 +56,9 @@ import { useDictado } from './useDictado';
 // Varias cosas en una frase (02/11/2026): «comida hoy por la tarde y pádel mañana por la
 // mañana» trae una tarjeta por cosa, una detrás de otra («1 de 2»), y "Guardar las 2"
 // guarda de golpe las que quedan tal cual.
+//
+// Dónde es una cita ya apuntada (03/11/2026): «la clase de inglés es en el Basic Fit de
+// Montera» busca el sitio (services/captura/sitioDeCita) y pregunta antes de ponérselo.
 
 type Props = {
   hoy: ClaveDia;
@@ -107,6 +113,8 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
   const [hecho, setHecho] = useState<string | null>(null);
   const [respuesta, setRespuesta] = useState<string | null>(null);
   const [hablando, setHablando] = useState(false);
+  // «La clase de inglés es en…»: el sitio para una cita ya apuntada, por confirmar.
+  const [sitio, setSitio] = useState<(SitioDeCita & { resultado: ResultadoBusqueda }) | null>(null);
   const campo = useRef<TextInputInstance>(null);
 
   const enviar = async (texto: string) => {
@@ -115,6 +123,7 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
     setFrase(limpia);
     setHecho(null);
     setCola([]);
+    setSitio(null);
     // «¿Qué tengo el miércoles?»: se contesta aquí, sin IA, y se lee en voz alta.
     const dia = entenderPregunta(limpia, hoy);
     if (dia) {
@@ -126,6 +135,13 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
     setRespuesta(null);
     setPensando(true);
     campo.current?.blur();
+    const cambio = sitioDeCita(limpia, eventos, hoy);
+    if (cambio) {
+      const encontrado = await buscarCoordenadas(cambio.sitio, perfil?.vivienda.coordenadas ?? null);
+      setPensando(false);
+      setSitio({ ...cambio, resultado: encontrado });
+      return;
+    }
     const resultado = await interpretarFrase(limpia, perfil, eventos);
     setPensando(false);
     if (resultado.estado === 'ok') {
@@ -243,10 +259,10 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
   const puedeEnviar = frase.trim().length > 0 && !pensando && !escuchando;
 
   // Plegada y sin nada en marcha: no enseña nada (pero sigue escuchando frases de fuera).
-  if (plegada && !pensando && !propuesta && !alarma && !hecho && !respuesta && dictado.fase === 'quieto') return null;
+  if (plegada && !pensando && !propuesta && !alarma && !sitio && !hecho && !respuesta && dictado.fase === 'quieto') return null;
 
   const ejemplos =
-    'Una cita («cita del DNI el sábado a las 12»), algo que se repite («lunes y jueves de 6 a 8 clase de inglés, todo este mes»), un recordatorio («recuérdame mañana a las 6 llamar a mamá»), una alarma («pon una alarma a las 7»), varias cosas a la vez o «¿qué tengo el miércoles?».';
+    'Una cita («cita del DNI el sábado a las 12»), algo que se repite («lunes y jueves de 6 a 8 clase de inglés, todo este mes»), un recordatorio («recuérdame mañana a las 6 llamar a mamá»), una alarma («pon una alarma a las 7»), varias cosas a la vez, dónde es algo ya apuntado («la clase de inglés es en el Basic Fit de Montera») o «¿qué tengo el miércoles?».';
   const ayuda = dictado.disponible
     ? `Escríbelo como te salga o toca el micro y dímelo. ${ejemplos}`
     : `Escríbelo como te salga o díctalo con el micrófono del teclado. ${ejemplos}`;
@@ -320,7 +336,7 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
         <Texto pequeno accessibilityLiveRegion="polite">
           {hecho}
         </Texto>
-      ) : !propuesta && !alarma && !respuesta && dictado.fase === 'quieto' ? (
+      ) : !propuesta && !alarma && !sitio && !respuesta && dictado.fase === 'quieto' ? (
         <Texto pequeno secundario>{ayuda}</Texto>
       ) : null}
 
@@ -351,7 +367,7 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
         </Tarjeta>
       ) : null}
 
-      {alRellenarAMano && !propuesta && !alarma && !respuesta && !pensando && !escuchando ? (
+      {alRellenarAMano && !propuesta && !alarma && !sitio && !respuesta && !pensando && !escuchando ? (
         <Pressable
           accessibilityRole="button"
           onPress={alRellenarAMano}
@@ -390,6 +406,24 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
           alMasOpciones={(borrador) => {
             terminar(null);
             abrirFicha(borrador, hoy);
+          }}
+        />
+      ) : null}
+
+      {sitio ? (
+        <TarjetaSitio
+          key={`sitio-${sitio.evento.id}-${sitio.sitio}`}
+          evento={sitio.evento}
+          sitio={sitio.sitio}
+          resultado={sitio.resultado}
+          alGuardar={(mensaje) => {
+            setSitio(null);
+            setFrase('');
+            setHecho(mensaje);
+          }}
+          alCancelar={() => {
+            setSitio(null);
+            setFrase('');
           }}
         />
       ) : null}

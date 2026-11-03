@@ -282,7 +282,7 @@ function Formulario({ evento, rellenar, fechaInicial, perfil, eventos }: Props) 
     if (evento?.lugar?.tipo === 'otro' && evento.lugar.direccion === direccion && evento.lugar.coordenadas) {
       return evento.lugar;
     }
-    const resultado = await buscarCoordenadas(direccion);
+    const resultado = await buscarCoordenadas(direccion, perfil?.vivienda.coordenadas ?? null);
     if (resultado.estado === 'no-encontrado') return MENSAJE_NO_ENCONTRADO;
     return {
       tipo: 'otro',
@@ -295,7 +295,7 @@ function Formulario({ evento, rellenar, fechaInicial, perfil, eventos }: Props) 
   const crearTrabajo = async (): Promise<LugarEvento | string> => {
     if (!perfil) return 'Primero rellena tu perfil.';
     const direccion = b.direccionTrabajo.trim();
-    const resultado = await buscarCoordenadas(direccion);
+    const resultado = await buscarCoordenadas(direccion, perfil.vivienda.coordenadas);
     if (resultado.estado === 'no-encontrado') return MENSAJE_NO_ENCONTRADO;
     const sitio: SitioHabitual = {
       id: nuevoId(),
