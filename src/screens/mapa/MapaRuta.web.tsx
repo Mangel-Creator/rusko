@@ -96,12 +96,17 @@ export function MapaRuta({
   parkings,
   parkingElegido,
   centroInicial,
+  alTocar,
   style,
 }: PropsMapa) {
   const contenedor = useRef<HostInstance>(null);
   const [leaflet, setLeaflet] = useState<typeof L | null>(null);
   const mapa = useRef<L.Map | null>(null);
   const capas = useRef<Capas | null>(null);
+  const tocar = useRef(alTocar);
+  useEffect(() => {
+    tocar.current = alTocar;
+  }, [alTocar]);
 
   // Crear el mapa una vez.
   useEffect(() => {
@@ -140,6 +145,7 @@ export function MapaRuta({
         parkings: Lf.layerGroup().addTo(m),
         marcas: Lf.layerGroup().addTo(m),
       };
+      m.on('click', (e) => tocar.current?.([e.latlng.lat, e.latlng.lng]));
       mapa.current = m;
       // Si cambia el tamaño, Leaflet se recoloca.
       observador = new ResizeObserver(() => m.invalidateSize());
@@ -208,7 +214,8 @@ export function MapaRuta({
   useEffect(() => {
     const m = mapa.current;
     if (!leaflet || !m || visibles.length === 0) return;
-    if (visibles.length === 1) m.setView(visibles[0], 14);
+    // Con un solo punto no se aleja si ya estabas más cerca (al mover la chincheta).
+    if (visibles.length === 1) m.setView(visibles[0], Math.max(m.getZoom(), 14));
     else m.fitBounds(leaflet.latLngBounds(visibles), { padding: [30, 30] });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [leaflet, huella]);

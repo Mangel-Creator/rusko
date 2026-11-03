@@ -1698,9 +1698,20 @@ borran solos a los 7 días.
   (`services/captura/sitioDeCita.ts`): "X es/está/será/queda en Y" o "el sitio de X es Y",
   si hay una cita de hoy en adelante que se llame X (por palabras; la más próxima, las que se
   repiten cuentan como de hoy). Si Y trae día u hora ("a las 5", "mañana"), sigue la captura
-  normal. Busca Y con `buscarCoordenadas` y enseña `TarjetaSitio` ("¿Lo apunto así?", con lo
-  encontrado y si cambia otro sitio); sin conexión lo guarda como se dijo. El Mapa, si buscas
-  una cita sin sitio, te dice que se lo digas así.
+  normal. Busca Y y enseña `TarjetaSitio` (con lo encontrado y si cambia otro sitio); sin
+  conexión lo guarda como se dijo. El Mapa, si buscas una cita sin sitio, te dice que se lo
+  digas así.
+- **"¿Es aquí?" con mapa, como Google Maps** (03/11/2026, lo pidió el usuario: "que busque en
+  el mapa dónde está y te pregunte si es ese… que no sea necesario poner la calle"). Basta el
+  nombre ("Basic Fit"). `buscarCandidatos` (services/lugares.ts) da todos los resultados de
+  TomTom, cerca de casa, el mejor primero (sin servidor, el buscador de siempre con uno).
+  `ElegirSitio` (screens/mapa) los enseña en un mapa pequeño con la chincheta en el primero y
+  la lista debajo para elegir otro; tocando el mapa (`alTocar` de `MapaRuta.web`) la chincheta
+  va ahí y `direccionDelPunto` pide la dirección a Nominatim (1 por segundo). Si no encuentra
+  nada, pide tocar el mapa. Se guarda "Nombre, dirección" (`etiquetaSitio`) con sus
+  coordenadas. Está en la captura ("la clase de inglés es en…") y en "Otro sitio" de la ficha
+  del evento, que busca sola 1 s después de dejar de escribir (3 letras o más). El perfil y la
+  Época siguen con el primer resultado, sin mapa.
 
 ## Fase 7: alarmas (decisiones)
 

@@ -3,7 +3,7 @@ import { Platform } from 'react-native';
 
 import { guardarPerfil, leerPerfil, type Coordenadas, type Lugar } from '@/data/perfil';
 import { comunidadDesdeIso, type CodigoComunidad } from '@/services/festivos';
-import { buscarSitios } from '@/services/rutas';
+import { buscarSitios, type Punto, type SitioEncontrado } from '@/services/rutas';
 
 // Convierte texto ("Chamberí, Madrid") en coordenadas.
 // - En el móvil (Android e iOS): con expo-location, que usa el buscador del teléfono.
@@ -28,14 +28,56 @@ export const ATRIBUCION_OPENSTREETMAP =
 // encuentra negocios y sitios por su nombre («Basic Fit de Montera»); "cerca" ordena
 // por cercanía. Si no hay servidor o no saca nada, el buscador de siempre.
 export async function buscarCoordenadas(texto: string, cerca: Coordenadas | null = null): Promise<ResultadoBusqueda> {
+  const r = await buscarCandidatos(texto, cerca);
+  if (r.estado !== 'ok') return r;
+  const [latitud, longitud] = r.sitios[0].punto;
+  return { estado: 'encontrado', coordenadas: { latitud, longitud }, nombre: etiquetaSitio(r.sitios[0]) };
+}
+
+// «Basic-Fit, Calle de la Montera 41» (o solo la dirección si el nombre es la dirección).
+export function etiquetaSitio(s: SitioEncontrado): string {
+  return s.nombre === s.direccion ? s.direccion : `${s.nombre}, ${s.direccion}`;
+}
+
+// Todos los sitios que encaja el texto, el mejor primero, para el "¿Es aquí?" con mapa
+// (03/11/2026, como Google Maps: basta con el nombre). Nunca sale una lista vacía.
+export type ResultadoCandidatos =
+  | { estado: 'ok'; sitios: SitioEncontrado[] }
+  | { estado: 'no-encontrado' }
+  | { estado: 'no-disponible' };
+
+export async function buscarCandidatos(texto: string, cerca: Coordenadas | null): Promise<ResultadoCandidatos> {
   const sitios = await buscarSitios(texto, cerca ? [cerca.latitud, cerca.longitud] : null);
-  const primero = sitios.estado === 'ok' ? sitios.sitios[0] : undefined;
-  if (primero) {
-    const [latitud, longitud] = primero.punto;
-    const nombre = primero.nombre === primero.direccion ? primero.direccion : `${primero.nombre}, ${primero.direccion}`;
-    return { estado: 'encontrado', coordenadas: { latitud, longitud }, nombre };
+  if (sitios.estado === 'ok' && sitios.sitios.length > 0) return sitios;
+  const uno = usaOpenStreetMap ? await buscarEnOpenStreetMap(texto) : await buscarEnElTelefono(texto);
+  if (uno.estado !== 'encontrado') return uno;
+  const { latitud, longitud } = uno.coordenadas;
+  return { estado: 'ok', sitios: [{ id: 'unico', nombre: texto, direccion: texto, punto: [latitud, longitud] }] };
+}
+
+// La dirección del punto que se toca en el mapa (Nominatim, con su turno de 1 por segundo).
+// Sin respuesta, null: el punto vale igual.
+export async function direccionDelPunto([lat, lon]: Punto): Promise<string | null> {
+  await esperarTurno();
+  const parametros = new URLSearchParams({
+    lat: String(lat),
+    lon: String(lon),
+    format: 'jsonv2',
+    zoom: '18',
+    'accept-language': 'es',
+  });
+  try {
+    const respuesta = await fetch(`https://nominatim.openstreetmap.org/reverse?${parametros}`);
+    if (!respuesta.ok) return null;
+    const r = (await respuesta.json()) as { name?: string; address?: Record<string, string> };
+    const a = r.address ?? {};
+    const calle = [a.road ?? a.pedestrian ?? a.square, a.house_number].filter(Boolean).join(' ');
+    const zona = a.city ?? a.town ?? a.village ?? a.suburb;
+    const partes = [r.name && r.name !== calle ? r.name : null, calle || null, zona].filter(Boolean);
+    return partes.length ? partes.join(', ') : null;
+  } catch {
+    return null;
   }
-  return usaOpenStreetMap ? buscarEnOpenStreetMap(texto) : buscarEnElTelefono(texto);
 }
 
 async function buscarEnElTelefono(texto: string): Promise<ResultadoBusqueda> {

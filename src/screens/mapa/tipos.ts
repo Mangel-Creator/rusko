@@ -13,6 +13,7 @@ export type PropsMapa = {
   parkings: Parking[]; // los de cerca del destino, si los has pedido
   parkingElegido?: string | null; // id del parking al que vas
   centroInicial?: Punto | null; // si aún no se sabe dónde estás (por ejemplo, tu casa)
+  alTocar?: (punto: Punto) => void; // tocar el mapa para elegir un punto (solo en la web)
   style?: StyleProp<ViewStyle>;
 };
 

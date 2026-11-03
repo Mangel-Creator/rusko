@@ -255,15 +255,23 @@ async function buscarLugares(cuerpo: Record<string, unknown>, clave: string): Pr
   const texto = typeof cuerpo.texto === 'string' ? cuerpo.texto.trim() : '';
   if (texto.length < 2 || texto.length > 120) throw new ErrorPeticion('Escribe el sitio que buscas.');
   const p = new URLSearchParams({ countrySet: 'ES', language: 'es-ES', limit: '8', typeahead: 'false', key: clave });
+  const buscar = async () => {
+    const respuesta = await fetch(`https://api.tomtom.com/search/2/search/${encodeURIComponent(texto)}.json?${p}`);
+    if (!respuesta.ok) throw new Error(`TomTom respondió ${respuesta.status}`);
+    return ((await respuesta.json()) as { results?: ResultadoBusqueda[] }).results ?? [];
+  };
+  // Como Google Maps (03/11/2026): primero solo los de cerca (30 km); si no hay, toda España.
+  let resultados: ResultadoBusqueda[] = [];
   if (esPunto(cuerpo.cerca)) {
     p.set('lat', String(cuerpo.cerca[0]));
     p.set('lon', String(cuerpo.cerca[1]));
+    p.set('radius', '30000');
+    resultados = await buscar();
+    p.delete('radius');
   }
-  const respuesta = await fetch(`https://api.tomtom.com/search/2/search/${encodeURIComponent(texto)}.json?${p}`);
-  if (!respuesta.ok) throw new Error(`TomTom respondió ${respuesta.status}`);
-  const datos = (await respuesta.json()) as { results?: ResultadoBusqueda[] };
+  if (resultados.length === 0) resultados = await buscar();
   return {
-    lugares: (datos.results ?? [])
+    lugares: resultados
       .filter((r) => r.position && r.id)
       .map((r) => {
         const direccion = r.address?.freeformAddress ?? r.address?.streetName ?? '';

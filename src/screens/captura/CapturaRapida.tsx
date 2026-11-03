@@ -13,7 +13,8 @@ import { sitioDeCita, type SitioDeCita } from '@/services/captura/sitioDeCita';
 import { dejarBorrador, type BorradorFicha } from '@/services/captura/borrador';
 import { entenderPregunta, respuestaDelDia } from '@/services/consulta';
 import { claveDia, fechaDesdeClave, formatearDiaCorto, type ClaveDia } from '@/services/fechas';
-import { buscarCoordenadas, type ResultadoBusqueda } from '@/services/lugares';
+import { buscarCandidatos, type ResultadoCandidatos } from '@/services/lugares';
+import type { Punto } from '@/services/rutas';
 import { callar, hablar } from '@/services/voz';
 import { alturaTactil, colores, espacio, fuentes, radio, tamanos } from '@/theme';
 
@@ -114,7 +115,9 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
   const [respuesta, setRespuesta] = useState<string | null>(null);
   const [hablando, setHablando] = useState(false);
   // «La clase de inglés es en…»: el sitio para una cita ya apuntada, por confirmar.
-  const [sitio, setSitio] = useState<(SitioDeCita & { resultado: ResultadoBusqueda }) | null>(null);
+  const [sitio, setSitio] = useState<(SitioDeCita & { resultado: ResultadoCandidatos }) | null>(null);
+  const coordCasa = perfil?.vivienda.coordenadas;
+  const casa: Punto | null = coordCasa ? [coordCasa.latitud, coordCasa.longitud] : null;
   const campo = useRef<TextInputInstance>(null);
 
   const enviar = async (texto: string) => {
@@ -137,7 +140,7 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
     campo.current?.blur();
     const cambio = sitioDeCita(limpia, eventos, hoy);
     if (cambio) {
-      const encontrado = await buscarCoordenadas(cambio.sitio, perfil?.vivienda.coordenadas ?? null);
+      const encontrado = await buscarCandidatos(cambio.sitio, perfil?.vivienda.coordenadas ?? null);
       setPensando(false);
       setSitio({ ...cambio, resultado: encontrado });
       return;
@@ -416,6 +419,7 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
           evento={sitio.evento}
           sitio={sitio.sitio}
           resultado={sitio.resultado}
+          centro={casa}
           alGuardar={(mensaje) => {
             setSitio(null);
             setFrase('');

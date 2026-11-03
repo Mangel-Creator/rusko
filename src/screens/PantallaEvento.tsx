@@ -1,5 +1,5 @@
 import { router, useLocalSearchParams } from 'expo-router';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { type ScrollViewInstance, StyleSheet, View } from 'react-native';
 
 import {
@@ -46,7 +46,15 @@ import {
   minutosDesdeHora,
   type ClaveDia,
 } from '@/services/fechas';
-import { ATRIBUCION_OPENSTREETMAP, buscarCoordenadas, usaOpenStreetMap } from '@/services/lugares';
+import {
+  ATRIBUCION_OPENSTREETMAP,
+  buscarCandidatos,
+  buscarCoordenadas,
+  etiquetaSitio,
+  usaOpenStreetMap,
+  type ResultadoCandidatos,
+} from '@/services/lugares';
+import type { SitioEncontrado } from '@/services/rutas';
 import { colores, espacio } from '@/theme';
 
 import {
@@ -60,6 +68,7 @@ import {
 import { AvisarA } from './calendario/AvisarA';
 import { OrigenEvento } from './calendario/OrigenEvento';
 import { useEstudioQuePisa } from './epoca/useEpoca';
+import { ElegirSitio } from './mapa/ElegirSitio';
 import { SelectorCuadrante } from './tareas/SelectorCuadrante';
 import { MENSAJE_NO_ENCONTRADO } from './formulario-perfil/borrador';
 import { MensajeError } from './formulario-perfil/MensajeError';
@@ -231,6 +240,31 @@ function Formulario({ evento, rellenar, fechaInicial, perfil, eventos }: Props) 
   const [ocupado, setOcupado] = useState(false);
   const [focoPisado, setFocoPisado] = useState<{ bloque: Evento; nuevo: Evento; estudio: boolean } | null>(null);
   const [confirmarBorrado, setConfirmarBorrado] = useState(false);
+
+  // «¿Es aquí?» (03/11/2026): en "Otro sitio" basta el nombre; al parar de escribir se
+  // busca solo, cerca de casa, y se enseña en el mapa para elegir o mover la chincheta.
+  const coordCasa = perfil?.vivienda.coordenadas ?? null;
+  const textoSitio = b.lugar === 'otro' ? b.direccion.trim() : '';
+  const [buscado, setBuscado] = useState(() => (evento?.lugar?.tipo === 'otro' ? evento.lugar.direccion : ''));
+  const [candidatos, setCandidatos] = useState<ResultadoCandidatos | null>(null);
+  const [elegido, setElegido] = useState<SitioEncontrado | null>(null);
+  useEffect(() => {
+    if (textoSitio.length < 3 || textoSitio === buscado) return;
+    let cancelado = false;
+    const espera = setTimeout(() => {
+      void buscarCandidatos(textoSitio, coordCasa).then((r) => {
+        if (cancelado) return;
+        setBuscado(textoSitio);
+        setCandidatos(r);
+        setElegido(r.estado === 'ok' ? r.sitios[0] : null);
+      });
+    }, 1000);
+    return () => {
+      cancelado = true;
+      clearTimeout(espera);
+    };
+  }, [textoSitio, buscado, coordCasa]);
+  const verMapa = candidatos !== null && candidatos.estado !== 'no-disponible' && buscado === textoSitio;
   const scroll = useRef<ScrollViewInstance>(null);
 
   const cambiar = (cambios: Partial<Borrador>) => {
@@ -278,6 +312,10 @@ function Formulario({ evento, rellenar, fechaInicial, perfil, eventos }: Props) 
     if (b.lugar === 'nuevo-trabajo') return crearTrabajo();
     if (b.lugar !== 'otro') return referencia();
     const direccion = b.direccion.trim();
+    if (elegido && buscado === direccion) {
+      const [latitud, longitud] = elegido.punto;
+      return { tipo: 'otro', direccion: etiquetaSitio(elegido), coordenadas: { latitud, longitud } };
+    }
     // Si la dirección no ha cambiado, se conservan sus coordenadas.
     if (evento?.lugar?.tipo === 'otro' && evento.lugar.direccion === direccion && evento.lugar.coordenadas) {
       return evento.lugar;
@@ -519,12 +557,20 @@ function Formulario({ evento, rellenar, fechaInicial, perfil, eventos }: Props) 
         ) : null}
         {b.lugar === 'otro' ? (
           <CampoTexto
-            placeholder="Calle, número y municipio"
+            placeholder="Nombre o dirección («Basic Fit Montera»)"
             value={b.direccion}
             onChangeText={(direccion) => cambiar({ direccion })}
             autoCapitalize="words"
-            accessibilityLabel="Dirección exacta"
+            accessibilityLabel="Dónde es"
             error={errores.direccion}
+          />
+        ) : null}
+        {b.lugar === 'otro' && verMapa ? (
+          <ElegirSitio
+            candidatos={candidatos.estado === 'ok' ? candidatos.sitios : []}
+            elegido={elegido}
+            centro={coordCasa ? [coordCasa.latitud, coordCasa.longitud] : null}
+            alElegir={setElegido}
           />
         ) : null}
         {b.lugar === 'nuevo-trabajo' ? (
