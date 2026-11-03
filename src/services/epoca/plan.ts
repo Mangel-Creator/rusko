@@ -17,7 +17,14 @@ import {
   type Energia,
   type Intervalo,
 } from '@/services/agenda';
-import { diaSemanaDesdeLunes, fechaDesdeClave, horaDesdeMinutos, sumarDias, type ClaveDia } from '@/services/fechas';
+import {
+  diaSemanaDesdeLunes,
+  fechaDesdeClave,
+  horaDesdeMinutos,
+  minutosDesdeHora,
+  sumarDias,
+  type ClaveDia,
+} from '@/services/fechas';
 
 import { diasEntre, epocaActiva, esDiaLibre, imprescindiblesDelDia, PREFIJO_EPOCA, ventanaEpoca } from './estado';
 
@@ -218,6 +225,15 @@ export function momentoDelDia(epoca: Epoca, dias: number | null) {
   return rindeLejos && dias !== null && dias > DIAS_CERCA ? rindeLejos : rindeMas;
 }
 
+// La hora de comer y lo que se para; los planes de antes no la tienen.
+export const COMIDA_POR_DEFECTO = { hora: '14:00', minutos: 90 };
+
+export function intervaloComida(epoca: Epoca): Intervalo {
+  const { hora, minutos } = epoca.ritmo.comida ?? COMIDA_POR_DEFECTO;
+  const inicio = minutosDesdeHora(hora);
+  return { inicio, fin: inicio + minutos };
+}
+
 export function planificarEpoca({
   epoca,
   eventos,
@@ -261,6 +277,7 @@ export function planificarEpoca({
     const fijos = [
       ...eventosDelDia(eventos, dia).map(intervaloDe),
       ...imprescindiblesDelDia(epoca, dia).map(intervaloDe),
+      intervaloComida(epoca),
     ];
     const ocupados = [...fijos, ...marcados.map((b) => ({ inicio: b.inicio, fin: b.fin }))];
     let desde = ventana;

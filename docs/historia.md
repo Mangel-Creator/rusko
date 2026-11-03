@@ -1407,6 +1407,13 @@ animaciones infinitas.
   ¿cuánto estudias?" (Todo, Un poco menos = 0,75, Bastante menos = 0,6, los mismos valores que el
   cuestionario) y "Y entonces, ¿a qué hora prefieres estudiar?" (`OPCIONES_LEJOS`, ahora en
   `epoca/textos.ts`). Probado en localhost a tamaño móvil.
+- **Parón para comer** (03/11/2026, lo pidió el usuario: "que se pregunte a qué hora suele comer, y que
+  deje 1:30/2horas"). En el paso "Tu ritmo", a la vista: "¿A qué hora sueles comer?" (`SelectorHora`)
+  y "¿Cuánto paras para comer?" (1 h 30 o 2 h, `OPCIONES_COMIDA`). Se guarda en `ritmo.comida`
+  (`{ hora, minutos }`). `planificarEpoca` lo suma a los huecos ocupados de cada día
+  (`intervaloComida`), así que ni los bloques nuevos ni los recolocados caen encima. Sin dato (planes
+  de antes), `COMIDA_POR_DEFECTO`: 14:00 y 90 min. No se guarda en `perfilEstudio`: cada plan lo
+  pregunta con 14:00 de partida. Pruebas en `planEstudio.test.ts` ("parón para comer").
 
 ## Servidor propio: Supabase (desde la fase 5)
 

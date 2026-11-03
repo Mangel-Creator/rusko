@@ -57,6 +57,7 @@ import {
   formatoHoras,
   NOMBRES_DIAS,
   OPCIONES_CARGA_LEJOS,
+  OPCIONES_COMIDA,
   OPCIONES_DESCANSO,
   OPCIONES_LEJOS,
   OPCIONES_MOMENTO_VISUAL,
@@ -304,6 +305,17 @@ function Formulario({ epoca, epocas, registro, perfil, pasoInicial, dorada }: Pr
             />
             <MensajeError texto={errores.rindeMas} />
           </View>
+          <SelectorHora
+            etiqueta="¿A qué hora sueles comer?"
+            valor={b.comidaHora}
+            alCambiar={(comidaHora) => cambiar({ comidaHora })}
+          />
+          <Selector
+            etiqueta="¿Cuánto paras para comer?"
+            opciones={OPCIONES_COMIDA}
+            valor={b.comidaMin >= 120 ? '120' : '90'}
+            alCambiar={(valor) => cambiar({ comidaMin: Number(valor) })}
+          />
 
           <Plegable
             titulo="Más ajustes"

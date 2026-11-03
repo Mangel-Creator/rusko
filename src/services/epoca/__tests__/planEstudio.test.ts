@@ -376,3 +376,24 @@ describe('preguntar antes de mover el estudio (03/11/2026)', () => {
     expect(estudioQuePisa(cita({ horaInicio: '22:00', horaFin: '22:30' }), datos)).toBeNull();
   });
 });
+
+describe('parón para comer', () => {
+  const pisaComida = (e: Epoca, desde: string, hasta: string) =>
+    planificarEpoca({ epoca: e, eventos: [], registro: [], hoy: HOY }).bloques.some(
+      (b) => b.inicio < h(hasta) && b.fin > h(desde),
+    );
+  const mucho = { hitos: [hito({ horasPreparacion: 40 })] };
+
+  it('sin hora de comer apuntada, deja libre de 14:00 a 15:30', () => {
+    const e = epoca(mucho);
+    e.ritmo = { ...e.ritmo, horasDia: 8, rindeMas: 'tarde' };
+    expect(pisaComida(e, '14:00', '15:30')).toBe(false);
+  });
+
+  it('respeta la hora y lo que para cada uno', () => {
+    const e = epoca(mucho);
+    e.ritmo = { ...e.ritmo, horasDia: 8, rindeMas: 'tarde', comida: { hora: '13:00', minutos: 120 } };
+    expect(pisaComida(e, '13:00', '15:00')).toBe(false);
+    expect(pisaComida(e, '15:00', '16:00')).toBe(true);
+  });
+});

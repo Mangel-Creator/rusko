@@ -11,7 +11,7 @@ import { nuevoIdEpoca } from '@/data/epocas';
 import type { LugarEvento } from '@/data/eventos';
 import type { DiaSemana, MomentoDelDia, Perfil } from '@/data/perfil';
 import { fechaDesdeClave, minutosDesdeHora, nombreMes, sumarDias, type ClaveDia } from '@/services/fechas';
-import type { PropuestaEpoca } from '@/services/epoca';
+import { COMIDA_POR_DEFECTO, type PropuestaEpoca } from '@/services/epoca';
 import { buscarCoordenadas } from '@/services/lugares';
 
 import { MENSAJE_NO_ENCONTRADO } from '../formulario-perfil/borrador';
@@ -54,6 +54,8 @@ export type BorradorEpoca = {
   finde: FindeEstudio | null;
   cargaLejos: number | null;
   rindeLejos: MomentoDelDia | null;
+  comidaHora: string;
+  comidaMin: number;
   trayecto: Trayecto;
   imprescindibles: Imprescindible[];
   hitos: Hito[];
@@ -106,6 +108,8 @@ export function borradorDesdeEpoca(
       finde: null,
       cargaLejos: null,
       rindeLejos: null,
+      comidaHora: COMIDA_POR_DEFECTO.hora,
+      comidaMin: COMIDA_POR_DEFECTO.minutos,
       trayecto: '20',
       imprescindibles: [],
       hitos: [],
@@ -144,6 +148,8 @@ export function borradorDesdeEpoca(
     finde: ritmo.finde ?? null,
     cargaLejos: ritmo.cargaLejos ?? null,
     rindeLejos: ritmo.rindeLejos ?? null,
+    comidaHora: (ritmo.comida ?? COMIDA_POR_DEFECTO).hora,
+    comidaMin: (ritmo.comida ?? COMIDA_POR_DEFECTO).minutos,
     trayecto: String(ritmo.trayectoMin) as Trayecto,
     imprescindibles: ritmo.imprescindibles,
     hitos: epoca.hitos,
@@ -309,6 +315,7 @@ function montarEpoca(
       ...(b.finde ? { finde: b.finde } : {}),
       ...(b.cargaLejos !== null ? { cargaLejos: b.cargaLejos } : {}),
       ...(b.rindeLejos ? { rindeLejos: b.rindeLejos } : {}),
+      comida: { hora: b.comidaHora, minutos: b.comidaMin },
     },
     hitos: [...b.hitos].sort((x, y) => x.fecha.localeCompare(y.fecha) || x.hora.localeCompare(y.hora)),
     avisos: b.avisos,

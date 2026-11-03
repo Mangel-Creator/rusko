@@ -63,6 +63,11 @@ export const OPCIONES_CARGA_LEJOS: Opcion<'todo' | '0.75' | '0.6'>[] = [
   { valor: '0.6', etiqueta: 'Bastante menos' },
 ];
 
+export const OPCIONES_COMIDA: Opcion<'90' | '120'>[] = [
+  { valor: '90', etiqueta: '1 h 30' },
+  { valor: '120', etiqueta: '2 h' },
+];
+
 export const OPCIONES_DIFICULTAD_VISUAL: OpcionVisual<Dificultad>[] = [
   { valor: 'facil', etiqueta: 'Fácil', icono: 'flame-outline', veces: 1 },
   { valor: 'media', etiqueta: 'Media', icono: 'flame-outline', veces: 2 },

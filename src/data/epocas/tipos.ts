@@ -44,6 +44,8 @@ export type RitmoEpoca = {
   // En qué momento prefiere estudiar mientras el examen aún queda lejos (más de 10
   // días). Sin él, en el que rinde más.
   rindeLejos?: MomentoDelDia;
+  // Parón para comer, todos los días (03/11/2026): sin él, de 14:00 a 15:30.
+  comida?: { hora: Hora; minutos: number };
 };
 
 // ambos: los dos días; uno: solo el sábado; poco: medio día cada uno; nada: ninguno.
