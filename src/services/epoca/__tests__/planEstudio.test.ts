@@ -4,14 +4,20 @@ import type { BloqueGuardado, Epoca, Hito, RegistroBloque } from '@/data/epocas/
 import type { Evento } from '@/data/eventos/tipos';
 import {
   bloquesParaGuardar,
+  DIAS_CERCA,
+  DIAS_LEJOS,
   esDorada,
+  estudioQuePisa,
+  factorLejos,
   idBloque,
   inicioRecomendado,
+  momentoDelDia,
   nombreModo,
   planDeHoy,
   planificarEpoca,
   sinMarcar,
 } from '@/services/epoca';
+import { horaDesdeMinutos } from '@/services/fechas';
 
 // Plan de estudio sin Época dorada, cuándo empezar, replanificar hoy y lo que se
 // quedó sin marcar (26/10/2026).
@@ -295,5 +301,78 @@ describe('fines de semana y exámenes lejanos (cuestionario, 03/11/2026)', () =>
     const m = minutosPorDia(conRitmo({ cargaLejos: 0.5 }, '2026-11-20', 150));
     expect(m[HOY]).toBe(50);
     expect(m['2026-11-10']).toBe(120);
+  });
+});
+
+describe('lejos del examen se dosifica y cerca aprieta (03/11/2026)', () => {
+  it('la carga sube poco a poco de 4 semanas a 10 días', () => {
+    expect(factorLejos(0.5, DIAS_LEJOS + 10)).toBe(0.5);
+    expect(factorLejos(0.5, DIAS_LEJOS)).toBe(0.5);
+    expect(factorLejos(0.5, (DIAS_LEJOS + DIAS_CERCA) / 2)).toBeCloseTo(0.75);
+    expect(factorLejos(0.5, DIAS_CERCA)).toBe(1);
+    expect(factorLejos(undefined, 60)).toBe(1);
+    expect(factorLejos(0.5, null)).toBe(1);
+  });
+
+  it('lejos estudia a la hora que pidió para entonces, y cerca a la que más le cunde', () => {
+    const e = epoca({ ritmo: { ...epoca().ritmo, rindeMas: 'noche', rindeLejos: 'tarde' } });
+    expect(momentoDelDia(e, 30)).toBe('tarde');
+    expect(momentoDelDia(e, DIAS_CERCA)).toBe('noche');
+    expect(momentoDelDia(epoca(), 30)).toBe('manana');
+  });
+
+  it('los bloques van por la tarde con el examen lejos y por la noche cuando se acerca', () => {
+    const ritmo = { ...epoca().ritmo, rindeMas: 'noche' as const, rindeLejos: 'tarde' as const };
+    const deHoyCon = (fecha: string, horasPreparacion: number) =>
+      planificarEpoca({
+        epoca: epoca({ fin: '2026-11-30', ritmo, hitos: [hito({ fecha, horasPreparacion })] }),
+        eventos: [],
+        registro: [],
+        hoy: HOY,
+      }).bloques.filter((b) => b.dia === HOY);
+    const lejos = deHoyCon('2026-11-20', 60);
+    const cerca = deHoyCon('2026-09-28', 3);
+    expect(lejos.length).toBeGreaterThan(0);
+    expect(lejos.every((b) => b.inicio >= h('14:00') && b.fin <= h('21:00'))).toBe(true);
+    // La noche no da para todo: lo que sobra va a otros huecos.
+    expect(cerca.some((b) => b.inicio >= h('21:00'))).toBe(true);
+    expect(lejos.some((b) => b.inicio >= h('21:00'))).toBe(false);
+  });
+});
+
+describe('preguntar antes de mover el estudio (03/11/2026)', () => {
+  const MANANA = '2026-09-25';
+  const datos = { epocas: [epoca()], eventos: [] as Evento[], registro: [], planesDelDia: {}, hoy: HOY, ahora: h('07:00') };
+  const primero = () => {
+    const b = planificarEpoca({ epoca: epoca(), eventos: [], registro: [], hoy: HOY }).bloques.find((x) => x.dia === MANANA);
+    if (!b) throw new Error('sin bloque');
+    return b;
+  };
+  const cita = (parcial: Partial<Evento> = {}) => {
+    const b = primero();
+    return evento({
+      id: 'cita',
+      fecha: MANANA,
+      horaInicio: horaDesdeMinutos(b.inicio),
+      horaFin: horaDesdeMinutos(b.fin),
+      ...parcial,
+    });
+  };
+
+  it('avisa del bloque que pisa una cita nueva', () => {
+    const pisado = estudioQuePisa(cita(), datos);
+    expect(pisado?.fecha).toBe(MANANA);
+    expect(pisado?.horaInicio).toBe(horaDesdeMinutos(primero().inicio));
+  });
+
+  it('no pregunta por tareas sin hora, citas fuera de la época ni ediciones sin cambio de hora', () => {
+    expect(estudioQuePisa(cita({ flexible: true }), datos)).toBeNull();
+    expect(estudioQuePisa(cita({ fecha: '2026-12-01' }), datos)).toBeNull();
+    expect(estudioQuePisa(cita(), { ...datos, epocas: [] })).toBeNull();
+    expect(estudioQuePisa(cita(), { ...datos, eventos: [cita()] })).toBeNull();
+  });
+
+  it('a una hora libre no pregunta', () => {
+    expect(estudioQuePisa(cita({ horaInicio: '22:00', horaFin: '22:30' }), datos)).toBeNull();
   });
 });

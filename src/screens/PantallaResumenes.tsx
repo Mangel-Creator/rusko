@@ -27,6 +27,7 @@ import { FiltroIA } from './correo/FiltroIA';
 import { TusFiltros } from './correo/TusFiltros';
 import { VetadosCorreo } from './correo/VetadosCorreo';
 import { VincularAyudante, VincularCorreo } from './correo/VincularCorreo';
+import { useEstudioQuePisa } from './epoca/useEpoca';
 
 // Pestaña Correo (fase 11): /resumenes, desde la barra inferior o al tocar un aviso de
 // correo. Sin resúmenes (26/10/2026): de cada correo, de qué va y el día que importa.
@@ -64,6 +65,7 @@ function enlaceDelQR(parametro: string | undefined): string | null {
 export function PantallaResumenes() {
   const { cargado, conexion, cuentas, proveedores, correos, siempre } = useCorreos();
   const { eventos } = useEventos();
+  const estudioQuePisa = useEstudioQuePisa();
   const [bandeja, setBandeja] = useState<Bandeja>('todo');
   const params = useLocalSearchParams<{ correo?: string; cuenta?: string; motivo?: string; ayudante?: string }>();
   const [actualizando, setActualizando] = useState(false);
@@ -126,9 +128,22 @@ export function PantallaResumenes() {
   const caducada = cuentas.some((c) => c.estado === 'caducada');
   const vinculado = conexion !== null || cuentas.length > 0;
   // Lo apuntado que sigue en el calendario sin hacer: ahí sale "¿Eliminar cita?".
-  const pendientes = new Set(eventos.filter((e) => !e.hecha).map((e) => e.id));
+  const pendientes = new Map(eventos.filter((e) => !e.hecha).map((e) => [e.id, e]));
+  // La cita del correo que cae a la hora del estudio (sin contarla a ella): se pregunta
+  // una vez si se mueve el estudio.
+  const estudioPisado = (c: CorreoConNivel) => {
+    const cita = c.eventoId && !c.estudioAceptado ? pendientes.get(c.eventoId) : undefined;
+    return cita ? estudioQuePisa(cita, eventos.filter((e) => e.id !== cita.id)) : null;
+  };
   const fila = (c: CorreoConNivel) => (
-    <FilaCorreo key={c.id} correo={c} hoy={hoy} nuevo={!c.visto} apuntado={!!c.eventoId && pendientes.has(c.eventoId)} />
+    <FilaCorreo
+      key={c.id}
+      correo={c}
+      hoy={hoy}
+      nuevo={!c.visto}
+      apuntado={!!c.eventoId && pendientes.has(c.eventoId)}
+      estudio={estudioPisado(c)}
+    />
   );
   const conCuenta = (n: number) => (n > 0 ? ` · ${n}` : '');
 

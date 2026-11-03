@@ -193,6 +193,12 @@ const PREGUNTAS: Pregunta[] = [
   },
 ];
 
+// Con el examen a más de 10 días (DIAS_CERCA), en qué momento prefiere estudiar.
+const OPCIONES_LEJOS = [
+  { valor: 'igual', etiqueta: 'A la misma' },
+  ...OPCIONES_MOMENTO_VISUAL.map(({ valor, etiqueta }) => ({ valor, etiqueta })),
+];
+
 // Cómo le va según el momento: lejos o cerca del examen, el fin de semana y los imprevistos.
 const PREGUNTAS_MOMENTO: Pregunta[] = [
   {
@@ -261,6 +267,7 @@ export function CuestionarioIA({ hoy, alPreparar, alSaltar }: Props) {
   const [asignaturas, setAsignaturas] = useState(() => [asignaturaNueva(hoy)]);
   const [horasDia, setHorasDia] = useState(4);
   const [rindeMas, setRindeMas] = useState<RespuestasCuestionario['rindeMas']>('manana');
+  const [rindeLejos, setRindeLejos] = useState<RespuestasCuestionario['rindeMas'] | null>(null);
   const [diaLibre, setDiaLibre] = useState<DiaSemana | null>(null);
   const [habitos, setHabitos] = useState(HABITOS_VACIOS);
   const [otros, setOtros] = useState('');
@@ -285,6 +292,7 @@ export function CuestionarioIA({ hoy, alPreparar, alSaltar }: Props) {
         if (p.tiempo) {
           setHorasDia(p.tiempo.horasDia);
           setRindeMas(p.tiempo.rindeMas);
+          setRindeLejos(p.tiempo.rindeLejos ?? null);
           setDiaLibre(p.tiempo.diaLibre);
         }
       })
@@ -315,9 +323,9 @@ export function CuestionarioIA({ hoy, alPreparar, alSaltar }: Props) {
     }
     setMensaje(null);
     // Sus respuestas se quedan para el próximo plan.
-    const nuevo: PerfilEstudio = { ...(estudio ?? PERFIL_ESTUDIO_VACIO), habitos, tiempo: { horasDia, rindeMas, diaLibre } };
+    const nuevo: PerfilEstudio = { ...(estudio ?? PERFIL_ESTUDIO_VACIO), habitos, tiempo: { horasDia, rindeMas, rindeLejos, diaLibre } };
     setEstudio(nuevo);
-    const respuestas = { asignaturas: asignaturas.map((a) => ({ ...a, nombre: a.nombre.trim() })), horasDia, rindeMas, diaLibre, habitos, otros };
+    const respuestas = { asignaturas: asignaturas.map((a) => ({ ...a, nombre: a.nombre.trim() })), horasDia, rindeMas, rindeLejos, diaLibre, habitos, otros };
     // El plan lo hace la app y la IA lo revisa. Si la IA no está, sale el de la app.
     const local = planLocal(respuestas, nuevo);
     setOcupado(true);
@@ -480,6 +488,12 @@ export function CuestionarioIA({ hoy, alPreparar, alSaltar }: Props) {
         opciones={OPCIONES_MOMENTO_VISUAL}
         valor={rindeMas}
         alCambiar={setRindeMas}
+      />
+      <Selector
+        etiqueta="Con el examen aún lejos, ¿a qué hora prefieres estudiar?"
+        opciones={OPCIONES_LEJOS}
+        valor={rindeLejos ?? 'igual'}
+        alCambiar={(valor) => setRindeLejos(valor === 'igual' ? null : (valor as RespuestasCuestionario['rindeMas']))}
       />
       <Selector
         etiqueta="Día libre"

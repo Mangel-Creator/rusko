@@ -127,6 +127,11 @@ Lo anulado y el detalle → historia: "Decisiones del usuario".
   en Supabase. → "Tu cuenta y copia en la nube".
 - **Plan de estudio con o sin Época dorada**, inicio recomendado, replanificar sin perder nada y "lo no
   hecho" con motivo. → "Fase 4b".
+- **El plan se dosifica y pregunta antes de mover el estudio** (03/11, sin IA): con el examen a más de
+  4 semanas estudia la parte que dijo (`cargaLejos`; si rinde mejor bajo presión, 0,75) y sube poco a
+  poco hasta todo a 10 días (`factorLejos`); lejos, a la hora que eligió para entonces
+  (`ritmo.rindeLejos`), y cerca, a la que más le cunde. Si una cita de la captura, del calendario o del
+  correo cae encima de un bloque, pregunta "¿Lo muevo?" (`estudioQuePisa`); el plan lo recoloca solo.
 - **Festivos** del BOE por comunidad (tabla 2026 y 2027: **cada otoño añade la del año siguiente** en
   `services/festivos/boe.ts`); las 2 locales las pone la persona. → "Festivos".
 - **Tipos de evento**: Cliente, Amigos, Yo, Entreno, Estudios y Proyectos.

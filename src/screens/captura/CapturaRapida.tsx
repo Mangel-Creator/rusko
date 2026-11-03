@@ -7,6 +7,7 @@ import { Boton, Tarjeta, Texto, Titulo } from '@/components';
 import { guardarEvento, useEventos, type Evento } from '@/data/eventos';
 import { usePerfil } from '@/data/perfil';
 import { guardarAlarma, type Alarma } from '@/data/alarmas';
+import { bloqueDeFocoQuePisa } from '@/services/agenda';
 import { MAX_FRASE, interpretarFrase, type Interpretacion } from '@/services/captura';
 import { dejarBorrador, type BorradorFicha } from '@/services/captura/borrador';
 import { entenderPregunta, respuestaDelDia } from '@/services/consulta';
@@ -14,6 +15,7 @@ import { claveDia, fechaDesdeClave, formatearDiaCorto, type ClaveDia } from '@/s
 import { callar, hablar } from '@/services/voz';
 import { alturaTactil, colores, espacio, fuentes, radio, tamanos } from '@/theme';
 
+import { useEstudioQuePisa } from '../epoca/useEpoca';
 import { AvisoMicrofono, BotonMicrofono } from './BotonMicrofono';
 import { TarjetaAlarma, alarmaDePropuesta, yaHaPasado } from './TarjetaAlarma';
 import { TarjetaConfirmacion, eventoDePropuesta } from './TarjetaConfirmacion';
@@ -94,6 +96,7 @@ function textoAlarma(alarma: Alarma): string {
 export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano, escucharAlAbrir, enfocar }: Props) {
   const { perfil } = usePerfil();
   const { eventos } = useEventos();
+  const estudioQuePisa = useEstudioQuePisa();
   const [frase, setFrase] = useState('');
   const [pensando, setPensando] = useState(false);
   // Lo que queda por confirmar (citas, tareas y alarmas), la primera en pantalla.
@@ -202,13 +205,22 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
     setHecho(mensajes.join(' ') || null);
   };
 
+  // Lo que pisa un bloque de foco o de estudio no se guarda a ciegas: se queda en la
+  // cola y su tarjeta pregunta, una a una.
   const guardarTodo = async () => {
     setGuardandoTodo(true);
     const mensajes = [...hechos];
+    const pendientes: typeof cola = [];
+    const todos = [...eventos];
     for (const i of cola) {
       if (i.accion === 'apuntar') {
         const evento = eventoDePropuesta(i.propuesta);
+        if (bloqueDeFocoQuePisa(evento, todos) || estudioQuePisa(evento, todos)) {
+          pendientes.push(i);
+          continue;
+        }
         await guardarEvento(evento);
+        todos.push(evento);
         mensajes.push(textoGuardado(evento));
       } else if (i.accion === 'alarma' && !yaHaPasado(i.alarma.fecha, i.alarma.hora)) {
         const nueva = alarmaDePropuesta(i.alarma);
@@ -217,8 +229,9 @@ export function CapturaRapida({ hoy, accesorio, plegada = false, alRellenarAMano
       }
     }
     setGuardandoTodo(false);
-    setCola([]);
+    setCola(pendientes);
     setHechos(mensajes);
+    if (pendientes.length) return;
     setFrase('');
     setHecho(mensajes.join(' ') || null);
   };

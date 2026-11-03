@@ -138,6 +138,7 @@ export function mezclarCorreos(
             fijado: local.fijado === true,
             oculto: local.oculto === true,
             recordatorio: local.recordatorio ?? null,
+            ...(local.estudioAceptado ? { estudioAceptado: true } : {}),
           }
         : { ...remoto, visto: false, eventoId: null, noEsPlazo: false, fijado: false, oculto: false, recordatorio: null },
     );

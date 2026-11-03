@@ -141,6 +141,7 @@ export type PropuestaEpoca = {
   consejos: string[]; // solo con el cuestionario: cómo estudiar cada cosa
   finde: FindeEstudio | null; // solo con el cuestionario
   cargaLejos: number | null; // solo con el cuestionario
+  rindeLejos: MomentoDelDia | null; // solo con el cuestionario
 };
 
 export type ContextoPreparacion = { hoy: ClaveDia; sitiosIds: string[] };
@@ -230,6 +231,7 @@ export function validarPreparacion(datos: unknown, { hoy, sitiosIds }: ContextoP
       .slice(0, MAX_CONSEJOS),
     finde: null,
     cargaLejos: null,
+    rindeLejos: null,
   };
 }
 
@@ -453,6 +455,7 @@ export type RespuestasCuestionario = {
   asignaturas: AsignaturaCuestionario[];
   horasDia: number;
   rindeMas: MomentoDelDia;
+  rindeLejos?: MomentoDelDia | null; // con el examen lejos, si prefiere otro momento
   diaLibre: DiaSemana | null;
   habitos: HabitosCuestionario;
   otros: string;
@@ -511,7 +514,7 @@ export function propuestaDeCuestionario(
       return { nombre: a.nombre, fecha: a.fecha, hora: a.hora, dificultad: a.dificultad, horasPreparacion: horas, temas };
     });
   const notas = [ia.notas, ...recortes].filter(Boolean).join('\n\n') || null;
-  const { concentracion, finde, lejos } = r.habitos;
+  const { concentracion, finde, lejos, cerca } = r.habitos;
   const soloTrabajos = r.asignaturas.every((a) => a.tipoExamen === 'trabajo');
   return {
     ...ia,
@@ -524,7 +527,9 @@ export function propuestaDeCuestionario(
     diaLibre: r.diaLibre ?? 'ninguno',
     descanso: concentracion ? DESCANSO_CONCENTRACION[concentracion] : ia.descanso,
     finde,
-    cargaLejos: lejos ? CARGA_LEJOS[lejos] : null,
+    // Quien rinde más con la presión estudia menos con el examen lejos, aunque no lo diga.
+    cargaLejos: lejos ? CARGA_LEJOS[lejos] : cerca === 'mejor' ? CARGA_LEJOS['a-medias'] : null,
+    rindeLejos: r.rindeLejos ?? null,
     hitos,
     notas,
   };

@@ -1372,6 +1372,22 @@ animaciones infinitas.
     horas más de un 15 %. Si falla, sale el plan local con una nota.
   - Medido: 2036 tokens de entrada y 1677 de salida, unos 0,001 $ por plan y unos 10-20 s de espera.
     Se quita la acción `cuestionario`.
+- **Plan que se dosifica y pregunta antes de mover el estudio** (03/11/2026, lo pidió el usuario:
+  "no estar todos los días estudiando las mismas horas ni a las mismas horas"; "si le digo a la
+  captura rápida que tengo una cosa a la misma hora que algo del plan, que pregunte si lo quiero mover";
+  "gastar lo mínimo"). Todo en el dispositivo, sin llamadas nuevas a la IA:
+  - Carga: `factorLejos(cargaLejos, días)` en `plan.ts`: a `DIAS_LEJOS` (28) o más, la parte que dijo;
+    de 28 a `DIAS_CERCA` (10) sube en línea recta; a 10 o menos, todo. Si contesta que con el examen
+    encima rinde mejor (`cerca: 'mejor'`) y no dijo nada de lejos, `cargaLejos` 0,75.
+  - Hora: pregunta nueva en el cuestionario, "Con el examen aún lejos, ¿a qué hora prefieres
+    estudiar?" (A la misma, Mañana, Tarde, Noche), en `ritmo.rindeLejos` y en el perfil de estudio
+    (`tiempo.rindeLejos`). `momentoDelDia` la usa a más de 10 días; después, `rindeMas`. No va a la IA.
+  - Choques: `estudioQuePisa(evento, …)` calcula el plan sin ese evento y devuelve el bloque pendiente
+    que pisa. Captura rápida (también "Guardar las N", de una en una), Editar evento y Correo preguntan
+    "A esa hora tienes estudio. ¿Lo muevo?". El plan ya se recoloca solo al guardar; la pregunta es
+    para que decida. En Correo la cita ya está creada: "Sí, muévelo" guarda `estudioAceptado` en el
+    correo y "No, quita la cita" la quita.
+  - Pruebas en `planEstudio.test.ts` y `ia.test.ts`; probado en localhost a tamaño móvil.
 
 ## Servidor propio: Supabase (desde la fase 5)
 

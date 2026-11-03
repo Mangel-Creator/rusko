@@ -287,6 +287,11 @@ export function recordarCorreo(id: string, cuando: Date | null): Promise<void> {
   return cambiarCorreo(id, (c) => ({ ...c, recordatorio: cuando ? cuando.toISOString() : null }));
 }
 
+// La cita del correo pisaba el estudio y se acepta moverlo: no se vuelve a preguntar.
+export function aceptarMoverEstudio(id: string): Promise<void> {
+  return cambiarCorreo(id, (c) => ({ ...c, estudioAceptado: true }));
+}
+
 // Deshace "¿Eliminar cita?": la vuelve a apuntar (si su día no ha pasado).
 export async function volverAApuntar(id: string): Promise<void> {
   const { correos } = await leerCorreos();

@@ -38,7 +38,12 @@ export type Recuento = {
   valoracion?: Valoracion;
 };
 
-export type TiempoEstudio = { horasDia: number; rindeMas: MomentoDelDia; diaLibre: DiaSemana | null };
+export type TiempoEstudio = {
+  horasDia: number;
+  rindeMas: MomentoDelDia;
+  rindeLejos?: MomentoDelDia | null; // con el examen lejos (los guardados antes del 03/11 no lo traen)
+  diaLibre: DiaSemana | null;
+};
 
 export type PerfilEstudio = {
   habitos: HabitosCuestionario;

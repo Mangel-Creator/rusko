@@ -263,6 +263,15 @@ describe('IA: cuestionario (COIE de la UNED)', () => {
     const p = propuestaDeCuestionario({ ...respuestas, habitos }, ia);
     expect(p).toMatchObject({ descanso: '90-15', finde: 'uno', cargaLejos: 0.75 });
   });
+
+  it('si rinde más bajo presión, lejos del examen va a medio gas y a la hora que elija', () => {
+    const ia = validarPreparacion(respuestaIA, ctx);
+    if (!ia) throw new Error('sin propuesta');
+    const habitos = { ...HABITOS_VACIOS, cerca: 'mejor' as const };
+    const p = propuestaDeCuestionario({ ...respuestas, habitos, rindeLejos: 'tarde' }, ia);
+    expect(p).toMatchObject({ cargaLejos: 0.75, rindeLejos: 'tarde' });
+    expect(propuestaDeCuestionario(respuestas, ia)).toMatchObject({ cargaLejos: null, rindeLejos: null });
+  });
 });
 
 describe('IA: temario por temas', () => {

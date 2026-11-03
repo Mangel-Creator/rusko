@@ -206,6 +206,7 @@ export function planLocal(r: RespuestasCuestionario, estudio: PerfilEstudio): Pr
     consejos: consejosLocales(r, estudio),
     finde: null,
     cargaLejos: null,
+    rindeLejos: null,
   };
   return propuestaDeCuestionario(r, base, estimadas);
 }

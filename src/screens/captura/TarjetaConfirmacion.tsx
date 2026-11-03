@@ -23,6 +23,7 @@ import { fechaDesdeClave, formatearDiaCorto, horaDesdeMinutos, minutosDesdeHora 
 import { colores, espacio, radio } from '@/theme';
 
 import { AvisarA } from '../calendario/AvisarA';
+import { useEstudioQuePisa } from '../epoca/useEpoca';
 import { OPCIONES_AVISO, OPCIONES_DURACION, OPCIONES_TIPO, rangoHoras } from '../calendario/textos';
 
 // Tarjeta "¿Lo guardo así?" con lo que ha entendido la app (o la IA). Si solo se dijo
@@ -100,6 +101,7 @@ function lugarDesdeClave(clave: string): LugarEvento | null {
 
 export function TarjetaConfirmacion({ propuesta, perfil, alGuardar, alCancelar, alMasOpciones }: Props) {
   const { eventos } = useEventos();
+  const estudioQuePisa = useEstudioQuePisa();
   const [titulo, setTitulo] = useState(propuesta.titulo);
   const [tipo, setTipo] = useState(propuesta.tipo);
   const [fecha, setFecha] = useState(propuesta.fecha);
@@ -117,7 +119,7 @@ export function TarjetaConfirmacion({ propuesta, perfil, alGuardar, alCancelar, 
       : (OPCIONES_AVISO.find((o) => o.valor === String(propuesta.avisoMin))?.valor ?? null),
   );
   const [error, setError] = useState<string | null>(null);
-  const [focoPisado, setFocoPisado] = useState<{ bloque: Evento; nuevo: Evento } | null>(null);
+  const [focoPisado, setFocoPisado] = useState<{ bloque: Evento; nuevo: Evento; estudio: boolean } | null>(null);
   const [guardando, setGuardando] = useState(false);
 
   const repeticion = textoRepeticion({ ...propuesta, flexible });
@@ -173,9 +175,11 @@ export function TarjetaConfirmacion({ propuesta, perfil, alGuardar, alCancelar, 
       dias: propuesta.dias,
       hasta: propuesta.hasta,
     });
-    const bloque = bloqueDeFocoQuePisa(nuevo, eventos);
+    const foco = bloqueDeFocoQuePisa(nuevo, eventos);
+    const estudio = foco ? null : estudioQuePisa(nuevo, eventos);
+    const bloque = foco ?? estudio;
     if (bloque) {
-      setFocoPisado({ bloque, nuevo });
+      setFocoPisado({ bloque, nuevo, estudio: !foco });
       return;
     }
     await guardarDeVerdad(nuevo);
@@ -267,12 +271,23 @@ export function TarjetaConfirmacion({ propuesta, perfil, alGuardar, alCancelar, 
 
       {focoPisado ? (
         <View style={estilos.aviso} accessibilityLiveRegion="assertive">
-          <Titulo nivel={3}>Esto pisa tu bloque de foco. ¿Seguro?</Titulo>
+          <Titulo nivel={3}>
+            {focoPisado.estudio ? 'A esa hora tienes estudio. ¿Lo muevo?' : 'Esto pisa tu bloque de foco. ¿Seguro?'}
+          </Titulo>
           <Texto secundario>
             «{focoPisado.bloque.titulo}», {rangoHoras(focoPisado.bloque)}.
+            {focoPisado.estudio ? ' Si lo muevo, va a otro hueco libre y no pierdes horas.' : ''}
           </Texto>
-          <Boton titulo="Sí, guardar igualmente" disabled={guardando} onPress={() => guardarDeVerdad(focoPisado.nuevo)} />
-          <Boton variante="secundario" titulo="Cambiar la hora" onPress={() => setFocoPisado(null)} />
+          <Boton
+            titulo={focoPisado.estudio ? 'Sí, muévelo' : 'Sí, guardar igualmente'}
+            disabled={guardando}
+            onPress={() => guardarDeVerdad(focoPisado.nuevo)}
+          />
+          <Boton
+            variante="secundario"
+            titulo={focoPisado.estudio ? 'No, cambio la hora' : 'Cambiar la hora'}
+            onPress={() => setFocoPisado(null)}
+          />
         </View>
       ) : (
         <View style={estilos.botones}>

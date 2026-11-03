@@ -19,7 +19,7 @@ import {
 } from '@/services/agenda';
 import { diaSemanaDesdeLunes, fechaDesdeClave, horaDesdeMinutos, sumarDias, type ClaveDia } from '@/services/fechas';
 
-import { diasEntre, esDiaLibre, imprescindiblesDelDia, PREFIJO_EPOCA, ventanaEpoca } from './estado';
+import { diasEntre, epocaActiva, esDiaLibre, imprescindiblesDelDia, PREFIJO_EPOCA, ventanaEpoca } from './estado';
 
 // Plan automático de la época: reparte las horas de preparación de cada hito
 // en bloques de estudio (de 25, 50 o 90 min con su descanso) en los días
@@ -27,11 +27,13 @@ import { diasEntre, esDiaLibre, imprescindiblesDelDia, PREFIJO_EPOCA, ventanaEpo
 //
 // Reglas:
 // - Cada día se estudian las horas de la época (la mitad si ese día va "Tranqui").
-//   Los fines de semana, lo que dijo en el cuestionario (FINDE). Con el examen a más
-//   de DIAS_LEJOS días, la parte que dijo que estudia cuando aún queda (cargaLejos).
+//   Los fines de semana, lo que dijo en el cuestionario (FINDE). Con el examen lejos,
+//   la parte que dijo que estudia cuando aún queda (cargaLejos), subiendo poco a poco
+//   hasta las horas enteras a DIAS_CERCA días (factorLejos).
 // - Solo en los huecos del horario de la época: nunca se mueve un evento con hora
 //   fija ni lo que no quiere dejar de hacer. El día libre no hay plan.
-// - Primero los huecos del momento en que rinde más.
+// - Primero los huecos del momento en que rinde más; con el examen lejos, del que
+//   eligió para entonces (momentoDelDia).
 // - Cada bloque va al hito que más lo necesita: cercano, difícil y con muchas
 //   horas por hacer (ver puntuacion).
 // - La víspera de un hito, como mucho VISPERA_MAX_MIN de ese hito: un repaso
@@ -158,18 +160,62 @@ export function planDeHoy({
 
 const solapa = (a: Intervalo, b: Intervalo) => a.inicio < b.fin && b.inicio < a.fin;
 
+// El bloque de estudio que pisa un evento que se va a guardar (captura, calendario o
+// correo), como evento para enseñarlo, o null. Así se pregunta antes si se mueve el
+// estudio. Es el plan tal como está sin ese evento: lo mismo que se ve en Semana.
+export function estudioQuePisa(
+  evento: Evento,
+  datos: Omit<Parameters<typeof planDeHoy>[0], 'epoca'> & { epocas: Epoca[] },
+): Evento | null {
+  const { epocas, eventos, hoy, ...resto } = datos;
+  if (evento.flexible || !evento.horaInicio || !evento.horaFin || evento.fecha < hoy) return null;
+  if (evento.id.startsWith(PREFIJO_EPOCA)) return null;
+  // Al editar sin cambiar el día ni la hora no se vuelve a preguntar.
+  const antes = eventos.find((e) => e.id === evento.id);
+  if (antes && antes.fecha === evento.fecha && antes.horaInicio === evento.horaInicio && antes.horaFin === evento.horaFin)
+    return null;
+  // shortcut: con repetición solo se mira el primer día; si hace falta, mirar los de la época.
+  const epoca = epocaActiva(epocas, evento.fecha);
+  if (!epoca) return null;
+  const plan = planDeHoy({ ...resto, epoca, hoy, eventos: eventos.filter((e) => e.id !== evento.id) });
+  const tramo = intervaloDe(evento);
+  const bloque = plan.bloques.find((b) => b.dia === evento.fecha && b.estado === 'pendiente' && solapa(tramo, b));
+  return bloque ? eventoDeBloque(epoca, bloque) : null;
+}
+
 // Sábado y domingo, según cuánto estudia el fin de semana.
 const FINDE: Record<FindeEstudio, [number, number]> = { ambos: [1, 1], uno: [1, 0], poco: [0.5, 0.5], nada: [0, 0] };
 export const DIAS_LEJOS = 28;
+// A DIAS_CERCA días o menos del examen ya se estudia a tope y en su mejor momento.
+export const DIAS_CERCA = 10;
 
-function minutosDelDia(epoca: Epoca, dia: ClaveDia, hitos: Hito[]): number {
+// Días que faltan para el siguiente hito (null si no queda ninguno).
+function diasAlProximo(hitos: Hito[], dia: ClaveDia): number | null {
+  const proximo = hitos.filter((h) => h.fecha > dia).reduce((p, h) => (p && p < h.fecha ? p : h.fecha), '');
+  return proximo ? diasEntre(dia, proximo) : null;
+}
+
+// Con el examen lejos se dosifica: cargaLejos a DIAS_LEJOS días o más, y sube poco
+// a poco hasta las horas enteras a DIAS_CERCA días. Así no se estudia igual cada día.
+export function factorLejos(cargaLejos: number | undefined, dias: number | null): number {
+  if (!cargaLejos || dias === null || dias <= DIAS_CERCA) return 1;
+  const avance = Math.max(0, DIAS_LEJOS - dias) / (DIAS_LEJOS - DIAS_CERCA);
+  return cargaLejos + (1 - cargaLejos) * avance;
+}
+
+function minutosDelDia(epoca: Epoca, dia: ClaveDia, dias: number | null): number {
   const { horasDia, finde, cargaLejos } = epoca.ritmo;
-  let factor = 1;
+  let factor = factorLejos(cargaLejos, dias);
   const semana = diaSemanaDesdeLunes(fechaDesdeClave(dia));
   if (finde && semana >= 5) factor *= FINDE[finde][semana - 5];
-  const proximo = hitos.filter((h) => h.fecha > dia).reduce((p, h) => (p && p < h.fecha ? p : h.fecha), '');
-  if (cargaLejos && proximo && diasEntre(dia, proximo) > DIAS_LEJOS) factor *= cargaLejos;
   return Math.round(horasDia * 60 * factor);
+}
+
+// El momento del día en que se ponen primero los bloques: con el examen lejos, el que
+// eligió para entonces (rindeLejos); cerca, en el que rinde más.
+export function momentoDelDia(epoca: Epoca, dias: number | null) {
+  const { rindeMas, rindeLejos } = epoca.ritmo;
+  return rindeLejos && dias !== null && dias > DIAS_CERCA ? rindeLejos : rindeMas;
 }
 
 export function planificarEpoca({
@@ -208,7 +254,8 @@ export function planificarEpoca({
     if (esDiaLibre(epoca, dia)) continue;
 
     const marcados = bloques.filter((b) => b.dia === dia);
-    let cuota = minutosDelDia(epoca, dia, hitos) / (energias[dia] === 'tranqui' ? 2 : 1);
+    const dias = diasAlProximo(hitos, dia);
+    let cuota = minutosDelDia(epoca, dia, dias) / (energias[dia] === 'tranqui' ? 2 : 1);
     cuota -= marcados.reduce((total, b) => total + (b.fin - b.inicio), 0);
 
     const fijos = [
@@ -235,7 +282,7 @@ export function planificarEpoca({
       }
       desde = { inicio: Math.max(ventana.inicio, Math.ceil(ahora / 5) * 5), fin: ventana.fin };
     }
-    const huecos = porMomento(calcularHuecos(ocupados, desde, BLOQUE_MINIMO), MOMENTOS[epoca.ritmo.rindeMas]);
+    const huecos = porMomento(calcularHuecos(ocupados, desde, BLOQUE_MINIMO), MOMENTOS[momentoDelDia(epoca, dias)]);
     // Minutos que le caben hoy a cada hito: sin tope, salvo la víspera.
     const delDia = (h: Hito) =>
       diasEntre(dia, h.fecha) !== 1

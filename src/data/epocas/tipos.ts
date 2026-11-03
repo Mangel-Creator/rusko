@@ -41,6 +41,9 @@ export type RitmoEpoca = {
   // Cuánto de la cuota se estudia cuando el próximo examen queda a más de 4 semanas
   // (0.5-1). Sin él, todo.
   cargaLejos?: number;
+  // En qué momento prefiere estudiar mientras el examen aún queda lejos (más de 10
+  // días). Sin él, en el que rinde más.
+  rindeLejos?: MomentoDelDia;
 };
 
 // ambos: los dos días; uno: solo el sábado; poco: medio día cada uno; nada: ninguno.

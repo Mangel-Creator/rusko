@@ -3,8 +3,8 @@ import { useEffect } from 'react';
 import { guardarPlanDelDia, useEpocas, type Epoca, type PlanesDelDia, type RegistroBloque } from '@/data/epocas';
 import type { Evento } from '@/data/eventos';
 import type { Energia } from '@/services/agenda';
-import { bloquesParaGuardar, epocaActiva, planDeHoy, type PlanEpoca } from '@/services/epoca';
-import { minutosDelDia, type ClaveDia } from '@/services/fechas';
+import { bloquesParaGuardar, epocaActiva, estudioQuePisa, planDeHoy, type PlanEpoca } from '@/services/epoca';
+import { claveDia, minutosDelDia, type ClaveDia } from '@/services/fechas';
 
 // La época activa hoy y su plan, para Hoy y la sección de la época.
 // El plan se calcula al vuelo (es rápido): así siempre está al día con los
@@ -42,4 +42,21 @@ export function useEpocaActiva(
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [epoca?.id, hoy, clave]);
   return { cargado, epocas, registro, planesDelDia, epoca, plan };
+}
+
+// Para preguntar antes de guardar algo encima de un bloque de estudio (captura,
+// calendario y correo): devuelve el bloque que pisaría, o null.
+export function useEstudioQuePisa(): (evento: Evento, eventos: Evento[]) => Evento | null {
+  const { epocas, registro, planesDelDia } = useEpocas();
+  return (evento, eventos) => {
+    const ahora = new Date();
+    return estudioQuePisa(evento, {
+      epocas,
+      eventos,
+      registro,
+      planesDelDia,
+      hoy: claveDia(ahora),
+      ahora: minutosDelDia(ahora),
+    });
+  };
 }

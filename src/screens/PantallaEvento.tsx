@@ -59,6 +59,7 @@ import {
 } from './calendario/textos';
 import { AvisarA } from './calendario/AvisarA';
 import { OrigenEvento } from './calendario/OrigenEvento';
+import { useEstudioQuePisa } from './epoca/useEpoca';
 import { SelectorCuadrante } from './tareas/SelectorCuadrante';
 import { MENSAJE_NO_ENCONTRADO } from './formulario-perfil/borrador';
 import { MensajeError } from './formulario-perfil/MensajeError';
@@ -223,11 +224,12 @@ type Props = {
 };
 
 function Formulario({ evento, rellenar, fechaInicial, perfil, eventos }: Props) {
+  const estudioQuePisa = useEstudioQuePisa();
   const [b, setBorrador] = useState<Borrador>(() => borradorInicial(evento, fechaInicial, perfil, rellenar));
   const antelacionPerfil = antelacionDelPerfil(perfil);
   const [errores, setErrores] = useState<Errores>({});
   const [ocupado, setOcupado] = useState(false);
-  const [focoPisado, setFocoPisado] = useState<{ bloque: Evento; nuevo: Evento } | null>(null);
+  const [focoPisado, setFocoPisado] = useState<{ bloque: Evento; nuevo: Evento; estudio: boolean } | null>(null);
   const [confirmarBorrado, setConfirmarBorrado] = useState(false);
   const scroll = useRef<ScrollViewInstance>(null);
 
@@ -358,9 +360,10 @@ function Formulario({ evento, rellenar, fechaInicial, perfil, eventos }: Props) 
       avisarA: b.flexible ? b.avisarA : null,
     };
 
-    const bloque = bloqueDeFocoQuePisa(nuevo, eventos);
+    const foco = bloqueDeFocoQuePisa(nuevo, eventos);
+    const bloque = foco ?? estudioQuePisa(nuevo, eventos);
     if (bloque) {
-      setFocoPisado({ bloque, nuevo });
+      setFocoPisado({ bloque, nuevo, estudio: !foco });
       setTimeout(() => scroll.current?.scrollToEnd({ animated: true }), 50);
       return;
     }
@@ -553,12 +556,25 @@ function Formulario({ evento, rellenar, fechaInicial, perfil, eventos }: Props) 
 
       {focoPisado ? (
         <Tarjeta style={estilos.aviso} accessibilityLiveRegion="assertive">
-          <Titulo nivel={3}>Ojo, esto pisa tu bloque de foco. ¿Lo guardo igual?</Titulo>
+          <Titulo nivel={3}>
+            {focoPisado.estudio
+              ? 'A esa hora tienes estudio. ¿Lo muevo?'
+              : 'Ojo, esto pisa tu bloque de foco. ¿Lo guardo igual?'}
+          </Titulo>
           <Texto secundario>
             «{focoPisado.bloque.titulo}», {rangoHoras(focoPisado.bloque)}.
+            {focoPisado.estudio ? ' Si lo muevo, va a otro hueco libre y no pierdes horas.' : ''}
           </Texto>
-          <Boton titulo="Sí, guárdalo" disabled={ocupado} onPress={() => guardarDeVerdad(focoPisado.nuevo)} />
-          <Boton variante="secundario" titulo="Cambiar la hora" onPress={() => setFocoPisado(null)} />
+          <Boton
+            titulo={focoPisado.estudio ? 'Sí, muévelo' : 'Sí, guárdalo'}
+            disabled={ocupado}
+            onPress={() => guardarDeVerdad(focoPisado.nuevo)}
+          />
+          <Boton
+            variante="secundario"
+            titulo={focoPisado.estudio ? 'No, cambio la hora' : 'Cambiar la hora'}
+            onPress={() => setFocoPisado(null)}
+          />
         </Tarjeta>
       ) : (
         <Boton

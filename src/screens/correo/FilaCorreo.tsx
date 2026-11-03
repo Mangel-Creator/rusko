@@ -4,7 +4,9 @@ import { Linking, Pressable, StyleSheet, View } from 'react-native';
 
 import { Boton, Texto } from '@/components';
 import { useCorreos } from '@/data/correos';
+import type { Evento } from '@/data/eventos';
 import {
+  aceptarMoverEstudio,
   alternarSiempre,
   asuntoCorto,
   avisaSiempre,
@@ -25,6 +27,7 @@ import {
 import { claveDia, formatearHora } from '@/services/fechas';
 import { alturaTactil, coloresNivel, espacio, radio } from '@/theme';
 
+import { rangoHoras } from '../calendario/textos';
 import { RecuadroCorreo } from './RecuadroCorreo';
 
 // Un correo en la pestaña Correo (fase 11), como recuadro del color de su nivel
@@ -40,9 +43,10 @@ type Props = {
   hoy: string;
   nuevo: boolean;
   apuntado: boolean; // su tarea o cita sigue en el calendario, sin hacer
+  estudio: Evento | null; // el bloque de estudio que pisa su cita, si aún no se aceptó moverlo
 };
 
-export function FilaCorreo({ correo, hoy, nuevo, apuntado }: Props) {
+export function FilaCorreo({ correo, hoy, nuevo, apuntado, estudio }: Props) {
   const { siempre } = useCorreos();
   const [vetando, setVetando] = useState(false);
   const plazo = esPlazo(correo) ? correo.fechaLimite : null;
@@ -79,7 +83,34 @@ export function FilaCorreo({ correo, hoy, nuevo, apuntado }: Props) {
       alEliminar={() => quitarCorreo(correo.id).catch(() => {})}
       alFijar={() => fijarCorreo(correo.id).catch(() => {})}
       aviso={
-        plazo && apuntado ? (
+        plazo && apuntado && estudio ? (
+          <View style={estilos.estudio}>
+            <Texto pequeno style={{ color: c.texto }}>
+              Esta cita cae a la hora de tu estudio: «{estudio.titulo}», {rangoHoras(estudio)}. ¿Muevo el estudio a otro
+              hueco?
+            </Texto>
+            <View style={estilos.eliminar}>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`Sí, mueve el estudio de ${estudio.titulo} a otro hueco`}
+                onPress={() => aceptarMoverEstudio(correo.id).catch(() => {})}
+                style={({ pressed }) => [estilos.pildora, { borderColor: c.texto }, pressed && estilos.pulsado]}>
+                <Texto pequeno fuerte style={{ color: c.texto }}>
+                  Sí, muévelo
+                </Texto>
+              </Pressable>
+              <Pressable
+                accessibilityRole="button"
+                accessibilityLabel={`No, quita la cita de ${correo.tarea ?? correo.titulo}. No se volverá a crear.`}
+                onPress={() => quitarPlazo(correo.id).catch(() => {})}
+                style={({ pressed }) => [estilos.pildora, { borderColor: c.texto }, pressed && estilos.pulsado]}>
+                <Texto pequeno fuerte style={{ color: c.texto }}>
+                  No, quita la cita
+                </Texto>
+              </Pressable>
+            </View>
+          </View>
+        ) : plazo && apuntado ? (
           <View style={estilos.eliminar}>
             <Texto pequeno style={[estilos.pregunta, { color: c.secundario }]}>
               ¿Eliminar {cosa}?
@@ -143,6 +174,7 @@ export function FilaCorreo({ correo, hoy, nuevo, apuntado }: Props) {
 const estilos = StyleSheet.create({
   pulsado: { opacity: 0.8 },
   eliminar: { flexDirection: 'row', alignItems: 'center', gap: espacio.s },
+  estudio: { gap: espacio.s },
   pregunta: { flex: 1 },
   pildora: {
     minHeight: alturaTactil,

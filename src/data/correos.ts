@@ -63,6 +63,7 @@ export type CorreoResumido = CorreoRemoto & {
   fijado: boolean; // arriba del todo en la pestaña
   oculto: boolean; // quitado de Rusko (en el correo sigue igual); no vuelve aunque llegue otra vez
   recordatorio: string | null; // ISO: cuándo avisar de este correo
+  estudioAceptado?: boolean; // su cita pisaba el estudio y se aceptó moverlo
 };
 
 // Importancia de un correo en la pestaña (nivelCorreo, en services/correo):
