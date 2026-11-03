@@ -68,3 +68,18 @@ export function temaActual(hito: Hito, hechoMin: number): TemaActual | null {
 export function horasDeTemas(temas: TemaHito[]): number {
   return temas.reduce((t, tema) => t + tema.horas, 0);
 }
+
+// "Son pocas horas" / "Son demasiadas" (03/11/2026): sube un 30 % o baja un 25 % las
+// horas del hito y las de cada tema, a medias horas. El plan se recoloca solo.
+export type AjusteHoras = 'pocas' | 'muchas';
+const FACTOR_AJUSTE: Record<AjusteHoras, number> = { pocas: 1.3, muchas: 0.75 };
+
+export function ajustarHorasHito(hito: Hito, ajuste: AjusteHoras): Hito {
+  const escalar = (horas: number, minimo: number) =>
+    Math.min(200, Math.max(minimo, Math.round(horas * FACTOR_AJUSTE[ajuste] * 2) / 2));
+  return {
+    ...hito,
+    horasPreparacion: escalar(hito.horasPreparacion, 1),
+    ...(hito.temas ? { temas: hito.temas.map((t) => ({ ...t, horas: escalar(t.horas, 0.5) })) } : {}),
+  };
+}

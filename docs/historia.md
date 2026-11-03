@@ -1388,6 +1388,18 @@ animaciones infinitas.
     para que decida. En Correo la cita ya está creada: "Sí, muévelo" guarda `estudioAceptado` en el
     correo y "No, quita la cita" la quita.
   - Pruebas en `planEstudio.test.ts` y `ia.test.ts`; probado en localhost a tamaño móvil.
+- **Horas que no cuadran, en un toque** (03/11/2026, lo pidió el usuario: "que permita ponerle que es
+  imposible que con esas horas de estudio se llegue, o que son demasiadas, la finalidad es quitarle
+  carga mental"). Sin IA:
+  - En Época > Hitos, debajo de la barra de cada examen que no ha pasado: "¿No cuadran las horas?" con
+    "Son pocas" y "Demasiadas". `ajustarHorasHito` (`temas.ts`) sube un 30 % o baja un 25 % las horas
+    del hito y las de cada tema, a medias horas (mínimo 1 h el hito y 0,5 h el tema, máximo 200 h).
+  - Se guarda la época y el plan se recoloca solo desde mañana (el de hoy está guardado y no cambia).
+    Sale "Subo Estadística a 15,5 h. Los próximos días ya lo tienen en cuenta."; si con eso no cabe,
+    aparece el aviso "No caben…" de siempre.
+  - Lo aprende: `conAjusteRitmo` mueve un 5 % el ritmo del perfil de estudio (es un examen, no todo su
+    ritmo), así el siguiente plan sale más cerca. En el plan de ejemplo no aprende nada.
+  - Pruebas en `perfilEstudio.test.ts`; probado en localhost a tamaño móvil.
 
 ## Servidor propio: Supabase (desde la fase 5)
 

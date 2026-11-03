@@ -132,6 +132,9 @@ Lo anulado y el detalle → historia: "Decisiones del usuario".
   poco hasta todo a 10 días (`factorLejos`); lejos, a la hora que eligió para entonces
   (`ritmo.rindeLejos`), y cerca, a la que más le cunde. Si una cita de la captura, del calendario o del
   correo cae encima de un bloque, pregunta "¿Lo muevo?" (`estudioQuePisa`); el plan lo recoloca solo.
+- **Horas que no cuadran, en un toque** (03/11, sin IA): en Época > Hitos, "¿No cuadran las horas?" con
+  "Son pocas" (+30 %) y "Demasiadas" (−25 %) por examen y sus temas (`ajustarHorasHito`); el plan se
+  recoloca solo y el ritmo del perfil aprende un 5 % (`conAjusteRitmo`, no en el plan de ejemplo).
 - **Festivos** del BOE por comunidad (tabla 2026 y 2027: **cada otoño añade la del año siguiente** en
   `services/festivos/boe.ts`); las 2 locales las pone la persona. → "Festivos".
 - **Tipos de evento**: Cliente, Amigos, Yo, Entreno, Estudios y Proyectos.

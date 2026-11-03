@@ -212,6 +212,13 @@ export function conValoracion(perfil: PerfilEstudio, epocaId: string, fin: Clave
   };
 }
 
+// Al decir que un hito tiene pocas o demasiadas horas, el siguiente plan se calcula
+// un poco más largo o más corto (un 5 %: es un examen, no todo su ritmo).
+export function conAjusteRitmo(perfil: PerfilEstudio, ajuste: 'pocas' | 'muchas'): PerfilEstudio {
+  const ritmo = Math.round(perfil.ritmo * (ajuste === 'pocas' ? 1.05 : 0.95) * 100) / 100;
+  return { ...perfil, ritmo: Math.min(RITMO_MAX, Math.max(RITMO_MIN, ritmo)) };
+}
+
 const MIN_MUESTRA = 6;
 const porcentaje = (p: Par) => Math.round((p.hechos / (p.hechos + p.saltados)) * 100);
 const suma = (pares: Par[]): Par =>

@@ -11,14 +11,18 @@ import {
   terminarEpoca,
   type AvisosEpoca,
   type Epoca,
+  type Hito,
   type PlanesDelDia,
   type RegistroBloque,
 } from '@/data/epocas';
 import { useEventos, type Evento } from '@/data/eventos';
 import { usePerfil, type Perfil } from '@/data/perfil';
+import { guardarPerfilEstudio, leerPerfilEstudio } from '@/data/perfilEstudio';
 import { resolverLugar, type Energia } from '@/services/agenda';
 import { avisosDisponibles } from '@/services/avisos';
 import {
+  ajustarHorasHito,
+  conAjusteRitmo,
   cuentaAtras,
   esDiaLibre,
   esDorada,
@@ -32,6 +36,7 @@ import {
   temaActual,
   textoHoras,
   textoQuedan,
+  type AjusteHoras,
   type PlanEpoca,
 } from '@/services/epoca';
 import { claveDia, DIAS_SEMANA_LETRA, fechaDesdeClave, formatearDiaCorto, minutosDelDia, sumarDias } from '@/services/fechas';
@@ -162,12 +167,28 @@ type PropsDetalle = {
 function DetalleEpoca({ epoca, plan, registro, planesDelDia, eventos, perfil, ahora, energia }: PropsDetalle) {
   const hoy = claveDia(ahora);
   const [confirmar, setConfirmar] = useState<'terminar' | 'borrar' | null>(null);
+  const [ajustado, setAjustado] = useState<{ id: string; texto: string } | null>(null);
   const estado = estadoEpoca(epoca, hoy);
   const siguiente = estado !== 'pasada' ? cuentaAtras(epoca, new Date()) : null;
   const hitos = progresoHitos(epoca, registro, plan);
   const { ritmo } = epoca;
   const lugar = resolverLugar(ritmo.lugar, perfil);
   const nombreHito = (id: string) => epoca.hitos.find((h) => h.id === id)?.nombre ?? 'Estudio';
+
+  // Un toque si las horas de un examen no cuadran: se recoloca solo y lo aprende.
+  const ajustarHoras = (hito: Hito, ajuste: AjusteHoras) => {
+    const nuevo = ajustarHorasHito(hito, ajuste);
+    if (nuevo.horasPreparacion === hito.horasPreparacion) {
+      setAjustado({ id: hito.id, texto: 'Ya está al mínimo: 1 h.' });
+      return;
+    }
+    void guardarEpoca({ ...epoca, hitos: epoca.hitos.map((h) => (h.id === hito.id ? nuevo : h)) });
+    if (!epoca.ejemplo) void leerPerfilEstudio().then((p) => guardarPerfilEstudio(conAjusteRitmo(p, ajuste)));
+    setAjustado({
+      id: hito.id,
+      texto: `${ajuste === 'pocas' ? 'Subo' : 'Bajo'} ${hito.nombre} a ${formatoHoras(nuevo.horasPreparacion)}. Los próximos días ya lo tienen en cuenta.`,
+    });
+  };
 
   const cuando =
     estado === 'activa'
@@ -303,6 +324,28 @@ function DetalleEpoca({ epoca, plan, registro, planesDelDia, eventos, perfil, ah
                 calendario.
               </Texto>
             ) : null}
+            {estado !== 'pasada' && p.hito.fecha >= hoy ? (
+              <>
+                <Texto pequeno secundario>¿No cuadran las horas?</Texto>
+                <View style={estilos.ajustar}>
+                  <Boton
+                    variante="secundario"
+                    titulo="Son pocas"
+                    accessibilityLabel={`Son pocas horas para ${p.hito.nombre}: súbelas`}
+                    style={estilos.botonAjustar}
+                    onPress={() => ajustarHoras(p.hito, 'pocas')}
+                  />
+                  <Boton
+                    variante="secundario"
+                    titulo="Demasiadas"
+                    accessibilityLabel={`Son demasiadas horas para ${p.hito.nombre}: bájalas`}
+                    style={estilos.botonAjustar}
+                    onPress={() => ajustarHoras(p.hito, 'muchas')}
+                  />
+                </View>
+              </>
+            ) : null}
+            {ajustado?.id === p.hito.id ? <Texto pequeno secundario>{ajustado.texto}</Texto> : null}
           </View>
         ))}
       </Tarjeta>
@@ -493,6 +536,8 @@ const estilos = StyleSheet.create({
   cuenta: { flexDirection: 'row', alignItems: 'center', gap: espacio.s, marginTop: espacio.s },
   progreso: { gap: espacio.m },
   hito: { gap: espacio.xs },
+  ajustar: { flexDirection: 'row', gap: espacio.s },
+  botonAjustar: { flex: 1, paddingHorizontal: espacio.s },
   aviso: { color: colores.aviso },
   dia: {
     flexDirection: 'row',

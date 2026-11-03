@@ -1,8 +1,10 @@
 import { describe, expect, it } from '@jest/globals';
 
-import type { Epoca, RegistroBloque } from '@/data/epocas/tipos';
+import type { Epoca, Hito, RegistroBloque } from '@/data/epocas/tipos';
 import {
+  ajustarHorasHito,
   claveExamen,
+  conAjusteRitmo,
   conExamen,
   conRecuentos,
   conValoracion,
@@ -141,5 +143,43 @@ describe('apuntes medidos por la IA', () => {
     ]);
     expect(temasMedidos({ temas: [] })).toBeNull();
     expect(temasMedidos('nada')).toBeNull();
+  });
+});
+
+describe('Son pocas horas / Son demasiadas', () => {
+  const hito: Hito = {
+    id: 'h1',
+    nombre: 'Estadística',
+    fecha: '2026-12-01',
+    hora: '09:00',
+    lugar: null,
+    dificultad: 'media',
+    horasPreparacion: 12,
+    temas: [
+      { id: 't1', nombre: 'Tema 1', horas: 4 },
+      { id: 't2', nombre: 'Tema 2', horas: 8 },
+    ],
+  };
+
+  it('sube un 30 % o baja un 25 % el hito y sus temas, a medias horas', () => {
+    const subido = ajustarHorasHito(hito, 'pocas');
+    expect(subido.horasPreparacion).toBe(15.5);
+    expect(subido.temas?.map((t) => t.horas)).toEqual([5, 10.5]);
+    const bajado = ajustarHorasHito(hito, 'muchas');
+    expect(bajado.horasPreparacion).toBe(9);
+    expect(bajado.temas?.map((t) => t.horas)).toEqual([3, 6]);
+  });
+
+  it('nunca baja de 1 h ni sube de 200 h, y sin temas no los inventa', () => {
+    const corto = { ...hito, horasPreparacion: 1, temas: undefined };
+    expect(ajustarHorasHito(corto, 'muchas')).toEqual(corto);
+    expect(ajustarHorasHito({ ...corto, horasPreparacion: 190 }, 'pocas').horasPreparacion).toBe(200);
+    expect(ajustarHorasHito(corto, 'pocas').temas).toBeUndefined();
+  });
+
+  it('el ritmo aprende un poco, sin salirse de sus límites', () => {
+    expect(conAjusteRitmo(PERFIL_ESTUDIO_VACIO, 'pocas').ritmo).toBe(1.05);
+    expect(conAjusteRitmo(PERFIL_ESTUDIO_VACIO, 'muchas').ritmo).toBe(0.95);
+    expect(conAjusteRitmo({ ...PERFIL_ESTUDIO_VACIO, ritmo: 2 }, 'pocas').ritmo).toBe(2);
   });
 });
