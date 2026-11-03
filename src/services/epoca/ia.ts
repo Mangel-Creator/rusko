@@ -6,6 +6,7 @@ import { asegurarSesion, obtenerSupabase } from '@/data/supabase';
 import { claveDia, type ClaveDia } from '@/services/fechas';
 import { limiteDelError, mensajeLimite } from '@/services/ia';
 
+import type { PdfLeido } from './apuntes';
 import { diasEntre } from './estado';
 import {
   estimarHoras,
@@ -66,7 +67,7 @@ const MENSAJES: Record<MotivoFalloIA, string> = {
   limite: 'Has usado la IA muchas veces hoy. Mañana vuelve a funcionar.',
   'limite-ia': 'Has gastado la IA por ahora. Mientras, puedes rellenarlo a mano.',
   'no-entendido': 'No lo he pillado del todo. Cuéntamelo con otras palabras o rellénalo a mano.',
-  pdf: 'No he podido leer ese PDF. Si es muy largo, pártelo y añade las partes de una en una.',
+  pdf: 'No he podido leer ese PDF. Si es muy largo o está escaneado, pártelo y añade las partes de una en una.',
   error: 'No he podido hacerlo ahora. Prueba otra vez en un rato.',
 };
 
@@ -168,14 +169,20 @@ export async function fichaConIA(examen: string, detalle: string, tipoExamen: Ti
   return typeof texto === 'string' && texto.trim() ? { estado: 'ok', datos: texto.trim() } : fallo('error');
 }
 
-// 0c. "Medir mis apuntes": el PDF va a Claude solo para saber cuánto ocupa cada tema.
-export async function medirApuntesConIA(examen: string, pdfBase64: string): Promise<ResultadoIA<TemaMedido[]>> {
+// 0c. "Medir mis apuntes": solo para saber cuánto ocupa cada tema. Va el mapa de
+//     páginas leído en el dispositivo (services/epoca/apuntes.ts) o, si son fotos
+//     escaneadas, el PDF entero.
+export async function medirApuntesConIA(
+  examen: string,
+  apuntes: { mapa: string; leido: PdfLeido } | { pdf: string },
+): Promise<ResultadoIA<TemaMedido[]>> {
+  const contenido = 'pdf' in apuntes ? { pdf: apuntes.pdf } : { mapa: apuntes.mapa };
   const r = await llamar(
-    { accion: 'medir', hoy: claveDia(new Date()), examen: examen.trim(), pdf: pdfBase64 },
+    { accion: 'medir', hoy: claveDia(new Date()), examen: examen.trim(), ...contenido },
     ESPERA_MEDIR_MS,
   );
   if (r.estado === 'fallo') return r;
-  const temas = temasMedidos(r.datos);
+  const temas = temasMedidos(r.datos, 'leido' in apuntes ? apuntes.leido : undefined);
   return temas ? { estado: 'ok', datos: temas } : fallo('pdf');
 }
 

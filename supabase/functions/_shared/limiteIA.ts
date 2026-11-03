@@ -28,21 +28,30 @@ const PRECIOS: Record<string, [number, number]> = {
   'claude-opus-5-5': [4, 20],
 };
 const PRECIO_DESCONOCIDO: [number, number] = [5, 25];
+// Haiku 5.5 cobra el quíntuple si la petición pasa de 100.000 tokens (un PDF largo).
+const PRECIOS_LARGOS: Record<string, [number, number]> = { 'claude-haiku-5-5': [0.5, 2.5] };
+const TOKENS_LARGO = 100_000;
+// Cada búsqueda en internet: 10 $ por 1000.
+const COSTE_BUSQUEDA = 10_000;
 
 export type UsoTokens = {
   input_tokens: number;
   output_tokens: number;
   cache_creation_input_tokens?: number | null;
   cache_read_input_tokens?: number | null;
+  server_tool_use?: { web_search_requests?: number | null } | null;
 };
 
 export function costeLlamada(modelo: string, uso: UsoTokens): number {
-  const [entrada, salida] = PRECIOS[modelo] ?? PRECIO_DESCONOCIDO;
+  const cache = (uso.cache_creation_input_tokens ?? 0) + (uso.cache_read_input_tokens ?? 0);
+  const largo = uso.input_tokens + cache > TOKENS_LARGO ? PRECIOS_LARGOS[modelo] : undefined;
+  const [entrada, salida] = largo ?? PRECIOS[modelo] ?? PRECIO_DESCONOCIDO;
   const coste =
     uso.input_tokens * entrada +
     (uso.cache_creation_input_tokens ?? 0) * entrada * 1.25 +
     (uso.cache_read_input_tokens ?? 0) * entrada * 0.1 +
-    uso.output_tokens * salida;
+    uso.output_tokens * salida +
+    (uso.server_tool_use?.web_search_requests ?? 0) * COSTE_BUSQUEDA;
   return Math.ceil(coste);
 }
 

@@ -9,3 +9,4 @@ export * from './sinMarcar';
 export * from './temas';
 export * from './validarIA';
 export * from './perfilEstudio';
+export * from './apuntes';

@@ -2,6 +2,7 @@ import type { Epoca, RegistroBloque } from '@/data/epocas/tipos';
 import type { DiaSemana, MomentoDelDia } from '@/data/perfil';
 import { diaSemanaDesdeLunes, fechaDesdeClave, type ClaveDia } from '@/services/fechas';
 
+import { densidadDe, type PdfLeido } from './apuntes';
 import { diasEntre } from './estado';
 import { DIAS_LEJOS } from './plan';
 import { HABITOS_VACIOS, type AsignaturaCuestionario, type HabitosCuestionario } from './validarIA';
@@ -101,8 +102,9 @@ export function examenGuardado(perfil: PerfilEstudio, nombre: string): ExamenGua
 }
 
 // Lo que contesta la IA al medir un PDF (acción "medir"): dónde empieza y acaba cada
-// tema. Devuelve null si no hay nada que valga.
-export function temasMedidos(datos: unknown): TemaMedido[] | null {
+// tema. Con el PDF leído en el dispositivo, la densidad sale de su texto, no de la
+// IA. Devuelve null si no hay nada que valga.
+export function temasMedidos(datos: unknown, leido?: PdfLeido): TemaMedido[] | null {
   const lista = esObjeto(datos) && Array.isArray(datos.temas) ? datos.temas : [];
   const temas = lista
     .filter(esObjeto)
@@ -111,7 +113,11 @@ export function temasMedidos(datos: unknown): TemaMedido[] | null {
       const inicio = Number(t.paginaInicio);
       const fin = Number(t.paginaFin);
       if (!nombre || !Number.isInteger(inicio) || !Number.isInteger(fin) || fin < inicio) return null;
-      const densidad = t.densidad === 'baja' || t.densidad === 'alta' ? t.densidad : 'media';
+      const densidad = leido
+        ? densidadDe(leido.paginas.slice(inicio - 1, fin))
+        : t.densidad === 'baja' || t.densidad === 'alta'
+          ? t.densidad
+          : 'media';
       return { nombre, paginas: Math.min(500, fin - inicio + 1), densidad };
     })
     .filter((t): t is TemaMedido => t !== null)

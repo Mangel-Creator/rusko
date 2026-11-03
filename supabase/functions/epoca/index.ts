@@ -5,8 +5,9 @@
 //     hábitos, horas que calcula la app y lo aprendido de otros planes), el plan
 //     con temas, repasos y consejos según el COIE de la UNED.
 //   - "ficha": busca en internet cómo es un examen (partes, duración, nota).
-//   - "medir": de los apuntes en PDF, dónde empieza y acaba cada tema y lo
-//     densos que son. No los resume: la app solo quiere saber cuánto ocupan.
+//   - "medir": de los apuntes, dónde empieza y acaba cada tema y lo densos que
+//     son. No los resume: la app solo quiere saber cuánto ocupan. Lo normal es que
+//     llegue un mapa de páginas (la app lee el PDF); solo un escaneado llega entero.
 //   - "preparar": de un texto libre ("Exámenes de enero: Estadística el 15..."),
 //     los datos del formulario de la época y sus hitos.
 //   - "temario": parte el temario de un hito en temas con sus horas.
@@ -17,6 +18,7 @@
 // Modelo según lo que hace (03/11/2026): el plan y la búsqueda de cómo es un examen
 // con Sonnet 5.5, porque un buen plan ahorra horas y se usa una vez por temporada;
 // lo demás (medir apuntes, preparar, temario, repaso) con Haiku 5.5, que basta.
+// Si Sonnet falla, se repite con Haiku (conRespaldo).
 //
 // - Solo responde a la app: comprueba la sesión (anónima) de Supabase.
 // - Límite de usos por usuario y día, y otro global, para controlar el gasto.
@@ -43,6 +45,8 @@ const MAX_TEXTO_TEMARIO = 4000;
 const MAX_FICHA = 1200;
 // Un PDF de 10 MB en base64 (lo mismo que deja la app).
 const MAX_PDF_BASE64 = 14_000_000;
+// El mapa de páginas de unos apuntes (la app lo deja en 80.000).
+const MAX_MAPA = 82_000;
 const DIAS_SEMANA = ['domingo', 'lunes', 'martes', 'miércoles', 'jueves', 'viernes', 'sábado'];
 
 type Accion = 'cuestionario' | 'ficha' | 'medir' | 'preparar' | 'temario' | 'repaso';
@@ -267,14 +271,20 @@ ${aprendido.length ? `\nLo que Rusko ha aprendido de sus planes anteriores:\n${a
   }
 
   if (datos.accion === 'medir') {
+    const examen = `Apuntes de: <examen>${limpio(datos.examen, 80) || 'un examen'}</examen>`;
+    // Lo normal: el mapa de páginas que ha leído la app (services/epoca/apuntes.ts).
+    if (typeof datos.mapa === 'string') {
+      if (!datos.mapa.trim() || datos.mapa.length > MAX_MAPA) return null;
+      return { accion: 'medir', mensaje: `${examen}\n\n<mapa>\n${datos.mapa}\n</mapa>` };
+    }
+    // Un PDF escaneado, entero. "JVBER" es "%PDF" en base64: el principio de todo PDF.
     const pdf = typeof datos.pdf === 'string' ? datos.pdf : '';
-    // "JVBER" es "%PDF" en base64: el principio de todo PDF.
     if (!pdf.startsWith('JVBER') || pdf.length > MAX_PDF_BASE64) return null;
     return {
       accion: 'medir',
       mensaje: [
         { type: 'document', source: { type: 'base64', media_type: 'application/pdf', data: pdf } },
-        { type: 'text', text: `Apuntes de: <examen>${limpio(datos.examen, 80) || 'un examen'}</examen>` },
+        { type: 'text', text: examen },
       ],
     };
   }
@@ -389,7 +399,7 @@ Si no encuentras información fiable de ese examen en concreto, contesta solo "N
 
   medir: `${COMUN}
 
-Te pasa sus apuntes de un examen en PDF. No los resumas ni copies nada: solo mide cuánto ocupa cada tema, para calcular su tiempo de estudio.
+Te pasa sus apuntes de un examen: el PDF, o un <mapa> con una línea por página (número de página, caracteres de texto y cómo empieza) y, si lo hay, el índice del PDF. No los resumas ni copies nada: solo mide cuánto ocupa cada tema, para calcular su tiempo de estudio. En el mapa, un tema empieza donde una página arranca con su título ("Tema 3", "Capítulo 2", "Unidad 4"...); usa el índice si lo hay.
 
 temas: en orden, cada tema o capítulo con:
 - nombre: corto, tal como aparece ("T3: Regresión").
@@ -598,35 +608,50 @@ const ESQUEMAS: Record<Exclude<Accion, 'ficha'>, Record<string, unknown>> = {
 const MAX_TOKENS: Record<Accion, number> = {
   cuestionario: 16000,
   ficha: 4000,
-  medir: 3000,
+  medir: 6000,
   preparar: 4000,
   temario: 3000,
   repaso: 2500,
 };
 const modeloDe = (accion: Accion) => (accion === 'cuestionario' || accion === 'ficha' ? MODELO_PLAN : MODELO);
 
-// shortcut: la búsqueda (0,01 $) se apunta como 5000 tokens de entrada, lo que cuesta
-// con Sonnet 5.5; si la ficha pasa a otro modelo, cambia la cuenta.
-const conBusquedas = (uso: Anthropic.Usage) => ({
-  ...uso,
-  input_tokens: uso.input_tokens + (uso.server_tool_use?.web_search_requests ?? 0) * 5000,
-});
+// Si Sonnet no responde (saturado, caído o retirado), se hace con Haiku: peor plan,
+// pero plan. El SDK ya reintenta una vez antes. Si lo que pasó es que tardó demasiado,
+// no queda tiempo para otro intento (Supabase corta a los 150 s) y se avisa.
+async function conRespaldo<T>(modelo: string, llamada: (modelo: string) => Promise<T>): Promise<T> {
+  try {
+    return await llamada(modelo);
+  } catch (error) {
+    const caido =
+      error instanceof Anthropic.APIError &&
+      !(error instanceof Anthropic.APIConnectionTimeoutError) &&
+      (error.status === undefined || error.status === 404 || error.status >= 500);
+    if (modelo === MODELO || !caido) throw error;
+    console.error(`epoca: ${modelo} falla (${(error as Anthropic.APIError).status ?? 'red'}), sigo con ${MODELO}`);
+    return await llamada(MODELO);
+  }
+}
 
 // "ficha": Claude busca (hasta 3 veces) y contesta en texto. Si la búsqueda tarda,
 // la API para a medias (pause_turn) y se le deja seguir, como mucho 3 vueltas.
-async function buscarFicha(usuario: string, mensaje: string): Promise<string | null> {
+async function buscarFicha(usuario: string, mensaje: string, modelo: string): Promise<string | null> {
   const mensajes: Anthropic.MessageParam[] = [{ role: 'user', content: mensaje }];
   for (let vuelta = 0; vuelta < 3; vuelta++) {
     const r = await anthropic.messages.create({
-      model: MODELO_PLAN,
+      model: modelo,
       max_tokens: MAX_TOKENS.ficha,
       system: INSTRUCCIONES.ficha,
       messages: mensajes,
-      tools: [{ type: 'web_search_20260209', name: 'web_search', max_uses: 3 }],
+      // La búsqueda que filtra resultados solo está en Sonnet y Opus; Haiku, la básica.
+      tools: [
+        modelo.includes('haiku')
+          ? { type: 'web_search_20250305', name: 'web_search', max_uses: 3 }
+          : { type: 'web_search_20260209', name: 'web_search', max_uses: 3 },
+      ],
       output_config: { effort: 'low' },
     });
-    await apuntarIA(usuario, 'epoca', MODELO_PLAN, conBusquedas(r.usage));
-    console.log(`epoca ficha · tokens ${r.usage.input_tokens}+${r.usage.output_tokens} · ${r.stop_reason}`);
+    await apuntarIA(usuario, 'epoca', modelo, r.usage);
+    console.log(`epoca ficha · ${modelo} · tokens ${r.usage.input_tokens}+${r.usage.output_tokens} · ${r.stop_reason}`);
     if (r.stop_reason === 'pause_turn') {
       mensajes.push({ role: 'assistant', content: r.content });
       continue;
@@ -646,7 +671,9 @@ async function buscarFicha(usuario: string, mensaje: string): Promise<string | n
 
 // ---------- Servidor ----------
 
-const anthropic = new Anthropic({ apiKey: CLAVE_ANTHROPIC });
+// 60 s por intento y un reintento: con el cambio a Haiku, todo cabe en los 150 s
+// que da Supabase (el cuestionario tarda unos 10 s; la ficha, unos 20).
+const anthropic = new Anthropic({ apiKey: CLAVE_ANTHROPIC, timeout: 60_000, maxRetries: 1 });
 
 Deno.serve(async (req) => {
   if (req.method === 'OPTIONS') return respuestaPrevia(req);
@@ -676,20 +703,22 @@ Deno.serve(async (req) => {
   const { accion, mensaje } = peticion;
   try {
     if (accion === 'ficha') {
-      const texto = await buscarFicha(usuario, mensaje as string);
+      const texto = await conRespaldo(MODELO_PLAN, (m) => buscarFicha(usuario, mensaje as string, m));
       return texto ? respuestaJson(req, { resultado: { texto } }) : respuestaJson(req, { error: 'ia' }, 502);
     }
-    const modelo = modeloDe(accion);
     const inicio = Date.now();
-    const respuesta = await anthropic.messages.create({
-      model: modelo,
-      max_tokens: MAX_TOKENS[accion],
-      system: INSTRUCCIONES[accion],
-      messages: [{ role: 'user', content: mensaje }],
-      output_config: {
-        effort: accion === 'cuestionario' ? 'medium' : 'low',
-        format: { type: 'json_schema', schema: ESQUEMAS[accion] },
-      },
+    const { modelo, respuesta } = await conRespaldo(modeloDe(accion), async (m) => {
+      const r = await anthropic.messages.create({
+        model: m,
+        max_tokens: MAX_TOKENS[accion],
+        system: INSTRUCCIONES[accion],
+        messages: [{ role: 'user', content: mensaje }],
+        output_config: {
+          effort: accion === 'cuestionario' ? 'medium' : 'low',
+          format: { type: 'json_schema', schema: ESQUEMAS[accion] },
+        },
+      });
+      return { modelo: m, respuesta: r };
     });
     await apuntarIA(usuario, 'epoca', modelo, respuesta.usage);
     if (respuesta.stop_reason !== 'end_turn') {

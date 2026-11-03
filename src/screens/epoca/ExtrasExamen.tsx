@@ -3,7 +3,15 @@ import { StyleSheet, View } from 'react-native';
 
 import { Boton, CampoTexto, Plegable, Texto } from '@/components';
 import { fichaConIA, medirApuntesConIA } from '@/services/epoca/ia';
-import { MAX_PDF_MB, elegirPdf } from '@/services/epoca/pdf';
+import {
+  MAX_PAGINAS,
+  MAX_PAGINAS_ESCANEADO,
+  esEscaneado,
+  mapaDePaginas,
+  temasDelIndice,
+} from '@/services/epoca/apuntes';
+import { leerPdf } from '@/services/epoca/leerPdf';
+import { MAX_LEER_MB, MAX_PDF_MB, aBase64, elegirPdf } from '@/services/epoca/pdf';
 import { conExamen, examenGuardado, type PerfilEstudio, type TemaMedido } from '@/services/epoca/perfilEstudio';
 import type { AsignaturaCuestionario } from '@/services/epoca/validarIA';
 import type { ClaveDia } from '@/services/fechas';
@@ -23,7 +31,7 @@ const DENSIDAD = { baja: 'ligero', media: 'normal', alta: 'denso' } as const;
 const paginas = (temas: TemaMedido[]) => temas.reduce((t, x) => t + x.paginas, 0);
 
 // Dentro de cada examen del cuestionario: cómo es el examen (la IA lo busca en
-// internet) y lo que ocupan sus apuntes (la IA mide el PDF, no lo resume). Las dos
+// internet) y lo que ocupan sus apuntes (se miden, no se resumen). Las dos
 // cosas se quedan en el perfil de estudio para los próximos planes.
 export function ExtrasExamen({ asignatura, estudio, hoy, actualizar }: Props) {
   const nombre = asignatura.nombre.trim();
@@ -58,22 +66,49 @@ export function ExtrasExamen({ asignatura, estudio, hoy, actualizar }: Props) {
     const pdf = await elegirPdf().catch(() => null);
     if (pdf === null) return;
     if (pdf === 'grande') {
-      setMensaje({ texto: `Ese PDF pasa de ${MAX_PDF_MB} MB. Pártelo y añade las partes de una en una.`, error: true });
+      setMensaje({ texto: `Ese PDF pasa de ${MAX_LEER_MB} MB. Pártelo y añade las partes de una en una.`, error: true });
       return;
     }
     setOcupado('apuntes');
-    const r = await medirApuntesConIA(nombre, pdf.base64);
+    const r = await medir(pdf.archivo);
     setOcupado(null);
-    if (r.estado === 'fallo') {
-      setMensaje({ texto: r.mensaje, error: true });
+    if (typeof r === 'string') {
+      setMensaje({ texto: r, error: true });
       return;
     }
     actualizar((p) => {
       const anteriores = examenGuardado(p, nombre).apuntes?.temas ?? [];
-      const todos = [...anteriores, ...r.datos].slice(0, MAX_TEMAS_APUNTES);
+      const todos = [...anteriores, ...r.temas].slice(0, MAX_TEMAS_APUNTES);
       return conExamen(p, nombre, { apuntes: { temas: todos, fecha: hoy } });
     });
-    setMensaje({ texto: `He medido ${r.datos.length} ${r.datos.length === 1 ? 'tema' : 'temas'} de ${pdf.nombre}.`, error: false });
+    const cuantos = `${r.temas.length} ${r.temas.length === 1 ? 'tema' : 'temas'}`;
+    setMensaje({
+      texto: r.conIndice ? `He medido ${cuantos} de ${pdf.nombre} con su índice.` : `He medido ${cuantos} de ${pdf.nombre}.`,
+      error: false,
+    });
+  };
+
+  // Del más barato al más caro: su índice (sin IA), el mapa de páginas o el PDF entero.
+  const medir = async (archivo: Blob): Promise<{ temas: TemaMedido[]; conIndice: boolean } | string> => {
+    const leido = await leerPdf(archivo);
+    if (leido && leido.paginas.length > MAX_PAGINAS) {
+      return `Tiene ${leido.paginas.length} páginas. Pártelo en trozos de menos de ${MAX_PAGINAS} y añádelos de uno en uno.`;
+    }
+    const delIndice = leido ? temasDelIndice(leido) : null;
+    if (delIndice) return { temas: delIndice, conIndice: true };
+    if (leido && !esEscaneado(leido)) {
+      const r = await medirApuntesConIA(nombre, { mapa: mapaDePaginas(leido), leido });
+      return r.estado === 'ok' ? { temas: r.datos, conIndice: false } : r.mensaje;
+    }
+    // Fotos escaneadas: no hay texto, la IA tiene que ver las páginas.
+    if (leido && leido.paginas.length > MAX_PAGINAS_ESCANEADO) {
+      return `Parece escaneado y tiene ${leido.paginas.length} páginas. Pártelo en trozos de ${MAX_PAGINAS_ESCANEADO} páginas como mucho.`;
+    }
+    if (archivo.size > MAX_PDF_MB * 1024 * 1024) {
+      return `Parece escaneado y pasa de ${MAX_PDF_MB} MB. Pártelo y añade las partes de una en una.`;
+    }
+    const r = await medirApuntesConIA(nombre, { pdf: await aBase64(archivo) });
+    return r.estado === 'ok' ? { temas: r.datos, conIndice: false } : r.mensaje;
   };
 
   return (
@@ -124,8 +159,9 @@ export function ExtrasExamen({ asignatura, estudio, hoy, actualizar }: Props) {
       >
         <View style={estilos.bloque}>
           <Texto secundario>
-            Solo miro cuánto ocupa cada tema y lo denso que es, para calcular el tiempo. No los resumo ni se
-            guardan en ningún servidor. PDF de hasta {MAX_PDF_MB} MB; si es más, pártelo y añade las partes.
+            Solo miro cuánto ocupa cada tema y lo denso que es, para calcular el tiempo. Los leo en tu móvil: a la IA
+            solo le llega cómo empieza cada página, y nada se guarda en ningún servidor. PDF de hasta {MAX_LEER_MB}{' '}
+            MB.
           </Texto>
           {temas.map((t, i) => (
             <Texto key={`${t.nombre}-${i}`} pequeno>
