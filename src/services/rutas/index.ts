@@ -95,3 +95,18 @@ export function buscarParkings(destino: Punto): Promise<ResultadoParkings> {
   cacheParkings.set(clave, { hasta: ahora + DURACION_PARKINGS_MS, resultado });
   return resultado;
 }
+
+// --- Sitios por su nombre ("El Corte Inglés", "Basic Fit", una calle sin número) ---
+
+export type SitioEncontrado = { id: string; nombre: string; direccion: string; punto: Punto };
+
+export type ResultadoSitios =
+  | { estado: 'ok'; sitios: SitioEncontrado[] }
+  | { estado: 'sin-servidor' }
+  | { estado: 'error'; mensaje: string };
+
+// Los busca TomTom a través del servidor (acción "lugares"), empezando cerca de `cerca`.
+export async function buscarSitios(texto: string, cerca: Punto | null): Promise<ResultadoSitios> {
+  const respuesta = await pedirAlServidor<{ lugares: SitioEncontrado[] }>({ accion: 'lugares', texto, cerca });
+  return respuesta.estado === 'ok' ? { estado: 'ok', sitios: respuesta.datos.lugares ?? [] } : respuesta;
+}

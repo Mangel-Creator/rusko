@@ -74,17 +74,25 @@ export function destinoDeEvento(evento: Evento, dia: ClaveDia, perfil: Perfil | 
   };
 }
 
-// Próximos eventos con lugar (7 días), sin repetir el mismo evento.
-export function destinosDeEventos(eventos: Evento[], perfil: Perfil | null, ahora: Date, maximo = 6): Destino[] {
+// Próximos eventos con lugar (7 días), sin repetir el mismo evento. Al buscar por
+// texto (`todos`) mira 60 días y también los que aún no tienen coordenadas u hora.
+export function destinosDeEventos(
+  eventos: Evento[],
+  perfil: Perfil | null,
+  ahora: Date,
+  maximo = 6,
+  todos = false,
+): Destino[] {
   const hoy = claveDia(ahora);
   const vistos = new Set<string>();
   const destinos: Destino[] = [];
-  for (let n = 0; n < 7 && destinos.length < maximo; n++) {
+  for (let n = 0; n < (todos ? 60 : 7) && destinos.length < maximo; n++) {
     const dia = sumarDias(hoy, n);
     for (const evento of eventosDelDia(eventos, dia)) {
       if (vistos.has(evento.id) || !evento.lugar || evento.lugar.tipo === 'casa') continue;
       const destino = destinoDeEvento(evento, dia, perfil);
-      if (!destino?.cita || new Date(destino.cita.llegada).getTime() <= ahora.getTime()) continue;
+      if (!destino) continue;
+      if (destino.cita ? new Date(destino.cita.llegada).getTime() <= ahora.getTime() : !todos) continue;
       vistos.add(evento.id);
       destinos.push(destino);
       if (destinos.length >= maximo) break;
@@ -93,10 +101,36 @@ export function destinosDeEventos(eventos: Evento[], perfil: Perfil | null, ahor
   return destinos;
 }
 
+// Palabras que no ayudan a buscar: "donde tengo la clase de inglés" busca "clase" e "ingles".
+const RELLENO = new Set(
+  'donde adonde tengo tiene tenemos hay la el lo los las un una de del mi mis tu al en con voy vamos ir llevame lleva quiero me para que hoy manana es esta este'.split(
+    ' ',
+  ),
+);
+
+export function palabrasClave(texto: string): string[] {
+  return normalizar(texto)
+    .split(/[^a-z0-9]+/)
+    .filter((p) => p.length > 1 && !RELLENO.has(p));
+}
+
+function coincide(texto: string, palabras: string[]): boolean {
+  const t = normalizar(texto);
+  return palabras.every((p) => t.includes(p));
+}
+
 // Lo que se ve bajo el buscador, filtrado por lo que se ha escrito.
 export function sugerencias(perfil: Perfil | null, eventos: Evento[], ahora: Date, texto: string): Destino[] {
-  const todos = [...sitiosHabituales(perfil), ...destinosDeEventos(eventos, perfil, ahora)];
-  const buscado = normalizar(texto);
-  if (!buscado) return todos;
-  return todos.filter((d) => normalizar(`${d.nombre} ${d.detalle}`).includes(buscado));
+  const palabras = palabrasClave(texto);
+  if (palabras.length === 0) return [...sitiosHabituales(perfil), ...destinosDeEventos(eventos, perfil, ahora)];
+  return [...sitiosHabituales(perfil), ...destinosDeEventos(eventos, perfil, ahora, 50, true)].filter((d) =>
+    coincide(`${d.nombre} ${d.detalle}`, palabras),
+  );
+}
+
+// Un evento que se llama como lo buscado pero no tiene sitio apuntado (para explicarlo).
+export function eventoSinSitio(eventos: Evento[], texto: string): Evento | null {
+  const palabras = palabrasClave(texto);
+  if (palabras.length === 0) return null;
+  return eventos.find((e) => !e.lugar && coincide(e.titulo, palabras)) ?? null;
 }

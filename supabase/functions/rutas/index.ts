@@ -11,6 +11,8 @@
 //     (horas punta de la semana). Va en una sola llamada por lotes a TomTom.
 //   - "parkings": parkings (cubiertos y al aire libre) a menos de 1 km del destino,
 //     con la Search API de TomTom (26/10/2026).
+//   - "lugares": busca un sitio por su nombre o una dirección sin número ("El Corte
+//     Inglés", "Basic Fit", "McDonald's"), cerca de donde estás (03/11/2026).
 //
 // Gasto: TomTom da gratis 2.500 peticiones al día (sin tarjeta, así que nunca cobra).
 // Aquí se limita por persona y en total para no pasar de ahí (tabla usos_diarios).
@@ -247,6 +249,29 @@ async function buscarParkings(cuerpo: Record<string, unknown>, clave: string): P
   };
 }
 
+// Sitios por nombre o dirección (Fuzzy Search de TomTom): negocios, tiendas, gimnasios,
+// calles sin número... En España y, si llega, empezando por lo más cercano.
+async function buscarLugares(cuerpo: Record<string, unknown>, clave: string): Promise<unknown> {
+  const texto = typeof cuerpo.texto === 'string' ? cuerpo.texto.trim() : '';
+  if (texto.length < 2 || texto.length > 120) throw new ErrorPeticion('Escribe el sitio que buscas.');
+  const p = new URLSearchParams({ countrySet: 'ES', language: 'es-ES', limit: '8', typeahead: 'false', key: clave });
+  if (esPunto(cuerpo.cerca)) {
+    p.set('lat', String(cuerpo.cerca[0]));
+    p.set('lon', String(cuerpo.cerca[1]));
+  }
+  const respuesta = await fetch(`https://api.tomtom.com/search/2/search/${encodeURIComponent(texto)}.json?${p}`);
+  if (!respuesta.ok) throw new Error(`TomTom respondió ${respuesta.status}`);
+  const datos = (await respuesta.json()) as { results?: ResultadoBusqueda[] };
+  return {
+    lugares: (datos.results ?? [])
+      .filter((r) => r.position && r.id)
+      .map((r) => {
+        const direccion = r.address?.freeformAddress ?? r.address?.streetName ?? '';
+        return { id: r.id, nombre: r.poi?.name || direccion, direccion, punto: [r.position!.lat, r.position!.lon] };
+      }),
+  };
+}
+
 class ErrorPeticion extends Error {}
 
 const MENSAJE_LIMITE_USUARIO = 'Hoy ya has calculado muchas rutas. Mañana vuelve a funcionar.';
@@ -269,7 +294,10 @@ Deno.serve(async (req) => {
   } catch {
     return respuestaJson(req, { error: 'Petición no válida.' }, 400);
   }
-  const accion = cuerpo.accion === 'muestras' || cuerpo.accion === 'parkings' ? cuerpo.accion : 'rutas';
+  const accion =
+    cuerpo.accion === 'muestras' || cuerpo.accion === 'parkings' || cuerpo.accion === 'lugares'
+      ? cuerpo.accion
+      : 'rutas';
 
   try {
     // Límites de cada día (se pueden cambiar con secretos sin tocar el código).
@@ -289,14 +317,26 @@ Deno.serve(async (req) => {
               numeroDeEntorno('PARKINGS_LIMITE_USUARIO', 30),
               numeroDeEntorno('PARKINGS_LIMITE_GLOBAL', 300),
             )
-          : await sumarUso(
-              usuario,
-              'rutas-horas-punta',
-              numeroDeEntorno('HORAS_PUNTA_LIMITE_USUARIO', 2),
-              numeroDeEntorno('HORAS_PUNTA_LIMITE_GLOBAL', 8),
-            );
+          : accion === 'lugares'
+            ? await sumarUso(
+                usuario,
+                'lugares',
+                numeroDeEntorno('LUGARES_LIMITE_USUARIO', 100),
+                numeroDeEntorno('LUGARES_LIMITE_GLOBAL', 1000),
+              )
+            : await sumarUso(
+                usuario,
+                'rutas-horas-punta',
+                numeroDeEntorno('HORAS_PUNTA_LIMITE_USUARIO', 2),
+                numeroDeEntorno('HORAS_PUNTA_LIMITE_GLOBAL', 8),
+              );
     if (!uso.permitido) {
-      const mensaje = uso.motivo === 'limite-usuario' ? MENSAJE_LIMITE_USUARIO : MENSAJE_LIMITE_GLOBAL;
+      const mensaje =
+        accion === 'lugares'
+          ? 'Hoy ya se han hecho muchas búsquedas de sitios. Mañana vuelve a funcionar.'
+          : uso.motivo === 'limite-usuario'
+            ? MENSAJE_LIMITE_USUARIO
+            : MENSAJE_LIMITE_GLOBAL;
       return respuestaJson(req, { error: mensaje }, 429);
     }
     const datos =
@@ -304,14 +344,17 @@ Deno.serve(async (req) => {
         ? await calcularRutas(cuerpo, clave)
         : accion === 'parkings'
           ? await buscarParkings(cuerpo, clave)
-          : await calcularMuestras(cuerpo, clave);
+          : accion === 'lugares'
+            ? await buscarLugares(cuerpo, clave)
+            : await calcularMuestras(cuerpo, clave);
     return new Response(JSON.stringify(datos), {
       headers: { ...cabecerasCors(req), 'Content-Type': 'application/json' },
     });
   } catch (error) {
     if (error instanceof ErrorPeticion) return respuestaJson(req, { error: error.message }, 400);
     console.error(error);
-    const que = accion === 'parkings' ? 'buscar parkings' : 'calcular la ruta';
+    const que =
+      accion === 'parkings' ? 'buscar parkings' : accion === 'lugares' ? 'buscar el sitio' : 'calcular la ruta';
     // "detalle" (por ejemplo, "TomTom respondió 403") ayuda a saber qué ha fallado; la app no lo enseña.
     const detalle = error instanceof Error ? error.message : String(error);
     return respuestaJson(req, { error: `No se ha podido ${que}. Prueba otra vez en un momento.`, detalle }, 502);

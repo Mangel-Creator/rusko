@@ -1676,6 +1676,16 @@ borran solos a los 7 días.
 - **Para la fase 7 (alarma de salida)**: usar las mismas salidas (`leerSalidas`,
   `suscribirseSalidas`) y no duplicar con el "Sal ya" (por ejemplo, apagar el aviso de esa
   cita si ya tiene alarma). Hecho así en la fase 7.
+- **Buscar sitios por su nombre** (03/11/2026, lo pidió el usuario: "El Corte Inglés,
+  Basic Fit, McDonald's", calles sin número). Al pulsar Buscar: (1) lo tuyo primero (casa,
+  tus sitios y tus citas de los próximos 60 días, aunque no tengan coordenadas), por
+  palabras y sin las de relleno, así que "donde tengo la clase de inglés" encuentra "Clase
+  de inglés" (`palabrasClave`, `sugerencias` en `screens/mapa/destinos.ts`); si la cita no
+  tiene sitio, lo dice (`eventoSinSitio`). (2) Si no, TomTom Fuzzy Search por el servidor
+  (acción `lugares` de la función `rutas`, España, empezando cerca de ti; límites
+  `LUGARES_LIMITE_USUARIO` 100 y `LUGARES_LIMITE_GLOBAL` 1000 al día): con uno va directo
+  y con varios los enseña con la distancia. (3) Sin servidor o sin nada, como antes
+  (`buscarCoordenadas`).
 
 ## Fase 7: alarmas (decisiones)
 

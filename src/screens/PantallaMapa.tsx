@@ -14,7 +14,9 @@ import { ATRIBUCION_OPENSTREETMAP, buscarCoordenadas, usaOpenStreetMap } from '@
 import { consultarPermiso, pedirPermiso } from '@/services/permisos';
 import {
   buscarParkings,
+  buscarSitios,
   calcularRutas,
+  distanciaM,
   fraseHorasPunta,
   horaDeSalida,
   modoDeViaje,
@@ -22,6 +24,7 @@ import {
   NOMBRE_NAVEGADOR,
   ordenarParkings,
   textoAndando,
+  textoDistancia,
   type Navegador,
   type Parking,
   type Punto,
@@ -34,7 +37,7 @@ import { ubicacionActual } from '@/services/ubicacion';
 import { colores, espacio, fuentes, radio } from '@/theme';
 
 import { useAhora } from './calendario/useAhora';
-import { destinoDeEvento, sugerencias, type Destino } from './mapa/destinos';
+import { destinoDeEvento, eventoSinSitio, sugerencias, type Destino } from './mapa/destinos';
 import { MapaRuta } from './mapa/MapaRuta';
 import { FilaDestino, FilaParking, Leyenda, TarjetaRuta } from './mapa/PiezasMapa';
 
@@ -75,6 +78,9 @@ export function PantallaMapa() {
 
   const [texto, setTexto] = useState('');
   const [errorBusqueda, setErrorBusqueda] = useState<string | null>(null);
+  // Sitios encontrados para lo escrito; al cambiar el texto dejan de verse.
+  const [sitios, setSitios] = useState<{ texto: string; lista: Destino[] } | null>(null);
+  const [buscandoSitios, setBuscandoSitios] = useState(false);
   const [destino, setDestino] = useState<Destino | null>(null);
   const [ubicacion, setUbicacion] = useState<Punto | null>(null);
   const [sinPermiso, setSinPermiso] = useState(false);
@@ -126,10 +132,39 @@ export function PantallaMapa() {
     setDestino(nuevo);
   }
 
-  function buscarTexto() {
+  // Primero busca sitios por su nombre (negocios, tiendas, calles sin número) con TomTom;
+  // si hay uno, va directo, y si hay varios, los enseña para elegir. Sin servidor o sin
+  // nada encontrado, se busca como dirección (efecto de abajo).
+  async function buscarTexto() {
     const escrito = texto.trim();
     if (!escrito) return;
-    elegirDestino({ id: 'busqueda', nombre: escrito, detalle: '', direccion: escrito, punto: null, cita: null });
+    // Lo tuyo primero: casa, tus sitios y tus citas ("donde tengo la clase de inglés").
+    const tuyo = sugerencias(perfil, eventos, ahora, escrito);
+    if (tuyo.length > 0) return elegirDestino(tuyo[0]);
+    const sinSitio = eventoSinSitio(eventos, escrito);
+    if (sinSitio) {
+      setErrorBusqueda(`"${sinSitio.titulo}" no tiene sitio apuntado. Añádeselo en Semana y te llevo.`);
+      return;
+    }
+    setBuscandoSitios(true);
+    const resultado = await buscarSitios(escrito, origen);
+    setBuscandoSitios(false);
+    const encontrados =
+      resultado.estado === 'ok'
+        ? resultado.sitios.map(
+            (s): Destino => ({
+              id: `sitio:${s.id}`,
+              nombre: s.nombre,
+              detalle: origen ? `${textoDistancia(distanciaM(origen, s.punto))} · ${s.direccion}` : s.direccion,
+              direccion: s.direccion,
+              punto: s.punto,
+              cita: null,
+            }),
+          )
+        : [];
+    if (encontrados.length === 1) elegirDestino(encontrados[0]);
+    else if (encontrados.length > 1) setSitios({ texto, lista: encontrados });
+    else elegirDestino({ id: 'busqueda', nombre: escrito, detalle: '', direccion: escrito, punto: null, cita: null });
   }
 
   // Desde un aviso o desde Hoy llega un evento (si no se pudo abrir Waze directamente):
@@ -260,7 +295,11 @@ export function PantallaMapa() {
     parkings: ordenados.length > 0 ? ordenados.slice(0, PARKINGS_A_LA_VISTA) : !punto ? (aparcando?.parkings ?? []) : [],
   };
 
-  const propuestas = destino ? [] : sugerencias(perfil, eventos, ahora, texto);
+  const propuestas = destino
+    ? []
+    : sitios?.texto === texto
+      ? sitios.lista
+      : sugerencias(perfil, eventos, ahora, texto);
 
   return (
     <Pantalla>
@@ -301,14 +340,14 @@ export function PantallaMapa() {
             error={errorBusqueda}
           />
         </View>
-        <Boton titulo="Buscar" onPress={buscarTexto} disabled={buscando || !texto.trim()} />
+        <Boton titulo="Buscar" onPress={buscarTexto} disabled={buscando || buscandoSitios || !texto.trim()} />
       </View>
       {usaOpenStreetMap && texto.trim() ? (
         <Texto pequeno secundario>
           {ATRIBUCION_OPENSTREETMAP}
         </Texto>
       ) : null}
-      {buscando ? <Texto secundario>Buscando…</Texto> : null}
+      {buscando || buscandoSitios ? <Texto secundario>Buscando…</Texto> : null}
 
       {propuestas.length > 0 ? (
         <View style={estilos.lista}>
