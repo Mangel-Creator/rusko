@@ -1311,6 +1311,38 @@ animaciones infinitas.
   - Probado el 26/10 en la web a tamaño móvil: recomendación de inicio, guardar un plan sin
     Época dorada, ayer sin marcar con "Otro" escrito y "Saltar" con motivo. Pruebas en
     `services/epoca/__tests__/planEstudio.test.ts`.
+- **Plan de estudio con la IA a fondo** (03/11/2026, lo pidió el usuario: "óptimo", que aprenda
+  de él y busque los exámenes oficiales):
+  - **Cuestionario** (`screens/epoca/CuestionarioIA.tsx`, en `/epoca-editar` sin id): exámenes
+    (tipo, temas, avance, dificultad, índice, exámenes de otros años), tiempo y 17 hábitos del
+    COIE de la UNED. Va a la acción `cuestionario` de la función `epoca` con **Sonnet 5.5**
+    (`EPOCA_MODELO_PLAN`, effort medium). Las horas las calcula la app (`estimarHoras`) y la IA
+    solo las mueve ±15 % con motivo; lo valida `validarIA.ts`.
+  - **Perfil de estudio** (`organizy:perfilEstudio`, `data/perfilEstudio.ts`, viaja en la copia):
+    los hábitos contestados no se vuelven a preguntar; por examen guarda su ficha y sus apuntes
+    medidos; de cada época terminada, el recuento (ritmo real, saltados y motivos) y la valoración
+    de `ResumenFinEpoca`. `lineasAprendidas` lo pasa a frases para la IA y para "Lo que he
+    aprendido de ti".
+  - **Ficha del examen** (acción `ficha`, `ExtrasExamen.tsx`): Sonnet con búsqueda web
+    (`web_search_20260209`, `max_uses: 3`, hasta 3 vueltas si para con `pause_turn`); solo el
+    texto final, 1200 caracteres como mucho.
+  - **Apuntes en PDF** (`services/epoca/apuntes.ts`, `leerPdf.ts`): el navegador los lee con
+    pdf.js 3.11.174 de cdnjs (SRI en el script; el trabajador se baja, se comprueba su SHA-384
+    y se sirve desde un blob). Del más barato al más caro: (1) si el PDF trae índice
+    (marcadores), los temas salen de ahí sin IA (`temasDelIndice`); (2) si no, a Haiku le llega
+    un "mapa" con una línea por página (número, caracteres, cómo empieza; 80.000 caracteres como
+    mucho, `mapaDePaginas`); (3) solo un escaneado (menos de 100 caracteres por página) va entero,
+    hasta 20 páginas y 10 MB. La densidad la calcula la app por caracteres por página (<1500
+    baja, >3500 alta). Topes: 60 MB para leer, 1500 páginas. Si pdf.js falla, va el PDF entero
+    (hasta 10 MB), como antes.
+  - **Gestión de la IA**: `conRespaldo` repite con Haiku si Sonnet da 404, 5xx o error de red
+    (no si se pasa de tiempo: no queda margen en los 150 s de Supabase); la ficha de respaldo usa
+    `web_search_20250305`. Cliente con `timeout 60 s` y un reintento. `costeLlamada` suma 0,01 $
+    por búsqueda web y la tarifa de Haiku por encima de 100.000 tokens (0,5/2,5 $). Cada llamada
+    (también cada vuelta de la ficha) pasa por `apuntarIA`.
+  - Probado el 03/11: pdf.js con su huella en localhost y en la web publicada, el mapa en la
+    función real (3,6 s) y las pruebas de `apuntes.test.ts` y `perfilEstudio.test.ts`. **Falta**
+    probar en el móvil un PDF con índice y uno escaneado.
 
 ## Servidor propio: Supabase (desde la fase 5)
 

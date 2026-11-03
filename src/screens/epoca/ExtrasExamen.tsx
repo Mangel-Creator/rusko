@@ -159,9 +159,9 @@ export function ExtrasExamen({ asignatura, estudio, hoy, actualizar }: Props) {
       >
         <View style={estilos.bloque}>
           <Texto secundario>
-            Solo miro cuánto ocupa cada tema y lo denso que es, para calcular el tiempo. Los leo en tu móvil: a la IA
-            solo le llega cómo empieza cada página, y nada se guarda en ningún servidor. PDF de hasta {MAX_LEER_MB}{' '}
-            MB.
+            Solo miro cuánto ocupa cada tema y lo denso que es, para calcular el tiempo. Los leo aquí, en tu
+            dispositivo: a la IA solo le llega cómo empieza cada página (si son fotos escaneadas, el PDF entero), y
+            nada se guarda en ningún servidor. PDF de hasta {MAX_LEER_MB} MB.
           </Texto>
           {temas.map((t, i) => (
             <Texto key={`${t.nombre}-${i}`} pequeno>
