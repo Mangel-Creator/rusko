@@ -3,7 +3,10 @@ import { Platform } from 'react-native';
 
 import { guardarPerfil, leerPerfil, type Coordenadas, type Lugar } from '@/data/perfil';
 import { comunidadDesdeIso, type CodigoComunidad } from '@/services/festivos';
+import { coincide, palabrasClave } from '@/services/palabras';
 import { buscarSitios, type Punto, type SitioEncontrado } from '@/services/rutas';
+import { distanciaM } from '@/services/rutas/distancia';
+import { ubicacionActual } from '@/services/ubicacion';
 
 // Convierte texto ("Chamberí, Madrid") en coordenadas.
 // - En el móvil (Android e iOS): con expo-location, que usa el buscador del teléfono.
@@ -47,12 +50,29 @@ export type ResultadoCandidatos =
   | { estado: 'no-disponible' };
 
 export async function buscarCandidatos(texto: string, cerca: Coordenadas | null): Promise<ResultadoCandidatos> {
-  const sitios = await buscarSitios(texto, cerca ? [cerca.latitud, cerca.longitud] : null);
-  if (sitios.estado === 'ok' && sitios.sitios.length > 0) return sitios;
-  const uno = usaOpenStreetMap ? await buscarEnOpenStreetMap(texto) : await buscarEnElTelefono(texto);
+  // Más preciso donde estés ahora, como Google Maps (si ya diste permiso; sin esperar más
+  // de 4 s al GPS). Si no se sabe, cerca de casa.
+  let reloj: ReturnType<typeof setTimeout> | undefined;
+  const aqui = await Promise.race([ubicacionActual(), new Promise<null>((r) => (reloj = setTimeout(() => r(null), 4000)))]);
+  clearTimeout(reloj);
+  const punto: Punto | null = aqui ?? (cerca ? [cerca.latitud, cerca.longitud] : null);
+  const sitios = await buscarSitios(texto, punto);
+  if (sitios.estado === 'ok' && sitios.sitios.length > 0) {
+    return { estado: 'ok', sitios: ordenarPorCercania(sitios.sitios, texto, punto) };
+  }
+  const uno = usaOpenStreetMap ? await buscarEnOpenStreetMap(texto, punto) : await buscarEnElTelefono(texto);
   if (uno.estado !== 'encontrado') return uno;
   const { latitud, longitud } = uno.coordenadas;
   return { estado: 'ok', sitios: [{ id: 'unico', nombre: texto, direccion: texto, punto: [latitud, longitud] }] };
+}
+
+// Primero los que encajan con todas las palabras («basic fit montera» → el de Montera) y,
+// entre ellos, el más cercano («el corte inglés» → el de tu barrio).
+export function ordenarPorCercania(sitios: SitioEncontrado[], texto: string, punto: Punto | null): SitioEncontrado[] {
+  if (!punto) return sitios;
+  const palabras = palabrasClave(texto);
+  const encaja = (s: SitioEncontrado) => Number(coincide(`${s.nombre} ${s.direccion}`, palabras));
+  return [...sitios].sort((a, b) => encaja(b) - encaja(a) || distanciaM(punto, a.punto) - distanciaM(punto, b.punto));
 }
 
 // La dirección del punto que se toca en el mapa (Nominatim, con su turno de 1 por segundo).
@@ -109,7 +129,7 @@ async function esperarTurno() {
   }
 }
 
-async function buscarEnOpenStreetMap(texto: string): Promise<ResultadoBusqueda> {
+async function buscarEnOpenStreetMap(texto: string, cerca: Punto | null = null): Promise<ResultadoBusqueda> {
   await esperarTurno();
   const parametros = new URLSearchParams({
     q: texto,
@@ -117,6 +137,8 @@ async function buscarEnOpenStreetMap(texto: string): Promise<ResultadoBusqueda> 
     limit: '1',
     'accept-language': 'es',
   });
+  // Prefiere lo de alrededor (unos 30 km), sin descartar lo de fuera.
+  if (cerca) parametros.set('viewbox', [cerca[1] - 0.3, cerca[0] + 0.3, cerca[1] + 0.3, cerca[0] - 0.3].join(','));
   try {
     const respuesta = await fetch(`https://nominatim.openstreetmap.org/search?${parametros}`);
     if (!respuesta.ok) {

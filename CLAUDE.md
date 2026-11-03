@@ -125,7 +125,8 @@ Lo anulado y el detalle → historia: "Decisiones del usuario".
   Montera"): `buscarCoordenadas` pregunta primero a TomTom y luego al buscador de siempre. En
   la captura, **"la clase de inglés es en…"** pone el sitio a esa cita ya apuntada, tras
   confirmar (`sitioDeCita`, sin IA). **"¿Es aquí?" como Google Maps** (03/11): basta el nombre;
-  se busca solo (cerca de casa) y sale en un mapa pequeño con los demás resultados y tocando el
+  se busca solo (donde estés si hay permiso de ubicación; si no, cerca de casa; lo que encaja con
+  todas las palabras y, entre eso, lo más cercano primero, `ordenarPorCercania`) y sale en un mapa pequeño con los demás resultados y tocando el
   mapa se mueve la chincheta (`ElegirSitio`, `buscarCandidatos`, dirección con Nominatim). Está
   en la captura y en "Otro sitio" de la ficha. → "Fase 6".
 - **Avisos en la web** con Web Push (web instalada, iOS 16.4+, Perfil > Avisos) y **alarmas al Reloj

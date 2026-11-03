@@ -1712,6 +1712,12 @@ borran solos a los 7 días.
   coordenadas. Está en la captura ("la clase de inglés es en…") y en "Otro sitio" de la ficha
   del evento, que busca sola 1 s después de dejar de escribir (3 letras o más). El perfil y la
   Época siguen con el primer resultado, sin mapa.
+- **Más preciso donde estás** (03/11/2026, "más preciso cuando sepas la ubicación exacta"): si
+  ya dio permiso de ubicación, `buscarCandidatos` busca alrededor de donde está ahora
+  (`ubicacionActual`, sin esperar más de 4 s); si no, cerca de casa. Luego `ordenarPorCercania`
+  pone primero lo que encaja con todas las palabras («basic fit montera» → el de Montera) y,
+  entre eso, lo más cercano («el corte inglés» → el de su barrio). Nominatim (sin servidor)
+  también prefiere lo de alrededor (`viewbox` de unos 30 km). Nunca pide el permiso aquí.
 
 ## Fase 7: alarmas (decisiones)
 
