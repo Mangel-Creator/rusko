@@ -44,7 +44,7 @@ import { sumarDias, type ClaveDia } from '@/services/fechas';
 import { colores, espacio } from '@/theme';
 
 import { ExtrasExamen } from './ExtrasExamen';
-import { formatoHoras, NOMBRES_DIAS, OPCIONES_DIFICULTAD, OPCIONES_MOMENTO_VISUAL } from './textos';
+import { formatoHoras, NOMBRES_DIAS, OPCIONES_DIFICULTAD, OPCIONES_LEJOS, OPCIONES_MOMENTO_VISUAL } from './textos';
 
 type Props = {
   hoy: ClaveDia;
@@ -194,11 +194,6 @@ const PREGUNTAS: Pregunta[] = [
 ];
 
 // Con el examen a más de 10 días (DIAS_CERCA), en qué momento prefiere estudiar.
-const OPCIONES_LEJOS = [
-  { valor: 'igual', etiqueta: 'A la misma' },
-  ...OPCIONES_MOMENTO_VISUAL.map(({ valor, etiqueta }) => ({ valor, etiqueta })),
-];
-
 // Cómo le va según el momento: lejos o cerca del examen, el fin de semana y los imprevistos.
 const PREGUNTAS_MOMENTO: Pregunta[] = [
   {

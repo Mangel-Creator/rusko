@@ -1400,6 +1400,13 @@ animaciones infinitas.
   - Lo aprende: `conAjusteRitmo` mueve un 5 % el ritmo del perfil de estudio (es un examen, no todo su
     ritmo), así el siguiente plan sale más cerca. En el plan de ejemplo no aprende nada.
   - Pruebas en `perfilEstudio.test.ts`; probado en localhost a tamaño móvil.
+- **Poner al día un plan ya hecho** (03/11/2026, lo pidió el usuario: "actualizarme el plan que tengo").
+  El plan vive en su dispositivo, así que no se puede cambiar desde fuera. Los botones de horas y el
+  "¿Lo muevo?" ya le valen; la dosificación lejos del examen y su hora solo salían del cuestionario,
+  que no se ve al editar. Ahora, en Editar > Tu ritmo > Más ajustes: "Con el examen a más de 4 semanas,
+  ¿cuánto estudias?" (Todo, Un poco menos = 0,75, Bastante menos = 0,6, los mismos valores que el
+  cuestionario) y "Y entonces, ¿a qué hora prefieres estudiar?" (`OPCIONES_LEJOS`, ahora en
+  `epoca/textos.ts`). Probado en localhost a tamaño móvil.
 
 ## Servidor propio: Supabase (desde la fase 5)
 

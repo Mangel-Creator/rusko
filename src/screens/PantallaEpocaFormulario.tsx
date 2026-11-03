@@ -56,7 +56,9 @@ import {
   DESCANSO_TEXTO,
   formatoHoras,
   NOMBRES_DIAS,
+  OPCIONES_CARGA_LEJOS,
   OPCIONES_DESCANSO,
+  OPCIONES_LEJOS,
   OPCIONES_MOMENTO_VISUAL,
   OPCIONES_TIPO_VISUAL,
   OPCIONES_TRAYECTO,
@@ -334,6 +336,18 @@ function Formulario({ epoca, epocas, registro, perfil, pasoInicial, dorada }: Pr
               opciones={opcionesLibre}
               valor={b.diaLibre === null ? 'ninguno' : String(b.diaLibre)}
               alCambiar={(valor) => cambiar({ diaLibre: valor === 'ninguno' ? null : (Number(valor) as DiaSemana) })}
+            />
+            <Selector
+              etiqueta="Con el examen a más de 4 semanas, ¿cuánto estudias?"
+              opciones={OPCIONES_CARGA_LEJOS}
+              valor={b.cargaLejos === null ? 'todo' : b.cargaLejos <= 0.6 ? '0.6' : '0.75'}
+              alCambiar={(valor) => cambiar({ cargaLejos: valor === 'todo' ? null : Number(valor) })}
+            />
+            <Selector
+              etiqueta="Y entonces, ¿a qué hora prefieres estudiar?"
+              opciones={OPCIONES_LEJOS}
+              valor={b.rindeLejos ?? 'igual'}
+              alCambiar={(valor) => cambiar({ rindeLejos: valor === 'igual' ? null : valor })}
             />
             <SelectorDias
               etiqueta="Qué días vas (los demás, en casa)"

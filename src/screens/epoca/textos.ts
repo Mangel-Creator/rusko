@@ -51,6 +51,18 @@ export const OPCIONES_MOMENTO_VISUAL: OpcionVisual<MomentoDelDia>[] = [
   { valor: 'noche', etiqueta: 'Noche', icono: 'moon-outline' },
 ];
 
+// Con el examen aún lejos: a qué hora y cuánto (lo mismo que pregunta el cuestionario).
+export const OPCIONES_LEJOS: Opcion<'igual' | MomentoDelDia>[] = [
+  { valor: 'igual', etiqueta: 'A la misma' },
+  ...OPCIONES_MOMENTO_VISUAL.map(({ valor, etiqueta }) => ({ valor, etiqueta })),
+];
+
+export const OPCIONES_CARGA_LEJOS: Opcion<'todo' | '0.75' | '0.6'>[] = [
+  { valor: 'todo', etiqueta: 'Todo' },
+  { valor: '0.75', etiqueta: 'Un poco menos' },
+  { valor: '0.6', etiqueta: 'Bastante menos' },
+];
+
 export const OPCIONES_DIFICULTAD_VISUAL: OpcionVisual<Dificultad>[] = [
   { valor: 'facil', etiqueta: 'Fácil', icono: 'flame-outline', veces: 1 },
   { valor: 'media', etiqueta: 'Media', icono: 'flame-outline', veces: 2 },

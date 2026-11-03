@@ -130,7 +130,8 @@ Lo anulado y el detalle → historia: "Decisiones del usuario".
 - **El plan se dosifica y pregunta antes de mover el estudio** (03/11, sin IA): con el examen a más de
   4 semanas estudia la parte que dijo (`cargaLejos`; si rinde mejor bajo presión, 0,75) y sube poco a
   poco hasta todo a 10 días (`factorLejos`); lejos, a la hora que eligió para entonces
-  (`ritmo.rindeLejos`), y cerca, a la que más le cunde. Si una cita de la captura, del calendario o del
+  (`ritmo.rindeLejos`), y cerca, a la que más le cunde. En un plan ya hecho se cambian los dos en Editar >
+  Tu ritmo > Más ajustes. Si una cita de la captura, del calendario o del
   correo cae encima de un bloque, pregunta "¿Lo muevo?" (`estudioQuePisa`); el plan lo recoloca solo.
 - **Horas que no cuadran, en un toque** (03/11, sin IA): en Época > Hitos, "¿No cuadran las horas?" con
   "Son pocas" (+30 %) y "Demasiadas" (−25 %) por examen y sus temas (`ajustarHorasHito`); el plan se
